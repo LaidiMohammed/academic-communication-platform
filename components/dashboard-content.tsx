@@ -11,7 +11,7 @@ export function DashboardContent({ children }: DashboardContentProps) {
 
   return (
     <main
-      className={`mt-16 transition-all duration-300 ease-out p-4 md:p-6 ${
+      className={`transition-all duration-300 ease-out p-4 md:p-6 ${
         isMinimized ? 'md:ml-20' : 'md:ml-64'
       }`}
     >
