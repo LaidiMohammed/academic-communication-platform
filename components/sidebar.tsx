@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useSidebar } from '@/lib/sidebar-context';
@@ -98,6 +99,21 @@ export function Sidebar() {
 
         {/* User Profile Section */}
         <div className={`p-4 border-t border-border space-y-3 ${isMinimized ? 'flex flex-col items-center' : ''}`}>
+          {/* Membership Status */}
+          <Link href="/dashboard/profile">
+            <div className={`w-full p-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 rounded-lg hover:from-purple-500/30 hover:to-pink-500/30 transition cursor-pointer ${isMinimized ? 'flex justify-center' : ''}`}>
+              <div className={`flex items-center ${isMinimized ? 'gap-0' : 'gap-2'} ${isMinimized ? 'justify-center' : ''}`}>
+                <CreditCard size={18} className="text-purple-400 flex-shrink-0" />
+                {!isMinimized && (
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-purple-300">Active Member</p>
+                    <p className="text-xs text-purple-200">$9.99/month</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Link>
+          
           <Link href="/dashboard/profile">
             <div className={`flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-secondary/80 transition cursor-pointer ${isMinimized ? 'justify-center' : ''}`}>
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
@@ -114,7 +130,7 @@ export function Sidebar() {
 
           <button
             onClick={logout}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition w-full ${isMinimized ? 'justify-center' : ''}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition w-full ${isMinimized ? 'justify-center px-2' : ''}`}
             title={isMinimized ? 'Logout' : ''}
           >
             <LogOut size={20} strokeWidth={2} />
@@ -159,6 +175,19 @@ export function Sidebar() {
 
         {/* User Profile Section */}
         <div className="p-4 border-t border-border space-y-3">
+          {/* Membership Status */}
+          <Link href="/dashboard/profile" onClick={() => setIsOpen(false)}>
+            <div className="w-full p-3 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-400/30 rounded-lg hover:from-purple-500/30 hover:to-pink-500/30 transition cursor-pointer">
+              <div className="flex items-center gap-2">
+                <CreditCard size={18} className="text-purple-400 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-purple-300">Active Member</p>
+                  <p className="text-xs text-purple-200">$9.99/month</p>
+                </div>
+              </div>
+            </div>
+          </Link>
+
           <Link href="/dashboard/profile" onClick={() => setIsOpen(false)}>
             <div className="flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-secondary/80 transition cursor-pointer">
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
