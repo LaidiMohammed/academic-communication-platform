@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { 
   Home, 
   MessageSquare, 
-  Users, 
   Video, 
   BookOpen, 
   Award, 
@@ -13,7 +12,9 @@ import {
   Info,
   LogOut,
   Menu,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useState } from 'react';
@@ -22,11 +23,11 @@ export function Sidebar() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   const menuItems = [
     { icon: Home, label: 'Home', href: '/dashboard', id: 'home' },
     { icon: MessageSquare, label: 'Chat', href: '/dashboard/chat', id: 'chat' },
-    { icon: Users, label: 'Groups', href: '/dashboard/groups', id: 'groups' },
     { icon: Video, label: 'Meet', href: '/dashboard/meet', id: 'meet' },
     { icon: BookOpen, label: 'Lessons', href: '/dashboard/lessons', id: 'lessons' },
     { icon: Award, label: 'Teachers', href: '/dashboard/teachers', id: 'teachers' },
@@ -41,69 +42,137 @@ export function Sidebar() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+        className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-lg bg-primary text-primary-foreground hover:shadow-lg transition"
       >
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
       {/* Sidebar */}
       <div
-        className={`fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white shadow-2xl transform transition-transform duration-300 z-40 md:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`hidden md:flex fixed left-0 top-0 h-screen bg-card border-r border-border flex-col transition-all duration-300 z-40 ${
+          isMinimized ? 'w-20' : 'w-64'
         }`}
       >
-        {/* Logo */}
-        <div className="p-6 border-b border-slate-700">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-            EduConnect
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">School Collaboration</p>
+        {/* Header */}
+        <div className="p-4 border-b border-border flex items-center justify-between">
+          {!isMinimized && (
+            <h1 className="text-xl font-bold text-foreground">EduConnect</h1>
+          )}
+          <button
+            onClick={() => setIsMinimized(!isMinimized)}
+            className="p-2 rounded-lg hover:bg-secondary transition text-foreground ml-auto flex-shrink-0"
+          >
+            {isMinimized ? (
+              <ChevronRight size={20} strokeWidth={2} />
+            ) : (
+              <ChevronLeft size={20} strokeWidth={2} />
+            )}
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-6">
-          <div className="px-3 space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-                    active
-                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg'
-                      : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                  }`}
-                >
-                  <Icon size={20} className={active ? 'text-white' : 'group-hover:text-cyan-400 transition'} />
-                  <span className="font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+        <nav className="flex-1 overflow-y-auto p-3 space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  active
+                    ? 'bg-primary text-primary-foreground shadow-lg'
+                    : 'text-foreground hover:bg-secondary'
+                } ${isMinimized ? 'justify-center' : ''}`}
+                title={isMinimized ? item.label : ''}
+              >
+                <Icon size={20} strokeWidth={2} />
+                {!isMinimized && <span className="font-medium text-sm">{item.label}</span>}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* User Profile Section */}
-        <div className="p-4 border-t border-slate-700 space-y-3">
-          <div className="flex items-center gap-3 px-4 py-3 bg-slate-700/50 rounded-lg">
-            <img
-              src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=user'}
-              alt={user?.name}
-              className="w-10 h-10 rounded-full"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user?.name}</p>
-              <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+        <div className={`p-4 border-t border-border space-y-3 ${isMinimized ? 'flex flex-col items-center' : ''}`}>
+          <Link href="/dashboard/profile">
+            <div className={`flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-secondary/80 transition cursor-pointer ${isMinimized ? 'justify-center' : ''}`}>
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-bold text-primary">U</span>
+              </div>
+              {!isMinimized && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </div>
+              )}
             </div>
-          </div>
+          </Link>
 
           <button
             onClick={logout}
-            className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-slate-300 hover:bg-red-600/20 hover:text-red-400 transition"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition w-full ${isMinimized ? 'justify-center' : ''}`}
+            title={isMinimized ? 'Logout' : ''}
           >
-            <LogOut size={18} />
+            <LogOut size={20} strokeWidth={2} />
+            {!isMinimized && <span className="text-sm font-medium">Logout</span>}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Sidebar */}
+      <div
+        className={`fixed left-0 top-0 h-screen w-64 bg-card border-r border-border flex flex-col transition-transform duration-300 z-40 md:hidden ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-border">
+          <h1 className="text-xl font-bold text-foreground">EduConnect</h1>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                onClick={() => setIsOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  active
+                    ? 'bg-primary text-primary-foreground shadow-lg'
+                    : 'text-foreground hover:bg-secondary'
+                }`}
+              >
+                <Icon size={20} strokeWidth={2} />
+                <span className="font-medium text-sm">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* User Profile Section */}
+        <div className="p-4 border-t border-border space-y-3">
+          <Link href="/dashboard/profile" onClick={() => setIsOpen(false)}>
+            <div className="flex items-center gap-3 p-3 bg-secondary rounded-lg hover:bg-secondary/80 transition cursor-pointer">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-bold text-primary">U</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              </div>
+            </div>
+          </Link>
+
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition w-full"
+          >
+            <LogOut size={20} strokeWidth={2} />
             <span className="text-sm font-medium">Logout</span>
           </button>
         </div>

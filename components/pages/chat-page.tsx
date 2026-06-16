@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Send,
   Heart,
@@ -10,8 +10,6 @@ import {
   Phone,
   Video,
   MessageCircle,
-  Users,
-  ChevronDown,
   Eye,
   Copy,
   Trash2,
@@ -19,7 +17,6 @@ import {
 import { ChatInputWidget } from '@/components/chat-input-widget';
 
 export function ChatPage() {
-  const [chatMode, setChatMode] = useState<'individual' | 'group'>('individual');
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
   const [hoveredMessage, setHoveredMessage] = useState<number | null>(null);
@@ -34,7 +31,6 @@ export function ChatPage() {
       time: '2m',
       unread: 2,
       online: true,
-      type: 'individual',
     },
     {
       id: 'chat-2',
@@ -44,7 +40,6 @@ export function ChatPage() {
       time: '1h',
       unread: 0,
       online: false,
-      type: 'individual',
     },
     {
       id: 'chat-3',
@@ -54,37 +49,24 @@ export function ChatPage() {
       time: '3h',
       unread: 1,
       online: true,
-      type: 'individual',
     },
     {
-      id: 'group-1',
-      name: 'Math Study Group',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=math',
-      lastMessage: 'Who wants to solve the homework?',
-      time: '5m',
-      unread: 5,
-      online: true,
-      type: 'group',
-    },
-    {
-      id: 'group-2',
-      name: 'Physics Lab Notes',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=physics',
-      lastMessage: 'New experiment results posted',
-      time: '30m',
+      id: 'chat-4',
+      name: 'Jessica Lee',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jessica',
+      lastMessage: 'Let&apos;s grab coffee!',
+      time: '2h',
       unread: 3,
       online: true,
-      type: 'group',
     },
     {
-      id: 'group-3',
-      name: 'English Literature',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=english',
-      lastMessage: 'Discussion on Shakespeare',
-      time: '45m',
-      unread: 1,
-      online: true,
-      type: 'group',
+      id: 'chat-5',
+      name: 'Michael Brown',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael',
+      lastMessage: 'Project deadline is tomorrow',
+      time: '30m',
+      unread: 0,
+      online: false,
     },
   ];
 
@@ -137,11 +119,11 @@ export function ChatPage() {
     },
   ];
 
-  // Reset selected chat and expanded message when mode changes
-  useEffect(() => {
-    setSelectedChat(null);
+  // Reset expanded message when chat changes
+  const handleChatSelect = (chatId: string) => {
+    setSelectedChat(chatId);
     setExpandedMessage(null);
-  }, [chatMode]);
+  };
 
   const handleSendMessage = () => {
     if (messageText.trim()) {
@@ -149,47 +131,15 @@ export function ChatPage() {
     }
   };
 
-  const filteredChats = chats.filter(
-    (chat) =>
-      (chatMode === 'individual' && chat.type === 'individual') ||
-      (chatMode === 'group' && chat.type === 'group')
-  );
-
   const currentChat = chats.find((c) => c.id === selectedChat);
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-background">
-      {/* Chat List */}
-      <div className="w-full md:w-96 bg-card border-r border-border flex flex-col">
+    <div className="flex h-full bg-background gap-4">
+      {/* Chat List - Sidebar */}
+      <div className="w-full md:w-80 bg-card border-r border-border flex flex-col rounded-lg md:rounded-none">
         {/* Header */}
         <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-foreground">Messages</h2>
-            {/* Chat Mode Toggle */}
-            <div className="flex items-center gap-2 bg-secondary rounded-full p-1">
-              <button
-                onClick={() => setChatMode('individual')}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  chatMode === 'individual'
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <MessageCircle size={14} strokeWidth={2.5} />
-              </button>
-              <button
-                onClick={() => setChatMode('group')}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  chatMode === 'group'
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Users size={14} strokeWidth={2.5} />
-              </button>
-            </div>
-          </div>
-
+          <h2 className="text-2xl font-bold text-foreground mb-4">Messages</h2>
           {/* Search */}
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -201,12 +151,13 @@ export function ChatPage() {
           </div>
         </div>
 
+        {/* Chats List */}
         <div className="flex-1 overflow-y-auto">
-          {filteredChats.length > 0 ? (
-            filteredChats.map((chat) => (
+          {chats.length > 0 ? (
+            chats.map((chat) => (
               <div
                 key={chat.id}
-                onClick={() => setSelectedChat(chat.id)}
+                onClick={() => handleChatSelect(chat.id)}
                 className={`p-4 border-b border-border cursor-pointer transition-all animate-slide-in-left ${
                   selectedChat === chat.id
                     ? 'bg-primary/10 border-l-4 border-l-primary'
@@ -247,17 +198,17 @@ export function ChatPage() {
             ))
           ) : (
             <div className="flex items-center justify-center h-32 text-muted-foreground">
-              <p>No {chatMode} chats</p>
+              <p>No chats</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Chat Window */}
-      {selectedChat && currentChat && (
-        <div className="hidden md:flex flex-1 flex-col animate-fade-scale">
+      {/* Chat Window - Full Width */}
+      {selectedChat && currentChat ? (
+        <div className="hidden md:flex flex-1 flex-col bg-card rounded-lg overflow-hidden border border-border animate-fade-scale">
           {/* Chat Header */}
-          <div className="bg-card border-b border-border p-4 flex items-center justify-between">
+          <div className="bg-card border-b border-border p-4 flex items-center justify-between sticky top-0 z-10">
             <div className="flex items-center gap-3">
               <img
                 src={currentChat.avatar}
@@ -286,7 +237,7 @@ export function ChatPage() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -302,13 +253,13 @@ export function ChatPage() {
                   />
                 )}
 
-                <div className={`flex flex-col ${msg.isOwn ? 'items-end' : 'items-start'}`}>
+                <div className={`flex flex-col ${msg.isOwn ? 'items-end' : 'items-start'} max-w-sm`}>
                   {/* Message Bubble */}
                   <div
-                    onClick={() =>
-                      setExpandedMessage(expandedMessage === msg.id ? null : msg.id)
-                    }
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl break-words cursor-pointer transition-all hover:shadow-md ${
+                    onClick={() => {
+                      setExpandedMessage(expandedMessage === msg.id ? null : msg.id);
+                    }}
+                    className={`px-4 py-2 rounded-2xl break-words cursor-pointer transition-all hover:shadow-md ${
                       msg.isOwn
                         ? 'bg-primary text-primary-foreground rounded-br-none'
                         : 'bg-secondary text-foreground rounded-bl-none'
@@ -340,7 +291,7 @@ export function ChatPage() {
 
                   {/* Expanded Details */}
                   {expandedMessage === msg.id && (
-                    <div className="mt-2 p-3 bg-card border border-border rounded-lg text-xs space-y-2 animate-expand-height w-48">
+                    <div className="mt-2 p-3 bg-background border border-border rounded-lg text-xs space-y-2 w-48 animate-fade-scale">
                       <div className="flex items-center gap-2">
                         <Eye size={14} className="text-muted-foreground flex-shrink-0" />
                         <span className="text-muted-foreground">
@@ -368,7 +319,7 @@ export function ChatPage() {
                 </div>
 
                 {/* Hover Actions */}
-                {hoveredMessage === msg.id && (
+                {hoveredMessage === msg.id && !expandedMessage && (
                   <div className="flex items-center gap-1">
                     <button className="p-1 rounded-md hover:bg-secondary transition text-foreground">
                       <Heart size={16} strokeWidth={2} />
@@ -380,7 +331,7 @@ export function ChatPage() {
           </div>
 
           {/* Input Area */}
-          <div className="bg-card border-t border-border p-4">
+          <div className="bg-card border-t border-border p-4 sticky bottom-0">
             <div className="flex items-end gap-3">
               <ChatInputWidget
                 onSondage={() => console.log('Sondage')}
@@ -398,24 +349,21 @@ export function ChatPage() {
                 className="flex-1 px-4 py-2 rounded-lg bg-secondary border border-border focus:outline-none focus:ring-2 focus:ring-primary transition"
               />
 
-              <button className="p-2 rounded-lg hover:bg-secondary transition text-foreground hover:text-accent">
+              <button className="p-2 rounded-lg hover:bg-secondary transition text-foreground hover:text-accent flex-shrink-0">
                 <Mic size={20} strokeWidth={2} />
               </button>
 
               <button
                 onClick={handleSendMessage}
-                className="p-2 rounded-lg bg-primary text-primary-foreground hover:shadow-lg transition active:scale-95"
+                className="p-2 rounded-lg bg-primary text-primary-foreground hover:shadow-lg transition active:scale-95 flex-shrink-0"
               >
                 <Send size={20} strokeWidth={2} />
               </button>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Mobile: No chat selected message */}
-      {!selectedChat && (
-        <div className="flex-1 hidden md:flex items-center justify-center bg-background">
+      ) : (
+        <div className="hidden md:flex flex-1 items-center justify-center bg-card rounded-lg border border-border">
           <div className="text-center">
             <MessageCircle size={48} className="mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">Select a chat to start messaging</p>
