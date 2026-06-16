@@ -9,19 +9,12 @@ import {
   Mic,
   Phone,
   Video,
-  MessageCircle,
-  Users,
-  ChevronDown,
-  Eye,
-  Copy,
-  Trash2,
   Info,
 } from 'lucide-react';
 import { ChatInputWidget } from '@/components/chat-input-widget';
 import { ChatDetailsPanel } from '@/components/chat-details-panel';
 
 export function ChatPage() {
-  const [chatMode, setChatMode] = useState<'individual' | 'group'>('individual');
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
   const [hoveredMessage, setHoveredMessage] = useState<number | null>(null);
@@ -79,36 +72,6 @@ export function ChatPage() {
       unread: 0,
       online: false,
       type: 'individual',
-    },
-    {
-      id: 'group-1',
-      name: 'Math Study Group',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=math',
-      lastMessage: 'Who wants to solve the homework?',
-      time: '5m',
-      unread: 5,
-      online: true,
-      type: 'group',
-    },
-    {
-      id: 'group-2',
-      name: 'Physics Lab Notes',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=physics',
-      lastMessage: 'New experiment results posted',
-      time: '30m',
-      unread: 3,
-      online: true,
-      type: 'group',
-    },
-    {
-      id: 'group-3',
-      name: 'English Literature',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=english',
-      lastMessage: 'Discussion on Shakespeare',
-      time: '45m',
-      unread: 1,
-      online: true,
-      type: 'group',
     },
   ];
 
@@ -180,44 +143,19 @@ export function ChatPage() {
   };
 
   const filteredChats = chats.filter(
-    (chat) =>
-      (chatMode === 'individual' && chat.type === 'individual') ||
-      (chatMode === 'group' && chat.type === 'group')
+    (chat) => chat.type === 'individual'
   );
 
   const currentChat = chats.find((c) => c.id === selectedChat);
 
   return (
-    <div className="flex h-full bg-background gap-4">
+    <div className="flex h-full bg-background">
       {/* Chat List - Sidebar */}
-      <div className="w-full md:w-80 bg-card border-r border-border flex flex-col rounded-lg md:rounded-none">
+      <div className="w-full md:w-80 bg-card border-r border-border flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-foreground">Messages</h2>
-            {/* Chat Mode Toggle */}
-            <div className="flex items-center gap-2 bg-secondary rounded-full p-1">
-              <button
-                onClick={() => setChatMode('individual')}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  chatMode === 'individual'
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <MessageCircle size={14} strokeWidth={2.5} />
-              </button>
-              <button
-                onClick={() => setChatMode('group')}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  chatMode === 'group'
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Users size={14} strokeWidth={2.5} />
-              </button>
-            </div>
           </div>
 
           {/* Search */}
@@ -286,7 +224,7 @@ export function ChatPage() {
 
       {/* Chat Window - Full Width */}
       {selectedChat && currentChat ? (
-        <div className="hidden md:flex flex-1 flex-col bg-card rounded-lg overflow-hidden border border-border animate-fade-scale">
+        <div className="hidden md:flex flex-1 flex-col bg-card overflow-hidden border-l border-border animate-fade-scale">
           {/* Chat Header */}
           <div className="bg-card border-b border-border p-4 flex items-center justify-between sticky top-0 z-10">
             <div className="flex items-center gap-3">

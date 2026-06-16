@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Calendar, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 interface MembershipSectionProps {
   userId: string;
@@ -116,7 +116,7 @@ export function MembershipSection({
         {showQR && (
           <div className="flex justify-center p-6 bg-background rounded-lg border border-border">
             <div className="p-4 bg-white rounded-lg shadow-lg">
-              <QRCode
+              <QRCodeCanvas
                 value={qrData}
                 size={200}
                 level="H"
