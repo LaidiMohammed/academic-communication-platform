@@ -1,7 +1,6 @@
 'use client';
 
 import { LandingNavbar } from '@/components/landing-navbar';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, BookOpen, Users, Zap, BarChart3, Lock, Smartphone } from 'lucide-react';
 
@@ -11,16 +10,11 @@ export default function Home() {
       <LandingNavbar />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-16 px-4 md:px-6">
+      <section className="pt-40 pb-16 px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              className="space-y-8"
-            >
+            <div className="space-y-8">
               <div className="space-y-4">
                 <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight">
                   Transform Education Today
@@ -59,17 +53,11 @@ export default function Home() {
                   Real-time Collaboration
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Right Illustration */}
-            <motion.div
-              initial={{ opacity: 0, x: 50, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              transition={{ duration: 0.8 }}
-              className="flex justify-center"
-            >
+            <div className="flex justify-center">
               <div className="relative w-full max-w-md h-96">
-                {/* Illustration using SVG */}
                 <svg
                   viewBox="0 0 300 400"
                   className="w-full h-full drop-shadow-2xl"
@@ -113,7 +101,7 @@ export default function Home() {
                   <circle cx="220" cy="55" r="3" fill="rgba(255, 255, 255, 0.4)" />
                 </svg>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
@@ -121,14 +109,9 @@ export default function Home() {
       {/* Features Section */}
       <section id="features" className="py-20 px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-4xl md:text-5xl font-bold text-white text-center mb-16"
-          >
+          <h2 className="text-4xl md:text-5xl font-bold text-white text-center mb-16">
             Powerful Features for Modern Education
-          </motion.h2>
+          </h2>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -163,11 +146,8 @@ export default function Home() {
                 description: 'Full access from any device, anywhere, anytime',
               },
             ].map((feature, idx) => (
-              <motion.div
+              <div
                 key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
                 className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 hover:bg-white/20 transition group cursor-pointer"
               >
                 <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-6 group-hover:bg-white/30 transition">
@@ -175,7 +155,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
                 <p className="text-blue-100">{feature.description}</p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -184,12 +164,7 @@ export default function Home() {
       {/* CTA Section */}
       <section className="py-20 px-4 md:px-6">
         <div className="max-w-4xl mx-auto bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-12 text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8 }}
-            className="space-y-6"
-          >
+          <div className="space-y-6">
             <h2 className="text-4xl font-bold text-white">Ready to Transform Your School?</h2>
             <p className="text-xl text-blue-100">
               Join hundreds of schools using Bendella to enhance their educational experience.
@@ -200,7 +175,7 @@ export default function Home() {
             >
               Start Your Free Trial
             </Link>
-          </motion.div>
+          </div>
         </div>
       </section>
 
