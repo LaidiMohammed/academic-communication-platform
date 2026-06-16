@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   MessageSquare,
   Users,
@@ -82,26 +83,44 @@ export function HomePage() {
       <div className="relative overflow-hidden px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           {/* Greeting */}
-          <div className="mb-8 animate-slide-in-up">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="mb-8"
+          >
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-4">
               {greeting},{' '}
-              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent animate-bounce-subtle">
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.8 }}
+                className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"
+              >
                 {user?.name || 'Student'}!
-              </span>
+              </motion.span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl">
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.8 }}
+              className="text-lg text-muted-foreground max-w-2xl"
+            >
               Your personalized learning dashboard awaits. Connect with peers, engage in lessons, and collaborate seamlessly.
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
 
           {/* Stats Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
             {stats.map((stat, index) => {
               const Icon = stat.icon;
               return (
-                <div
+                <motion.div
                   key={index}
-                  className={`animate-slide-in-up stagger-${index + 1} group relative`}
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: 0.1 + index * 0.1, duration: 0.6, ease: 'easeOut' }}
+                  className="group relative"
                 >
                   <div
                     className={`${stat.bgColor} rounded-2xl p-6 border border-border transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer overflow-hidden`}
@@ -127,53 +146,65 @@ export function HomePage() {
                       </p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
 
           {/* Quick Links */}
           <div className="mb-12">
-            <h2 className="text-2xl font-bold text-foreground mb-6 animate-slide-in-up stagger-1">
+            <motion.h2
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              className="text-2xl font-bold text-foreground mb-6"
+            >
               Quick Access
-            </h2>
+            </motion.h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {quickLinks.map((link, index) => {
                 const Icon = link.icon;
                 return (
-                  <Link
+                  <motion.div
                     key={index}
-                    href={link.href}
-                    className={`animate-slide-in-up stagger-${index + 1}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7 + index * 0.1, duration: 0.6, ease: 'easeOut' }}
                   >
-                    <div
-                      className={`group relative h-full bg-gradient-to-br ${link.color} rounded-2xl p-6 text-white transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95 overflow-hidden`}
-                    >
-                      {/* Animated overlay */}
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-20 bg-white transition-opacity duration-300" />
+                    <Link href={link.href}>
+                      <div
+                        className={`group relative h-full bg-gradient-to-br ${link.color} rounded-2xl p-6 text-white transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95 overflow-hidden`}
+                      >
+                        {/* Animated overlay */}
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-20 bg-white transition-opacity duration-300" />
 
-                      <div className="relative">
-                        <div className="mb-4 inline-block p-3 rounded-lg bg-white/20 backdrop-blur-sm group-hover:bg-white/30 transition-colors">
-                          <Icon size={24} strokeWidth={2} />
-                        </div>
-                        <h3 className="text-lg font-bold mb-2">{link.label}</h3>
-                        <div className="flex items-center gap-2 text-white/80 group-hover:text-white transition-colors">
-                          <span className="text-sm">Explore</span>
-                          <ArrowRight
-                            size={16}
-                            className="group-hover:translate-x-1 transition-transform"
-                          />
+                        <div className="relative">
+                          <div className="mb-4 inline-block p-3 rounded-lg bg-white/20 backdrop-blur-sm group-hover:bg-white/30 transition-colors">
+                            <Icon size={24} strokeWidth={2} />
+                          </div>
+                          <h3 className="text-lg font-bold mb-2">{link.label}</h3>
+                          <div className="flex items-center gap-2 text-white/80 group-hover:text-white transition-colors">
+                            <span className="text-sm">Explore</span>
+                            <ArrowRight
+                              size={16}
+                              className="group-hover:translate-x-1 transition-transform"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+                  </motion.div>
                 );
               })}
             </div>
           </div>
 
           {/* AI Assistant CTA */}
-          <div className="animate-slide-in-up stagger-4">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.1, duration: 0.8, ease: 'easeOut' }}
+          >
             <div className="bg-card border border-border rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-accent/50">
               <div className="inline-block p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 mb-4">
                 <Sparkles className="text-primary" size={28} />
@@ -190,30 +221,40 @@ export function HomePage() {
                 </button>
               </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
       {/* Activity Section */}
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-2xl font-bold text-foreground mb-6 animate-slide-in-up">
+          <motion.h2
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-2xl font-bold text-foreground mb-6"
+          >
             Recent Activity
-          </h2>
-          <div className="space-y-3 animate-slide-in-up stagger-1">
+          </motion.h2>
+          <div className="space-y-3">
             {[
               'You joined the "Advanced Math" group',
               'New lesson: "Calculus Fundamentals" is available',
               'Meeting scheduled for tomorrow at 2 PM',
               'You received 5 new messages',
             ].map((activity, index) => (
-              <div
+              <motion.div
                 key={index}
-                className={`animate-slide-in-up stagger-${(index % 4) + 1} bg-card border border-border rounded-lg p-4 flex items-start gap-4 hover:bg-secondary/50 transition-colors`}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1, duration: 0.5 }}
+                viewport={{ once: true }}
+                className="bg-card border border-border rounded-lg p-4 flex items-start gap-4 hover:bg-secondary/50 transition-colors"
               >
-                <div className="w-2 h-2 rounded-full bg-accent mt-2" />
+                <div className="w-2 h-2 rounded-full bg-accent mt-2 flex-shrink-0" />
                 <p className="text-foreground">{activity}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>

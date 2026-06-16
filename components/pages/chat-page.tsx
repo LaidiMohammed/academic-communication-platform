@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Send,
   Heart,
@@ -19,8 +19,8 @@ import {
 import { ChatInputWidget } from '@/components/chat-input-widget';
 
 export function ChatPage() {
-  const [selectedChat, setSelectedChat] = useState<string | null>('chat-1');
   const [chatMode, setChatMode] = useState<'individual' | 'group'>('individual');
+  const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
   const [hoveredMessage, setHoveredMessage] = useState<number | null>(null);
   const [expandedMessage, setExpandedMessage] = useState<number | null>(null);
@@ -38,6 +38,26 @@ export function ChatPage() {
     },
     {
       id: 'chat-2',
+      name: 'Prof. Smith',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=smith',
+      lastMessage: 'Check the assignment',
+      time: '1h',
+      unread: 0,
+      online: false,
+      type: 'individual',
+    },
+    {
+      id: 'chat-3',
+      name: 'Alex Chen',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex',
+      lastMessage: 'Thanks for helping!',
+      time: '3h',
+      unread: 1,
+      online: true,
+      type: 'individual',
+    },
+    {
+      id: 'group-1',
       name: 'Math Study Group',
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=math',
       lastMessage: 'Who wants to solve the homework?',
@@ -47,14 +67,24 @@ export function ChatPage() {
       type: 'group',
     },
     {
-      id: 'chat-3',
-      name: 'Prof. Smith',
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=smith',
-      lastMessage: 'Check the assignment',
-      time: '1h',
-      unread: 0,
-      online: false,
-      type: 'individual',
+      id: 'group-2',
+      name: 'Physics Lab Notes',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=physics',
+      lastMessage: 'New experiment results posted',
+      time: '30m',
+      unread: 3,
+      online: true,
+      type: 'group',
+    },
+    {
+      id: 'group-3',
+      name: 'English Literature',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=english',
+      lastMessage: 'Discussion on Shakespeare',
+      time: '45m',
+      unread: 1,
+      online: true,
+      type: 'group',
     },
   ];
 
@@ -66,10 +96,17 @@ export function ChatPage() {
       time: '10:30',
       isOwn: false,
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah',
-      reactions: ['❤️'],
+      reactions: [],
       readBy: 1,
     },
-    { id: 2, sender: 'You', text: 'Hi! Doing great!', time: '10:31', isOwn: true },
+    { 
+      id: 2, 
+      sender: 'You', 
+      text: 'Hi! Doing great!', 
+      time: '10:31', 
+      isOwn: true,
+      readBy: 1,
+    },
     {
       id: 3,
       sender: 'Sarah',
@@ -80,7 +117,14 @@ export function ChatPage() {
       reactions: [],
       readBy: 0,
     },
-    { id: 4, sender: 'You', text: "Sure! Let's start tomorrow.", time: '10:33', isOwn: true, reactions: [] },
+    { 
+      id: 4, 
+      sender: 'You', 
+      text: "Sure! Let's start tomorrow.", 
+      time: '10:33', 
+      isOwn: true,
+      readBy: 1,
+    },
     {
       id: 5,
       sender: 'Sarah',
@@ -88,16 +132,28 @@ export function ChatPage() {
       time: '10:35',
       isOwn: false,
       avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah',
-      reactions: ['🎉', '👍'],
+      reactions: [],
       readBy: 2,
     },
   ];
+
+  // Reset selected chat and expanded message when mode changes
+  useEffect(() => {
+    setSelectedChat(null);
+    setExpandedMessage(null);
+  }, [chatMode]);
 
   const handleSendMessage = () => {
     if (messageText.trim()) {
       setMessageText('');
     }
   };
+
+  const filteredChats = chats.filter(
+    (chat) =>
+      (chatMode === 'individual' && chat.type === 'individual') ||
+      (chatMode === 'group' && chat.type === 'group')
+  );
 
   const currentChat = chats.find((c) => c.id === selectedChat);
 
@@ -145,15 +201,9 @@ export function ChatPage() {
           </div>
         </div>
 
-        {/* Chats */}
         <div className="flex-1 overflow-y-auto">
-          {chats
-            .filter(
-              (chat) =>
-                (chatMode === 'individual' && chat.type === 'individual') ||
-                (chatMode === 'group' && chat.type === 'group')
-            )
-            .map((chat) => (
+          {filteredChats.length > 0 ? (
+            filteredChats.map((chat) => (
               <div
                 key={chat.id}
                 onClick={() => setSelectedChat(chat.id)}
@@ -194,7 +244,12 @@ export function ChatPage() {
                   )}
                 </div>
               </div>
-            ))}
+            ))
+          ) : (
+            <div className="flex items-center justify-center h-32 text-muted-foreground">
+              <p>No {chatMode} chats</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -285,24 +340,24 @@ export function ChatPage() {
 
                   {/* Expanded Details */}
                   {expandedMessage === msg.id && (
-                    <div className="mt-2 p-3 bg-card border border-border rounded-lg text-xs space-y-2 animate-expand-height">
+                    <div className="mt-2 p-3 bg-card border border-border rounded-lg text-xs space-y-2 animate-expand-height w-48">
                       <div className="flex items-center gap-2">
-                        <Eye size={14} className="text-muted-foreground" />
+                        <Eye size={14} className="text-muted-foreground flex-shrink-0" />
                         <span className="text-muted-foreground">
                           Read by {msg.readBy} {msg.readBy === 1 ? 'person' : 'people'}
                         </span>
                       </div>
-                      <div className="flex gap-2 pt-2 border-t border-border">
-                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition">
+                      <div className="flex gap-2 pt-2 border-t border-border flex-wrap">
+                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition whitespace-nowrap">
                           <Heart size={14} strokeWidth={2} />
                           React
                         </button>
-                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition">
+                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition whitespace-nowrap">
                           <Copy size={14} strokeWidth={2} />
                           Copy
                         </button>
                         {msg.isOwn && (
-                          <button className="flex items-center gap-1 text-destructive hover:text-destructive/80 transition">
+                          <button className="flex items-center gap-1 text-destructive hover:text-destructive/80 transition whitespace-nowrap">
                             <Trash2 size={14} strokeWidth={2} />
                             Delete
                           </button>
