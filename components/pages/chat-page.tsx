@@ -216,7 +216,7 @@ export function ChatPage() {
             ))
           ) : (
             <div className="flex items-center justify-center h-32 text-muted-foreground">
-              <p>No {chatMode} chats</p>
+              <p>No chats</p>
             </div>
           )}
         </div>
