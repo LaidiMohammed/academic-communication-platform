@@ -53,8 +53,12 @@ export function ChatPage() {
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);
   const [sending, setSending] = useState(false);
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
@@ -156,17 +160,21 @@ export function ChatPage() {
     setShowForward(null);
   };
 
-  const handlePollCreated = (question: string, options: string[]) => {
-    if (!selectedChat) return;
+  const handlePollCreated = () => {
+    if (!selectedChat || !pollQuestion.trim()) return;
+    const opts = pollOptions.filter(o => o.trim());
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',
-      text: `📊 Poll: ${question}`,
+      text: `📊 ${pollQuestion}`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'poll',
     };
     addMessage(selectedChat, newMsg);
+    setShowPollModal(false);
+    setPollQuestion('');
+    setPollOptions(['', '']);
   };
 
   const handleLocationShared = () => {
@@ -174,7 +182,7 @@ export function ChatPage() {
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',
-      text: '📍 Location shared',
+      text: '📍 Live location shared',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'location',
@@ -182,22 +190,27 @@ export function ChatPage() {
     addMessage(selectedChat, newMsg);
   };
 
-  const handleFilePicked = (file: FileInfo) => {
-    if (!selectedChat) return;
+  const handleFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedChat || !e.target.files?.[0]) return;
+    const f = e.target.files[0];
+    const size = f.size > 1024 * 1024 ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : `${(f.size / 1024).toFixed(0)} KB`;
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',
-      text: `📎 ${file.name}`,
+      text: `📎 ${f.name}`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'file',
-      file,
+      file: { name: f.name, size, url: URL.createObjectURL(f) },
     };
     addMessage(selectedChat, newMsg);
+    e.target.value = '';
   };
 
-  const handleImagePicked = () => {
-    if (!selectedChat) return;
+  const handleImagePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedChat || !e.target.files?.[0]) return;
+    const f = e.target.files[0];
+    const url = URL.createObjectURL(f);
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',
@@ -205,9 +218,10 @@ export function ChatPage() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'image',
-      image: 'https://picsum.photos/400/300?random=' + Date.now(),
+      image: url,
     };
     addMessage(selectedChat, newMsg);
+    e.target.value = '';
   };
 
   const handleEmojiSelect = (emoji: string) => {
@@ -410,35 +424,36 @@ export function ChatPage() {
                 {showEmoji && <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmoji(false)} />}
               </div>
               <ChatInputWidget
-                onSondage={() => {
-                  const q = prompt('Poll question:');
-                  if (q) handlePollCreated(q, ['Option 1', 'Option 2']);
+                onSondage={() => setShowPollModal(true)}
+                onLocation={handleLocationShared}
+                onFile={() => fileInputRef.current?.click()}
+                onGenerateImage={() => {
+                  const imgInput = document.createElement('input');
+                  imgInput.type = 'file';
+                  imgInput.accept = 'image/*';
+                  imgInput.onchange = (e: any) => handleImagePicked(e);
+                  imgInput.click();
                 }}
-                onLocation={() => {
-                  handleLocationShared();
-                }}
-                onFile={() => {
-                  const name = prompt('File name:') || 'document.pdf';
-                  handleFilePicked({ name, size: `${(Math.random() * 10 + 1).toFixed(1)} MB` });
-                }}
-                onGenerateImage={handleImagePicked}
               />
+              <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePicked} />
               <div className="flex-1 relative">
                 <input ref={inputRef} type="text" value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="Message..." autoFocus
-                  className="w-full px-3 py-2 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
+                  className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
               </div>
-              <button className="p-2 rounded-xl hover:bg-secondary transition text-foreground hover:text-accent shrink-0">
-                <Mic size={24} />
+              <button className="self-center p-2 rounded-xl hover:bg-secondary transition text-foreground hover:text-accent shrink-0 -mb-1">
+                <Mic size={22} />
               </button>
               <motion.button onClick={handleSendMessage}
-                whileTap={{ scale: 0.85 }}
-                animate={sending ? { scale: [1, 1.3, 1] } : {}}
-                transition={{ duration: 0.3 }}
-                className="p-2 rounded-xl bg-primary text-primary-foreground hover:shadow-lg transition shrink-0">
-                <Send size={20} />
+                whileTap={{ scale: 0.9 }}
+                animate={sending ? { x: [0, 4, -4, 2, -2, 0] } : {}}
+                transition={{ duration: 0.4, ease: 'easeInOut' }}
+                className="p-2.5 rounded-xl bg-primary text-primary-foreground hover:shadow-md transition shrink-0">
+                <motion.div animate={sending ? { rotate: [0, -15, 15, 0], y: [0, -2, 0] } : {}} transition={{ duration: 0.4 }}>
+                  <Send size={18} />
+                </motion.div>
               </motion.button>
             </div>
           </div>
@@ -464,10 +479,18 @@ export function ChatPage() {
       <AnimatePresence>
         {zoomImage && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 cursor-pointer"
+            className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"
             onClick={() => setZoomImage(null)}>
-            <motion.img initial={{ scale: 0.5 }} animate={{ scale: 1 }} exit={{ scale: 0.5 }}
-              src={zoomImage} alt="Zoom" className="max-w-full max-h-full rounded-lg" />
+            <motion.img initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.3, opacity: 0 }}
+              src={zoomImage} alt="Zoom" className="max-w-[90vw] max-h-[80vh] rounded-lg shadow-2xl" />
+            <button onClick={(e) => { e.stopPropagation(); const a = document.createElement('a'); a.href = zoomImage; a.download = 'image.png'; a.click(); }}
+              className="absolute bottom-8 right-8 p-3 rounded-full bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm transition shadow-lg">
+              <Download size={22} />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); setZoomImage(null); }}
+              className="absolute top-6 right-6 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm transition">
+              <X size={20} />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -497,6 +520,65 @@ export function ChatPage() {
                   className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:shadow-lg transition text-sm flex items-center justify-center gap-2">
                   <Download size={14} /> Download
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Poll Creation Modal */}
+      <AnimatePresence>
+        {showPollModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowPollModal(false)}>
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card rounded-2xl p-6 max-w-md w-full border border-border shadow-2xl">
+              <div className="flex items-center justify-between mb-5">
+                <h4 className="text-lg font-semibold text-foreground">Create Poll</h4>
+                <button onClick={() => setShowPollModal(false)} className="p-1 rounded-lg hover:bg-secondary transition text-muted-foreground">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-foreground mb-1.5 block">Question</label>
+                  <input type="text" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)}
+                    placeholder="Ask something..." autoFocus
+                    className="w-full px-3 py-2 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-foreground mb-1.5 block">Options</label>
+                  <div className="space-y-2">
+                    {pollOptions.map((opt, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input type="text" value={opt} onChange={(e) => {
+                          const newOpts = [...pollOptions];
+                          newOpts[i] = e.target.value;
+                          setPollOptions(newOpts);
+                        }} placeholder={`Option ${i + 1}`}
+                          className="flex-1 px-3 py-2 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
+                        {pollOptions.length > 2 && (
+                          <button onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
+                            className="text-muted-foreground hover:text-destructive transition p-1">
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => setPollOptions([...pollOptions, ''])}
+                    className="mt-2 text-xs text-primary hover:text-primary/80 transition font-medium">
+                    + Add option
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-6 pt-4 border-t border-border">
+                <button onClick={() => setShowPollModal(false)}
+                  className="flex-1 px-4 py-2 rounded-xl border border-border text-foreground hover:bg-secondary transition text-sm">Cancel</button>
+                <button onClick={handlePollCreated}
+                  className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:shadow-lg transition text-sm font-semibold">Send Poll</button>
               </div>
             </motion.div>
           </motion.div>

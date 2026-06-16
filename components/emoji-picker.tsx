@@ -1,35 +1,55 @@
 'use client';
 
-const emojis = [
-  '😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰','😘','😗',
-  '😋','😛','😜','🤪','😝','🤑','🤗','🤭','🫢','🫣','🤫','🤔','🤐','🤨','😐','😑',
-  '😶','🫥','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢',
-  '🤮','🥴','😵','🤯','🥳','🥺','😢','😭','😤','😠','😡','🤬','😈','👿','💀','☠️',
-  '💩','🤡','👹','👺','👻','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀',
-  '😿','😾','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓',
-  '💗','💖','💘','💝','💟','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤲',
-  '🤝','🙏','✌️','🤞','🤟','🤘','👌','🤌','🤏','🫰','🫵','🫶','💪','🦵','🦶','👀',
-  '👋','🤚','🖐️','✋','🖖','🫲','🫱','👆','👇','👈','👉','🖕','👎','👍',
+import { useState } from 'react';
+
+const categories = [
+  {
+    name: 'Smileys',
+    emojis: ['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰','😘','😗','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🫢','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🥴','😵','🤯','🥳','🥺','😢','😭','😤','😠','😡','🤬','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖','🎃'],
+  },
+  {
+    name: 'Gestures',
+    emojis: ['👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✌️','🤞','🤟','🤘','👌','🤌','🤏','🫰','🫶','💪','🖐️','✋','👋','🤚','🖖','👆','👇','👈','👉','🖕','💅','👀','👁️'],
+  },
+  {
+    name: 'Hearts',
+    emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','❤️‍🔥','❤️‍🩹'],
+  },
+  {
+    name: 'Animals',
+    emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊'],
+  },
+  {
+    name: 'Food',
+    emojis: ['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌽','🥕','🧄','🧅','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🫓','🥪','🥙','🧆','🌮','🌯','🥗','🥘','🫕','🥫','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥠','🥮','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','☕','🍵','🧃','🥤','🍶','🍺','🍻','🥂','🍷','🫗','🥃','🍸','🍹','🧉','🍾','🧊','🥄','🍴','🥣','🍽️'],
+  },
+  {
+    name: 'Travel',
+    emojis: ['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','🚏','🛣️','🛤️','⛽','🛳️','⛵','🚤','🛶','⚓','✈️','🛩️','🛫','🛬','🚁','🚀','🛸','🌍','🌎','🌏','🗺️','🏔️','⛰️','🌋','🏜️','🏝️','🏖️','🏗️','🏘️','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛲','⛪'],
+  },
 ];
 
-interface EmojiPickerProps {
-  onSelect: (emoji: string) => void;
-  onClose: () => void;
-}
+export function EmojiPicker({ onSelect, onClose }: { onSelect: (emoji: string) => void; onClose: () => void }) {
+  const [activeCategory, setActiveCategory] = useState(0);
 
-export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
-    <div className="absolute bottom-16 left-0 z-50 bg-card border border-border rounded-xl shadow-xl p-2 w-72 animate-expand-height">
-      <div className="flex items-center justify-between mb-1.5 px-1">
-        <span className="text-xs font-semibold text-foreground">Emojis</span>
-        <button onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+    <div className="absolute bottom-14 left-0 z-50 bg-card border border-border rounded-2xl shadow-xl overflow-hidden w-80 animate-expand-height">
+      {/* Category tabs */}
+      <div className="flex border-b border-border overflow-x-auto px-2 py-1 gap-1 shrink-0">
+        {categories.map((cat, i) => (
+          <button key={cat.name} onClick={() => setActiveCategory(i)}
+            className={`text-lg w-8 h-8 flex items-center justify-center rounded-lg transition shrink-0 ${activeCategory === i ? 'bg-primary/20' : 'hover:bg-secondary'}`}
+            title={cat.name}
+          >
+            {cat.emojis[0]}
+          </button>
+        ))}
       </div>
-      <div className="grid grid-cols-9 gap-0.5 max-h-48 overflow-y-auto">
-        {emojis.map((emoji, i) => (
-          <button
-            key={i}
-            onClick={() => { onSelect(emoji); onClose(); }}
-            className="w-7 h-7 flex items-center justify-center hover:bg-secondary rounded-md text-lg transition"
+      {/* Emoji grid */}
+      <div className="grid grid-cols-9 gap-0.5 p-2 max-h-56 overflow-y-auto">
+        {categories[activeCategory].emojis.map((emoji, i) => (
+          <button key={i} onClick={() => { onSelect(emoji); onClose(); }}
+            className="w-8 h-8 flex items-center justify-center hover:bg-secondary rounded-lg text-xl transition"
           >
             {emoji}
           </button>
