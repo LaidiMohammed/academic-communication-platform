@@ -1,107 +1,220 @@
 'use client';
 
+import { useState } from 'react';
+import {
+  MessageSquare,
+  Users,
+  Video,
+  BookOpen,
+  Sparkles,
+  ArrowRight,
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { Calendar, Users, BookOpen, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 
 export function HomePage() {
   const { user } = useAuth();
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
 
-  const quickStats = [
-    { icon: MessageSquare, label: 'New Messages', value: '12', color: 'from-blue-500 to-blue-600' },
-    { icon: Users, label: 'Groups', value: '8', color: 'from-purple-500 to-purple-600' },
-    { icon: Calendar, label: 'Upcoming Meetings', value: '3', color: 'from-cyan-500 to-cyan-600' },
-    { icon: BookOpen, label: 'New Lessons', value: '5', color: 'from-orange-500 to-orange-600' },
+  const stats = [
+    {
+      icon: MessageSquare,
+      title: 'Messages',
+      value: '324',
+      color: 'text-blue-500',
+      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+    },
+    {
+      icon: Users,
+      title: 'Groups',
+      value: '12',
+      color: 'text-purple-500',
+      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+    },
+    {
+      icon: Video,
+      title: 'Meetings',
+      value: '8',
+      color: 'text-red-500',
+      bgColor: 'bg-red-50 dark:bg-red-900/20',
+    },
+    {
+      icon: BookOpen,
+      title: 'Lessons',
+      value: '42',
+      color: 'text-amber-500',
+      bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+    },
   ];
 
-  const recentActivities = [
-    { type: 'message', user: 'Sarah Johnson', action: 'sent a message in English Class', time: '5 minutes ago' },
-    { type: 'group', user: 'Physics Group', action: 'posted new study notes', time: '15 minutes ago' },
-    { type: 'meeting', user: 'Math Lecture', action: 'meeting started', time: '1 hour ago' },
-    { type: 'lesson', user: 'Mr. Smith', action: 'shared new chemistry lesson', time: '2 hours ago' },
+  const quickLinks = [
+    {
+      label: 'Go to Chat',
+      href: '/dashboard/chat',
+      icon: MessageSquare,
+      color: 'from-blue-500 to-blue-600',
+    },
+    {
+      label: 'Join Groups',
+      href: '/dashboard/groups',
+      icon: Users,
+      color: 'from-purple-500 to-purple-600',
+    },
+    {
+      label: 'Schedule Meeting',
+      href: '/dashboard/meet',
+      icon: Video,
+      color: 'from-red-500 to-red-600',
+    },
+    {
+      label: 'Browse Lessons',
+      href: '/dashboard/lessons',
+      icon: BookOpen,
+      color: 'from-amber-500 to-amber-600',
+    },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl p-8 text-white shadow-lg">
-        <h1 className="text-4xl font-bold mb-2">
-          {greeting}, {user?.name}! 👋
-        </h1>
-        <p className="text-blue-100">Welcome back to EduConnect. Let&apos;s make today productive!</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 pb-12">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl">
+          {/* Greeting */}
+          <div className="mb-8 animate-slide-in-up">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-4">
+              {greeting},{' '}
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent animate-bounce-subtle">
+                {user?.name || 'Student'}!
+              </span>
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl">
+              Your personalized learning dashboard awaits. Connect with peers, engage in lessons, and collaborate seamlessly.
+            </p>
+          </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {quickStats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={index}
-              className="bg-white rounded-xl p-6 shadow hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-            >
-              <div className={`inline-flex p-3 rounded-lg bg-gradient-to-br ${stat.color} text-white mb-4`}>
-                <Icon size={24} />
-              </div>
-              <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-            </div>
-          );
-        })}
-      </div>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+            {stats.map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <div
+                  key={index}
+                  className={`animate-slide-in-up stagger-${index + 1} group relative`}
+                >
+                  <div
+                    className={`${stat.bgColor} rounded-2xl p-6 border border-border transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer overflow-hidden`}
+                    onMouseEnter={() => setHoveredCard(index)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                  >
+                    {/* Animated background */}
+                    <div
+                      className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${stat.bgColor}`}
+                    />
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activity */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Activity</h2>
-          <div className="space-y-3">
-            {recentActivities.map((activity, index) => (
-              <div
-                key={index}
-                className="flex items-start gap-4 p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition"
-              >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{activity.user}</p>
-                  <p className="text-sm text-gray-600">{activity.action}</p>
-                  <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                    <div className="relative">
+                      <div
+                        className={`${stat.color} mb-4 inline-block p-3 rounded-lg bg-white dark:bg-slate-800`}
+                      >
+                        <Icon size={24} strokeWidth={2} />
+                      </div>
+                      <h3 className="text-muted-foreground text-sm font-medium mb-2">
+                        {stat.title}
+                      </h3>
+                      <p className="text-3xl font-bold text-foreground">
+                        {stat.value}
+                      </p>
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+
+          {/* Quick Links */}
+          <div className="mb-12">
+            <h2 className="text-2xl font-bold text-foreground mb-6 animate-slide-in-up stagger-1">
+              Quick Access
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {quickLinks.map((link, index) => {
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={index}
+                    href={link.href}
+                    className={`animate-slide-in-up stagger-${index + 1}`}
+                  >
+                    <div
+                      className={`group relative h-full bg-gradient-to-br ${link.color} rounded-2xl p-6 text-white transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95 overflow-hidden`}
+                    >
+                      {/* Animated overlay */}
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-20 bg-white transition-opacity duration-300" />
+
+                      <div className="relative">
+                        <div className="mb-4 inline-block p-3 rounded-lg bg-white/20 backdrop-blur-sm group-hover:bg-white/30 transition-colors">
+                          <Icon size={24} strokeWidth={2} />
+                        </div>
+                        <h3 className="text-lg font-bold mb-2">{link.label}</h3>
+                        <div className="flex items-center gap-2 text-white/80 group-hover:text-white transition-colors">
+                          <span className="text-sm">Explore</span>
+                          <ArrowRight
+                            size={16}
+                            className="group-hover:translate-x-1 transition-transform"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* AI Assistant CTA */}
+          <div className="animate-slide-in-up stagger-4">
+            <div className="bg-card border border-border rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-accent/50">
+              <div className="inline-block p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 mb-4">
+                <Sparkles className="text-primary" size={28} />
               </div>
-            ))}
+              <h3 className="text-2xl font-bold text-foreground mb-2">
+                Need Help?
+              </h3>
+              <p className="text-muted-foreground mb-6 max-w-md">
+                Our AI assistant is available 24/7 to help you with your studies, assignments, and learning journey.
+              </p>
+              <Link href="/dashboard/ai">
+                <button className="bg-gradient-to-r from-primary to-accent text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:shadow-lg hover:scale-105 transition-all active:scale-95">
+                  Start Chat with AI
+                </button>
+              </Link>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Quick Links */}
-        <div className="bg-white rounded-xl shadow p-6 h-fit">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Links</h2>
-          <div className="space-y-2">
-            <Link
-              href="/dashboard/chat"
-              className="block px-4 py-3 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition font-medium"
-            >
-              📧 Go to Chat
-            </Link>
-            <Link
-              href="/dashboard/groups"
-              className="block px-4 py-3 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition font-medium"
-            >
-              👥 Browse Groups
-            </Link>
-            <Link
-              href="/dashboard/meet"
-              className="block px-4 py-3 rounded-lg bg-cyan-50 text-cyan-600 hover:bg-cyan-100 transition font-medium"
-            >
-              🎥 Join Meeting
-            </Link>
-            <Link
-              href="/dashboard/lessons"
-              className="block px-4 py-3 rounded-lg bg-orange-50 text-orange-600 hover:bg-orange-100 transition font-medium"
-            >
-              📚 View Lessons
-            </Link>
+      {/* Activity Section */}
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-2xl font-bold text-foreground mb-6 animate-slide-in-up">
+            Recent Activity
+          </h2>
+          <div className="space-y-3 animate-slide-in-up stagger-1">
+            {[
+              'You joined the "Advanced Math" group',
+              'New lesson: "Calculus Fundamentals" is available',
+              'Meeting scheduled for tomorrow at 2 PM',
+              'You received 5 new messages',
+            ].map((activity, index) => (
+              <div
+                key={index}
+                className={`animate-slide-in-up stagger-${(index % 4) + 1} bg-card border border-border rounded-lg p-4 flex items-start gap-4 hover:bg-secondary/50 transition-colors`}
+              >
+                <div className="w-2 h-2 rounded-full bg-accent mt-2" />
+                <p className="text-foreground">{activity}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
