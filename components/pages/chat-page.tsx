@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Send,
   Heart,
@@ -10,6 +10,8 @@ import {
   Phone,
   Video,
   MessageCircle,
+  Users,
+  ChevronDown,
   Eye,
   Copy,
   Trash2,
@@ -17,6 +19,7 @@ import {
 import { ChatInputWidget } from '@/components/chat-input-widget';
 
 export function ChatPage() {
+  const [chatMode, setChatMode] = useState<'individual' | 'group'>('individual');
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
   const [hoveredMessage, setHoveredMessage] = useState<number | null>(null);
@@ -31,6 +34,7 @@ export function ChatPage() {
       time: '2m',
       unread: 2,
       online: true,
+      type: 'individual',
     },
     {
       id: 'chat-2',
@@ -40,6 +44,7 @@ export function ChatPage() {
       time: '1h',
       unread: 0,
       online: false,
+      type: 'individual',
     },
     {
       id: 'chat-3',
@@ -49,6 +54,7 @@ export function ChatPage() {
       time: '3h',
       unread: 1,
       online: true,
+      type: 'individual',
     },
     {
       id: 'chat-4',
@@ -58,6 +64,7 @@ export function ChatPage() {
       time: '2h',
       unread: 3,
       online: true,
+      type: 'individual',
     },
     {
       id: 'chat-5',
@@ -67,6 +74,37 @@ export function ChatPage() {
       time: '30m',
       unread: 0,
       online: false,
+      type: 'individual',
+    },
+    {
+      id: 'group-1',
+      name: 'Math Study Group',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=math',
+      lastMessage: 'Who wants to solve the homework?',
+      time: '5m',
+      unread: 5,
+      online: true,
+      type: 'group',
+    },
+    {
+      id: 'group-2',
+      name: 'Physics Lab Notes',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=physics',
+      lastMessage: 'New experiment results posted',
+      time: '30m',
+      unread: 3,
+      online: true,
+      type: 'group',
+    },
+    {
+      id: 'group-3',
+      name: 'English Literature',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=english',
+      lastMessage: 'Discussion on Shakespeare',
+      time: '45m',
+      unread: 1,
+      online: true,
+      type: 'group',
     },
   ];
 
@@ -119,6 +157,12 @@ export function ChatPage() {
     },
   ];
 
+  // Reset selected chat and expanded message when mode changes
+  useEffect(() => {
+    setSelectedChat(null);
+    setExpandedMessage(null);
+  }, [chatMode]);
+
   // Reset expanded message when chat changes
   const handleChatSelect = (chatId: string) => {
     setSelectedChat(chatId);
@@ -131,6 +175,12 @@ export function ChatPage() {
     }
   };
 
+  const filteredChats = chats.filter(
+    (chat) =>
+      (chatMode === 'individual' && chat.type === 'individual') ||
+      (chatMode === 'group' && chat.type === 'group')
+  );
+
   const currentChat = chats.find((c) => c.id === selectedChat);
 
   return (
@@ -139,7 +189,33 @@ export function ChatPage() {
       <div className="w-full md:w-80 bg-card border-r border-border flex flex-col rounded-lg md:rounded-none">
         {/* Header */}
         <div className="p-4 border-b border-border">
-          <h2 className="text-2xl font-bold text-foreground mb-4">Messages</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-foreground">Messages</h2>
+            {/* Chat Mode Toggle */}
+            <div className="flex items-center gap-2 bg-secondary rounded-full p-1">
+              <button
+                onClick={() => setChatMode('individual')}
+                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  chatMode === 'individual'
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <MessageCircle size={14} strokeWidth={2.5} />
+              </button>
+              <button
+                onClick={() => setChatMode('group')}
+                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  chatMode === 'group'
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Users size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
+
           {/* Search */}
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -153,8 +229,8 @@ export function ChatPage() {
 
         {/* Chats List */}
         <div className="flex-1 overflow-y-auto">
-          {chats.length > 0 ? (
-            chats.map((chat) => (
+          {filteredChats.length > 0 ? (
+            filteredChats.map((chat) => (
               <div
                 key={chat.id}
                 onClick={() => handleChatSelect(chat.id)}
@@ -198,7 +274,7 @@ export function ChatPage() {
             ))
           ) : (
             <div className="flex items-center justify-center h-32 text-muted-foreground">
-              <p>No chats</p>
+              <p>No {chatMode} chats</p>
             </div>
           )}
         </div>

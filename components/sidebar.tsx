@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   Home, 
-  MessageSquare, 
+  MessageSquare,
+  Users,
   Video, 
   BookOpen, 
   Award, 
@@ -28,6 +29,7 @@ export function Sidebar() {
   const menuItems = [
     { icon: Home, label: 'Home', href: '/dashboard', id: 'home' },
     { icon: MessageSquare, label: 'Chat', href: '/dashboard/chat', id: 'chat' },
+    { icon: Users, label: 'Groups', href: '/dashboard/groups', id: 'groups' },
     { icon: Video, label: 'Meet', href: '/dashboard/meet', id: 'meet' },
     { icon: BookOpen, label: 'Lessons', href: '/dashboard/lessons', id: 'lessons' },
     { icon: Award, label: 'Teachers', href: '/dashboard/teachers', id: 'teachers' },
