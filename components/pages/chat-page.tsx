@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { ChatInputWidget } from '@/components/chat-input-widget';
 import { ChatDetailsPanel } from '@/components/chat-details-panel';
-import { EmojiPicker } from '@/components/emoji-picker';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ReplyTo {
@@ -47,7 +46,6 @@ export function ChatPage() {
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
   const [isChatMuted, setIsChatMuted] = useState(false);
   const [chatMode, setChatMode] = useState<'individual' | 'group'>('individual');
-  const [showEmoji, setShowEmoji] = useState(false);
   const [replyTo, setReplyTo] = useState<ReplyTo | null>(null);
   const [showForward, setShowForward] = useState<Message | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
@@ -59,6 +57,7 @@ export function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const emojiInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
@@ -222,12 +221,6 @@ export function ChatPage() {
     };
     addMessage(selectedChat, newMsg);
     e.target.value = '';
-  };
-
-  const handleEmojiSelect = (emoji: string) => {
-    setMessageText(prev => prev + emoji);
-    setShowEmoji(false);
-    inputRef.current?.focus();
   };
 
   const filteredChats = chats.filter(c => c.type === chatMode);
@@ -417,11 +410,19 @@ export function ChatPage() {
           <div className="border-t border-border px-3 pt-2 pb-2 shrink-0">
             <div className="flex items-end gap-1.5">
               <div className="relative">
-                <button onClick={() => setShowEmoji(!showEmoji)}
+                <button onClick={() => emojiInputRef.current?.focus()}
                   className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-primary shrink-0">
                   <Smile size={22} />
                 </button>
-                {showEmoji && <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmoji(false)} />}
+                <input ref={emojiInputRef} type="text" inputMode="emoji"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setMessageText(prev => prev + e.target.value);
+                      e.target.value = '';
+                      inputRef.current?.focus();
+                    }
+                  }}
+                  className="absolute w-0 h-0 opacity-0 pointer-events-none" />
               </div>
               <ChatInputWidget
                 onSondage={() => setShowPollModal(true)}
