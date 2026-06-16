@@ -10,10 +10,6 @@ import {
   Phone,
   Video,
   Info,
-  Eye,
-  Copy,
-  Trash2,
-  MessageCircle,
 } from 'lucide-react';
 import { ChatInputWidget } from '@/components/chat-input-widget';
 import { ChatDetailsPanel } from '@/components/chat-details-panel';
@@ -25,7 +21,6 @@ export function ChatPage() {
   const [expandedMessage, setExpandedMessage] = useState<number | null>(null);
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
   const [isChatMuted, setIsChatMuted] = useState(false);
-  const [chatMode, setChatMode] = useState<'individual' | 'group'>('individual');
 
   const chats = [
     {
@@ -80,19 +75,7 @@ export function ChatPage() {
     },
   ];
 
-  // Reset selected chat and expanded message when mode changes
-  useEffect(() => {
-    setSelectedChat(null);
-    setExpandedMessage(null);
-  }, [chatMode]);
-
-  // Reset expanded message when chat changes
-  const handleChatSelect = (chatId: string) => {
-    setSelectedChat(chatId);
-    setExpandedMessage(null);
-  };
-
-  const [messages, setMessages] = useState([
+  const messages = [
     {
       id: 1,
       sender: 'Sarah',
@@ -139,25 +122,28 @@ export function ChatPage() {
       reactions: [],
       readBy: 2,
     },
-  ]);
+  ];
+
+  // Reset selected chat and expanded message when mode changes
+  useEffect(() => {
+    setSelectedChat(null);
+    setExpandedMessage(null);
+  }, [chatMode]);
+
+  // Reset expanded message when chat changes
+  const handleChatSelect = (chatId: string) => {
+    setSelectedChat(chatId);
+    setExpandedMessage(null);
+  };
 
   const handleSendMessage = () => {
     if (messageText.trim()) {
-      const newMsg = {
-        id: messages.length + 1,
-        sender: 'You',
-        text: messageText.trim(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isOwn: true,
-        readBy: 0,
-      };
-      setMessages([...messages, newMsg]);
       setMessageText('');
     }
   };
 
   const filteredChats = chats.filter(
-    (chat) => chat.type === chatMode
+    (chat) => chat.type === 'individual'
   );
 
   const currentChat = chats.find((c) => c.id === selectedChat);
