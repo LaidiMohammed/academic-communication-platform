@@ -66,105 +66,60 @@ export function ChatDetailsPanel({
 
       {/* Desktop Panel */}
       <motion.div
-        initial={{ x: 400, opacity: 0 }}
-        animate={isOpen ? { x: 0, opacity: 1 } : { x: 400, opacity: 0 }}
+        initial={{ x: 320, opacity: 0 }}
+        animate={isOpen ? { x: 0, opacity: 1 } : { x: 320, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="hidden md:flex fixed right-0 top-16 h-[calc(100vh-64px)] w-80 bg-card border-l border-border flex-col shadow-2xl z-40"
+        className="hidden md:flex fixed right-0 top-16 h-[calc(100vh-64px)] w-72 bg-card border-l border-border flex-col shadow-xl z-40"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0">
-          <h3 className="font-semibold text-foreground">Chat Details</h3>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground"
-          >
-            <X size={20} strokeWidth={2} />
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
+          <h3 className="text-sm font-semibold text-foreground">Details</h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground">
+            <X size={16} strokeWidth={2} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto space-y-6 p-4">
-          {/* Contact Info */}
+        <div className="flex-1 overflow-y-auto space-y-3 px-3 py-3">
           <div className="text-center">
-            <div className="relative inline-block mb-4">
-              <img
-                src={chatAvatar}
-                alt={chatName}
-                className="w-20 h-20 rounded-full border-2 border-primary"
-              />
-              {online && (
-                <div className="absolute bottom-0 right-0 w-4 h-4 bg-accent rounded-full border-2 border-card" />
-              )}
+            <div className="relative inline-block mb-2">
+              <img src={chatAvatar} alt={chatName} className="w-16 h-16 rounded-full border-2 border-primary" />
+              {online && <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-accent rounded-full border-2 border-card" />}
             </div>
-            <h4 className="text-lg font-semibold text-foreground">{chatName}</h4>
-            <p className="text-sm text-muted-foreground">
-              {online ? 'Active now' : 'Offline'}
-            </p>
+            <h4 className="text-base font-semibold text-foreground">{chatName}</h4>
+            <p className="text-xs text-muted-foreground">{online ? 'Online' : 'Offline'}</p>
           </div>
 
-          {/* Quick Actions */}
-          <div className="space-y-2">
-            <button
-              onClick={() => setShowNicknameModal(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition text-foreground group"
-            >
-              <Edit3 size={18} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" />
+          <div className="space-y-1">
+            <button onClick={() => setShowNicknameModal(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-secondary transition text-foreground group text-sm">
+              <Edit3 size={16} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" />
               <span>Change Nickname</span>
             </button>
-
-            <button
-              onClick={onMute}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition text-foreground group"
-            >
+            <button onClick={onMute} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-secondary transition text-foreground group text-sm">
               {isMuted ? (
-                <>
-                  <VolumeX size={18} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" />
-                  <span>Unmute Chat</span>
-                </>
+                <><VolumeX size={16} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" /><span>Unmute</span></>
               ) : (
-                <>
-                  <Volume2 size={18} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" />
-                  <span>Mute Chat</span>
-                </>
+                <><Volume2 size={16} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" /><span>Mute</span></>
               )}
             </button>
-
-            <button
-              onClick={() => {}}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition text-foreground group"
-            >
-              <Pin size={18} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" />
-              <span>Pin Chat</span>
+            <button onClick={() => {}} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-secondary transition text-foreground group text-sm">
+              <Pin size={16} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" />
+              <span>Pin</span>
             </button>
-
-            <button
-              onClick={() => {}}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-secondary transition text-foreground group"
-            >
-              <Image size={18} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" />
-              <span>View Media</span>
+            <button onClick={() => {}} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-secondary transition text-foreground group text-sm">
+              <Image size={16} strokeWidth={2} className="text-muted-foreground group-hover:text-primary transition" />
+              <span>Media</span>
             </button>
           </div>
 
-          {/* Divider */}
           <div className="h-px bg-border" />
 
-          {/* Danger Zone */}
-          <div className="space-y-2">
-            <button
-              onClick={() => setShowBlockConfirm(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-destructive/10 transition text-destructive group"
-            >
-              <UserX size={18} strokeWidth={2} className="group-hover:scale-110 transition" />
-              <span>Block User</span>
+          <div className="space-y-1">
+            <button onClick={() => setShowBlockConfirm(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-destructive/10 transition text-destructive group text-sm">
+              <UserX size={16} strokeWidth={2} className="group-hover:scale-110 transition" />
+              <span>Block</span>
             </button>
-
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-destructive/10 transition text-destructive group"
-            >
-              <Trash2 size={18} strokeWidth={2} className="group-hover:scale-110 transition" />
-              <span>Delete Discussion</span>
+            <button onClick={() => setShowDeleteConfirm(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-destructive/10 transition text-destructive group text-sm">
+              <Trash2 size={16} strokeWidth={2} className="group-hover:scale-110 transition" />
+              <span>Delete</span>
             </button>
           </div>
         </div>
