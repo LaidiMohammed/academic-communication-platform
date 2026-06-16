@@ -54,6 +54,11 @@ export function ChatPage() {
   const [showPollModal, setShowPollModal] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -178,15 +183,63 @@ export function ChatPage() {
 
   const handleLocationShared = () => {
     if (!selectedChat) return;
+    const lat = 36.7372 + (Math.random() - 0.5) * 0.02;
+    const lng = 3.0862 + (Math.random() - 0.5) * 0.02;
+    const mapUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-l+ef4444(${lng},${lat})/${lng},${lat},15,0/300x150@2x?access_token=pk.eyJ1IjoiYmVuZGVsbGEiLCJhIjoiY2x6bmZ4ajFxMDZzYjJrc2VocTdoajdtayJ9.Ye_7Fn3IGxBiWMmm0Hd5Vw`;
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',
-      text: '📍 Live location shared',
+      text: '📍 Location',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'location',
+      image: mapUrl,
     };
     addMessage(selectedChat, newMsg);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        if (!selectedChat) return;
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        const duration = recordingTime;
+        const newMsg: Message = {
+          id: getNextId(selectedChat),
+          sender: 'You',
+          text: `🎤 Voice message (${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')})`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isOwn: true,
+          type: 'file',
+          file: { name: `voice-${Date.now()}.webm`, size: `${(blob.size / 1024).toFixed(0)} KB`, url },
+        };
+        addMessage(selectedChat, newMsg);
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        setRecordingTime(0);
+      };
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => setRecordingTime(p => p + 1), 1000);
+    } catch {
+      alert('Microphone access denied. Allow microphone to record voice.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
   };
 
   const handleFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -325,6 +378,15 @@ export function ChatPage() {
                       <img src={msg.image} alt="Shared" onClick={(e) => { e.stopPropagation(); setZoomImage(msg.image!); }}
                         className="rounded-lg max-w-full max-h-48 mb-1 cursor-pointer hover:opacity-90 transition" />
                     )}
+                    {msg.type === 'location' && msg.image && (
+                      <div onClick={(e) => { e.stopPropagation(); setZoomImage(msg.image!); }}
+                        className="relative mb-1 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition border border-border">
+                        <img src={msg.image} alt="Map" className="w-full h-28 object-cover" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1.5">
+                          <p className="text-[10px] text-white font-medium flex items-center gap-1"><MapPin size={10} /> Location</p>
+                        </div>
+                      </div>
+                    )}
                     {msg.type === 'file' && msg.file && (
                       <div onClick={(e) => { e.stopPropagation(); setPreviewFile(msg.file!); }}
                         className="flex items-center gap-2 p-2 rounded-lg bg-background/20 cursor-pointer hover:bg-background/30 transition mb-1">
@@ -336,7 +398,6 @@ export function ChatPage() {
                       </div>
                     )}
                     {msg.type === 'poll' && <Vote size={14} className="inline mr-1" />}
-                    {msg.type === 'location' && <MapPin size={14} className="inline mr-1" />}
                     {msg.text && <p className={msg.type !== 'text' ? 'text-xs' : ''}>{msg.text}</p>}
                     <div className="flex items-center justify-end gap-1 mt-0.5">
                       {msg.isOwn && msg.readBy && msg.readBy > 0 && <CheckCheck size={10} className="text-accent" />}
@@ -444,9 +505,22 @@ export function ChatPage() {
                   placeholder="Message..." autoFocus
                   className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
               </div>
-              <button className="self-center p-2 rounded-xl hover:bg-secondary transition text-foreground hover:text-accent shrink-0 -mb-1">
+              <button onClick={isRecording ? stopRecording : startRecording}
+                className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white animate-pulse shadow-lg' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
                 <Mic size={22} />
               </button>
+              {isRecording && (
+                <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={stopRecording}>
+                  <div className="bg-card rounded-2xl p-8 shadow-2xl border border-border flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center">
+                      <div className="w-4 h-4 rounded-full bg-destructive animate-ping" />
+                    </div>
+                    <p className="text-lg font-semibold text-foreground">Recording...</p>
+                    <p className="text-3xl font-mono text-destructive">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</p>
+                    <p className="text-xs text-muted-foreground">Tap to stop</p>
+                  </div>
+                </div>
+              )}
               <motion.button onClick={handleSendMessage}
                 whileTap={{ scale: 0.9 }}
                 animate={sending ? { x: [0, 4, -4, 2, -2, 0] } : {}}

@@ -17,94 +17,39 @@ interface ChatInputWidgetProps {
   onGenerateImage?: () => void;
 }
 
-export function ChatInputWidget({
-  onSondage,
-  onLocation,
-  onFile,
-  onGenerateImage,
-}: ChatInputWidgetProps) {
-  const [isOpen, setIsOpen] = useState(false);
+const options = [
+  { icon: MessageCircle, label: 'Poll', desc: 'Create a poll', color: 'text-blue-500', bg: 'from-blue-500/20 to-blue-600/10', iconBg: 'bg-blue-500/15' },
+  { icon: MapPin, label: 'Location', desc: 'Share location', color: 'text-red-500', bg: 'from-red-500/20 to-red-600/10', iconBg: 'bg-red-500/15' },
+  { icon: FileText, label: 'File', desc: 'Upload a file', color: 'text-amber-500', bg: 'from-amber-500/20 to-amber-600/10', iconBg: 'bg-amber-500/15' },
+  { icon: Wand2, label: 'Image', desc: 'Generate with AI', color: 'text-purple-500', bg: 'from-purple-500/20 to-purple-600/10', iconBg: 'bg-purple-500/15' },
+];
 
-  const options = [
-    {
-      icon: MessageCircle,
-      label: 'Sondage',
-      description: 'Create a poll',
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
-      action: onSondage,
-    },
-    {
-      icon: MapPin,
-      label: 'Localisation',
-      description: 'Share location',
-      color: 'text-red-500',
-      bgColor: 'bg-red-50 dark:bg-red-900/20',
-      action: onLocation,
-    },
-    {
-      icon: FileText,
-      label: 'Fichier',
-      description: 'Upload file',
-      color: 'text-amber-500',
-      bgColor: 'bg-amber-50 dark:bg-amber-900/20',
-      action: onFile,
-    },
-    {
-      icon: Wand2,
-      label: 'Génère Image',
-      description: 'Generate image',
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
-      action: onGenerateImage,
-    },
-  ];
+export function ChatInputWidget({ onSondage, onLocation, onFile, onGenerateImage }: ChatInputWidgetProps) {
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="relative">
-      {/* Plus Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
+      <button onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${
-          isOpen
-            ? 'bg-red-500 text-white scale-110'
-            : 'bg-primary text-primary-foreground hover:scale-105 active:scale-95'
-        }`}
-      >
-        {isOpen ? (
-          <X size={20} strokeWidth={2.5} />
-        ) : (
-          <Plus size={20} strokeWidth={2.5} />
-        )}
+          isOpen ? 'bg-red-500 text-white rotate-45 scale-110' : 'bg-primary text-primary-foreground hover:scale-105 active:scale-95'
+        }`}>
+        <Plus size={20} strokeWidth={2.5} />
       </button>
-
-      {/* Options Panel */}
       {isOpen && (
-        <div className="absolute bottom-16 left-0 animate-expand-height">
-          <div className="bg-card border border-border rounded-2xl shadow-lg p-3 space-y-2 min-w-56">
-            {options.map((option, index) => {
-              const Icon = option.icon;
+        <div className="absolute bottom-16 left-0 animate-expand-height z-50">
+          <div className="bg-card border border-border rounded-2xl shadow-xl p-2 space-y-1 min-w-52 overflow-hidden">
+            {options.map((opt, i) => {
+              const Icon = opt.icon;
+              const actions = [onSondage, onLocation, onFile, onGenerateImage];
               return (
-                <button
-                  key={index}
-                  onClick={() => {
-                    option.action?.();
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 hover:scale-102 active:scale-98 ${option.bgColor} group`}
-                >
-                  <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-slate-800 ${option.color} group-hover:shadow-md transition-all`}
-                  >
-                    <Icon size={20} strokeWidth={2.5} />
+                <button key={i} onClick={() => { actions[i]?.(); setIsOpen(false); }}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gradient-to-r hover:from-secondary/80 hover:to-transparent transition text-left group">
+                  <div className={`w-9 h-9 rounded-xl ${opt.iconBg} flex items-center justify-center group-hover:scale-110 transition`}>
+                    <Icon size={18} className={opt.color} strokeWidth={2} />
                   </div>
-                  <div className="text-left">
-                    <p className="font-semibold text-foreground text-sm">
-                      {option.label}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {option.description}
-                    </p>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{opt.label}</p>
+                    <p className="text-[11px] text-muted-foreground">{opt.desc}</p>
                   </div>
                 </button>
               );
