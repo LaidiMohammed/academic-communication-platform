@@ -35,7 +35,38 @@ interface Message {
   replyTo?: ReplyTo;
   image?: string;
   file?: FileInfo;
-  type: 'text' | 'image' | 'file' | 'poll' | 'location';
+  type: 'text' | 'image' | 'file' | 'poll' | 'location' | 'voice';
+  voice?: string;
+  duration?: number;
+}
+
+function VoiceBubble({ src, duration }: { src: string; duration: number }) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const toggle = () => {
+    if (!audioRef.current) {
+      const a = new Audio(src);
+      a.onended = () => setPlaying(false);
+      a.ontimeupdate = () => setProgress(a.currentTime / (a.duration || 1));
+      a.play(); audioRef.current = a; setPlaying(true);
+    } else if (audioRef.current.paused) { audioRef.current.play(); setPlaying(true); }
+    else { audioRef.current.pause(); setPlaying(false); }
+  };
+  const mins = Math.floor(duration / 60);
+  const secs = duration % 60;
+  return (
+    <div className="flex items-center gap-2 mb-1 min-w-40" onClick={(e) => e.stopPropagation()}>
+      <button onClick={toggle} className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0">
+        {playing ? <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg>}
+      </button>
+      <div className="flex-1 h-1.5 bg-background/20 rounded-full overflow-hidden">
+        <div className="h-full bg-white rounded-full transition-all" style={{ width: `${progress * 100}%` }} />
+      </div>
+      <span className="text-[11px] opacity-70 font-mono">{mins}:{secs.toString().padStart(2, '0')}</span>
+    </div>
+  );
 }
 
 export function ChatPage() {
@@ -127,7 +158,7 @@ export function ChatPage() {
     }
   };
 
-  const emojiList = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✌️','🤟','🤘','👌','👍🏼','👎🏼','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💗','💖','✨','🔥','⭐','🌟','💫','🎉','🎊','🎈','🎁','💯','✅','❌','❓','❗','🚀','💪','👀','🙈','🙉','🙊','💀','☠️','👋','🤚','🖐️','✋','🖖','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🦷','🦴','👀','👁️','👅','👄','💋','👶','🧒','👦','👧','🧑','👩','👨','🧔','👩‍🦰','👨‍🦰','👩‍🦱','👨‍🦱','👩‍🦲','👨‍🦲','👩‍🦳','👨‍🦳','👵','🧓','👴','👲','👳‍♀️','👳‍♂️','🧕','👮‍♀️','👮‍♂️','👷‍♀️','👷‍♂️','💂‍♀️','💂‍♂️','🕵️‍♀️','🕵️‍♂️','👩‍⚕️','👨‍⚕️','👩‍🌾','👨‍🌾','👩‍🍳','👨‍🍳','👩‍🎓','👨‍🎓','👩‍🎤','👨‍🎤','👩‍🏫','👨‍🏫','👩‍🏭','👨‍🏭','👩‍💻','👨‍💻','👩‍💼','👨‍💼','👩‍🔧','👨‍🔧','👩‍🔬','👨‍🔬','👩‍🎨','👨‍🎨','👩‍🚒','👨‍🚒','👩‍✈️','👨‍✈️','👩‍🚀','👨‍🚀','👩‍⚖️','👨‍⚖️','👰‍♀️','👰‍♂️','🤵‍♀️','🤵‍♂️','🤰','🤱','👼','🎅','🤶','🦸‍♀️','🦸‍♂️','🦹‍♀️','🦹‍♂️','🧙‍♀️','🧙‍♂️','🧚‍♀️','🧚‍♂️','🧛‍♀️','🧛‍♂️','🧜‍♀️','🧜‍♂️','🧝‍♀️','🧝‍♂️','🧞‍♀️','🧞‍♂️','🧟‍♀️','🧟‍♂️','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🦛','🐪','🐫','🦙','🦒','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦌','🐕','🐩','🐈','🦃','🕊️','🐇','🦝','🦡','🐁','🐀','🐿️','🦔','🐾','🐉','🐲','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🎍','🎋','🍃','🍂','🍁','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','💫','⭐','🌟','✨','⚡','☄️','💥','🔥','🌪️','🌈','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','🌬️','💨','💧','💦','☔','☂️','🌊','🌫️','🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🌽','🥕','🧄','🧅','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🧇','🥓','🥩','🍗','🍖','🦴','🌭','🍔','🍟','🍕','🥪','🥙','🧆','🌮','🌯','🥗','🥘','🥫','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥠','🥮','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','☕','🍵','🧃','🥤','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧉','🍾','🧊','🥄','🍴','🍽️','🥣','🥡','🥢','🧂','⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','⛳','🏹','🎣','🥊','🥋','🎽','⛸️','🥌','🛷','🛹','🛴','🖲️','🎯','🎮','🎰','🎲','🧩','♟️','🎭','🎨','🎪','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🎽','🎿','🏂','🥇','🥈','🥉','🏅','🎖️','🏆','🏵️','🎗️','🎟️','🎫','🎖️','🏅','🥇','🥈','🥉','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','🚏','🛣️','🛤️','⛽','🛳️','⛴️','🛥️','🚢','✈️','🛩️','🛫','🛬','💺','🚁','🚟','🚠','🚡','🛰️','🚀','🛸','🏠','🏡','🏘️','🏚️','🏗️','🏢','🏭','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛩️','🕋','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗾','🏔️','⛰️','🌋','🗻','🏕️','🏖️','🏜️','🏝️','🏞️','🗺️','🏳️','🏴','🏁','🚩','🎌','🏴‍☠️','🇩🇿','🇺🇸','🇬🇧','🇫🇷','🇪🇸','🇩🇪','🇮🇹','🇯🇵','🇨🇳','🇷🇺','🇧🇷','🇮🇳','🇦🇪','🇸🇦','🇶🇦','🇰🇼','🇲🇦','🇹🇳','🇪🇬','🇱🇾'];
+  const emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤩','🤔','🤨','😐','😑','😶','😏','😮','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤝','🙏','✌️','🤟','🤘','👌','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💗','💖','💘','💝','✨','🔥','⭐','🌟','💫','🎉','🎊','🎈','🎁','💯','✅','❌','❓','❗','🚀','💪','👀','🙈','🙉','🙊','💀','☠️','👋','✋','👌','🤏','👆','👇','👈','👉','👊','👋','👏','🙌','👐','🤲','🙏','💅','👂','👃','🧠','👁️','👅','👄','💋','👶','👦','👧','🧑','👩','👨','👴','👵','🤶','🎅','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🐪','🐫','🦒','🐃','🐄','🐎','🐖','🐏','🐑','🐕','🐩','🐈','🐇','🐁','🐀','🐿️','🦔','🐾','🐉','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','⭐','🌟','✨','⚡','💥','🔥','🌈','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','💨','💧','💦','☔','🌊','🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌽','🥕','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🥓','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🌮','🌯','🥗','🥘','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','☕','🍵','🥤','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾','🥄','🍴','🍽️','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🏒','🏑','🥍','🏏','⛳','🏹','🎣','🥊','🥋','🎯','🎮','🎲','🧩','🎭','🎨','🎪','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🎿','🏂','🥇','🥈','🥉','🏅','🏆','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','🚏','⛽','🚢','✈️','🛩️','🛫','🛬','💺','🚁','🚀','🛸','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗾','🏔️','⛰️','🌋','🗻','🏖️','🏜️','🏝️','🏞️','🗺️','🇩🇿','🇺🇸','🇬🇧','🇫🇷','🇪🇸','🇩🇪','🇮🇹','🇯🇵','🇨🇳','🇷🇺','🇧🇷','🇮🇳','🇦🇪','🇸🇦','🇲🇦','🇹🇳','🇪🇬']; // cleaned, no ZWJ sequences
 
   const handleSendMessage = () => {
     if (!messageText.trim() || !selectedChat) return;
@@ -216,42 +247,43 @@ export function ChatPage() {
         : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
         : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus'
         : 'audio/mp4';
-      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      mediaRecorderRef.current = mediaRecorder;
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaRecorderRef.current = mr;
       audioChunksRef.current = [];
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-      mediaRecorder.onstop = () => {
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
         if (!selectedChat) return;
+        if (audioChunksRef.current.length === 0) return;
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
-        const duration = recordingTime;
+        const dur = recordingTime;
+        const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
         const newMsg: Message = {
           id: getNextId(selectedChat),
           sender: 'You',
-          text: `🎤 Voice message (${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')})`,
+          text: `🎤 ${Math.floor(dur / 60)}:${(dur % 60).toString().padStart(2, '0')}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isOwn: true,
-          type: 'file',
-          file: { name: `voice-${Date.now()}.${mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm'}`, size: `${(blob.size / 1024).toFixed(0)} KB`, url },
+          type: 'voice',
+          voice: url,
+          duration: dur,
         };
         addMessage(selectedChat, newMsg);
         if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
         setRecordingTime(0);
+        setIsRecording(false);
       };
-      mediaRecorder.start();
+      mr.start(250);
       setIsRecording(true);
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => setRecordingTime(p => p + 1), 1000);
-    } catch {
-      alert('Microphone access denied. Allow microphone to record voice.');
-    }
+    } catch { alert('Microphone access denied. Allow microphone to record voice.'); }
   };
 
-  const stopRecording = () => {
+  const stopRecording = (cancelled = false) => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      if (cancelled) audioChunksRef.current = [];
       mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
@@ -412,6 +444,7 @@ export function ChatPage() {
                         </div>
                       </div>
                     )}
+                    {msg.type === 'voice' && msg.voice && <VoiceBubble src={msg.voice} duration={msg.duration || 0} />}
                     {msg.type === 'poll' && <Vote size={14} className="inline mr-1" />}
                     {msg.text && <p className={msg.type !== 'text' ? 'text-xs' : ''}>{msg.text}</p>}
                     <div className="flex items-center justify-end gap-1 mt-0.5">
@@ -493,7 +526,7 @@ export function ChatPage() {
                 {showEmoji && (
                   <div className="absolute bottom-12 left-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-64 overflow-y-auto">
                     <div className="flex flex-wrap gap-0.5">
-                      {emojiList.map((emoji, i) => (
+                      {emojis.map((emoji, i) => (
                         <button key={i} onClick={() => { setMessageText(prev => prev + emoji); inputRef.current?.focus(); setShowEmoji(false); }}
                           className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition">
                           {emoji}
@@ -523,20 +556,23 @@ export function ChatPage() {
                   placeholder="Message..." autoFocus
                   className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
               </div>
-              <button onClick={isRecording ? stopRecording : startRecording}
-                className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white animate-pulse shadow-lg' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
+              <button onPointerDown={(e) => { e.preventDefault(); startRecording(); }}
+                onPointerUp={(e) => { if (isRecording) stopRecording(); }}
+                onPointerLeave={() => { if (isRecording) stopRecording(true); }}
+                className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white shadow-lg scale-110' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
                 <Mic size={22} />
               </button>
               {isRecording && (
-                <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={stopRecording}>
-                  <div className="bg-card rounded-2xl p-8 shadow-2xl border border-border flex flex-col items-center gap-3">
-                    <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center">
-                      <div className="w-4 h-4 rounded-full bg-destructive animate-ping" />
-                    </div>
-                    <p className="text-lg font-semibold text-foreground">Recording...</p>
-                    <p className="text-3xl font-mono text-destructive">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</p>
-                    <p className="text-xs text-muted-foreground">Tap to stop</p>
+                <div className="fixed bottom-0 left-0 right-0 z-30 bg-destructive/90 backdrop-blur-md px-4 py-3 flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-white animate-pulse" />
+                    <span className="text-white text-sm font-semibold">Recording</span>
                   </div>
+                  <span className="text-white/90 text-lg font-mono font-bold">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
+                  <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                    <div className="h-full bg-white rounded-full animate-pulse" style={{ width: `${(recordingTime % 10 + 1) * 10}%` }} />
+                  </div>
+                  <span className="text-white/60 text-xs">Release to send &#8593; swipe up to cancel</span>
                 </div>
               )}
               <motion.button onClick={handleSendMessage}
