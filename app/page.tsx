@@ -7,7 +7,7 @@ import { ArrowRight, BookOpen, Users, Zap, BarChart3, Lock, Smartphone } from 'l
 
 export default function Home() {
   return (
-    <div className="landing-page min-h-screen bg-gradient-to-br from-blue-900 via-blue-700 to-blue-600">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-700 to-blue-600">
       <LandingNavbar />
 
       {/* Hero Section */}
