@@ -23,7 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-background">
+      <div className="h-screen bg-background flex flex-col">
         <Sidebar />
         <DashboardContent>{children}</DashboardContent>
       </div>

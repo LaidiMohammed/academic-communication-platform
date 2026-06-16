@@ -92,7 +92,7 @@ export function ChatPage() {
   const messages = selectedChat ? messagesMap[selectedChat] || [] : [];
 
   return (
-    <div className="flex h-full bg-background">
+    <div className="flex flex-1 min-h-0 bg-background">
       {/* Chat List - Sidebar */}
       <div className="w-full md:w-72 bg-card border-r border-border flex flex-col">
         {/* Header */}
