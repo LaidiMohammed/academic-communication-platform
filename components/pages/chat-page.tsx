@@ -10,6 +10,7 @@ import {
 import { ChatInputWidget } from '@/components/chat-input-widget';
 import { ChatDetailsPanel } from '@/components/chat-details-panel';
 import { motion, AnimatePresence } from 'framer-motion';
+import twemoji from 'twemoji';
 
 interface ReplyTo {
   id: number;
@@ -69,6 +70,11 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   );
 }
 
+function EmojiText({ text, className }: { text: string; className?: string }) {
+  const html = text ? twemoji.parse(text, { ext: '.svg', className: 'emoji-tw' }) : '';
+  return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 export function ChatPage() {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
@@ -88,6 +94,7 @@ export function ChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [emojiTab, setEmojiTab] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -95,6 +102,15 @@ export function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
+
+  const emojiTabs = [
+    { id: '😀', emojis: ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤩','🤔','🤨','😐','😑','😶','😏','😮','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬'] },
+    { id: '👋', emojis: ['👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤝','🙏','✌️','🤟','🤘','👌','🤏','✋','👆','👇','👈','👉','🤲','💅','👋','👂','👃','🧠','👁️','👅','👄','💋','👶','👦','👧','🧑','👩','👨','👴','👵','👲','🧕','👮','🕵️','💂','👷','🤶','🎅'] },
+    { id: '🐱', emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🐪','🐫','🦒','🐄','🐎','🐖','🐏','🐑','🐕','🐩','🐈','🐇','🐁','🐀','🦔','🐾','🐉'] },
+    { id: '🍔', emojis: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌽','🥕','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🥓','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🌮','🌯','🥗','🥘','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','☕','🍵','🥤','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾'] },
+    { id: '🚗', emojis: ['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','⛽','🚢','✈️','🛩️','🛫','🛬','💺','🚁','🚀','🛸','🚏','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗾','🏔️','⛰️','🌋','🗻','🏖️','🏜️','🏝️','🏞️','🗺️'] },
+    { id: '❤️', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💗','💖','💘','💝','✨','🔥','⭐','🌟','💫','🎉','🎊','🎈','🎁','💯','✅','❌','❓','❗','🚀','💪','👀','🙈','🙉','🙊','💀','☠️','💥','🌈','⚡','🎶','🎵','🔔','💤','💨','💧','💦','☔','🌊','❄️','🔥','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🎯','🎮','🎲','🧩','🎭','🎨','🎪','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🎿','🏂','🥇','🥈','🥉','🏅','🏆','🏁','🚩','🇩🇿','🇺🇸','🇬🇧','🇫🇷','🇪🇸','🇩🇪','🇮🇹','🇯🇵','🇨🇳','🇷🇺','🇧🇷','🇲🇦','🇹🇳','🇪🇬'] },
+  ];
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -225,9 +241,18 @@ export function ChatPage() {
 
   const handleLocationShared = () => {
     if (!selectedChat) return;
-    const lat = 36.7372 + (Math.random() - 0.5) * 0.02;
-    const lng = 3.0862 + (Math.random() - 0.5) * 0.02;
-    const mapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=300x150&maptype=mapnik&markers=${lat},${lng},red-pushpin`;
+    const lat = (36.7372 + (Math.random() - 0.5) * 0.02).toFixed(4);
+    const lng = (3.0862 + (Math.random() - 0.5) * 0.02).toFixed(4);
+    const svgMap = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 150">
+      <defs><pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#e8f5e9"/><rect width="1" height="20" fill="#c8e6c9"/><rect width="20" height="1" fill="#c8e6c9"/></pattern></defs>
+      <rect width="300" height="150" fill="url(#g)"/>
+      <rect width="300" height="150" fill="#4caf50" opacity="0.08"/>
+      <text x="150" y="75" text-anchor="middle" font-size="32" opacity="0.3">🗺️</text>
+      <circle cx="150" cy="65" r="20" fill="#ef4444" opacity="0.2"/>
+      <circle cx="150" cy="65" r="8" fill="#ef4444" stroke="white" stroke-width="2"/>
+      <polygon points="150,85 145,95 155,95" fill="#ef4444" opacity="0.3"/>
+      <text x="150" y="130" text-anchor="middle" font-size="11" fill="#666" font-family="sans-serif">${lat}, ${lng}</text>
+    </svg>`)}`;
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',
@@ -235,7 +260,7 @@ export function ChatPage() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'location',
-      image: mapUrl,
+      image: svgMap,
     };
     addMessage(selectedChat, newMsg);
   };
@@ -331,6 +356,7 @@ export function ChatPage() {
 
   return (
     <div className="flex flex-1 min-h-0 bg-background">
+      <style>{`.emoji-tw{display:inline;height:1.1em;width:1.1em;vertical-align:-0.15em;}.emoji-tw.w-4\\.5{height:1.125rem;width:1.125rem;}`}</style>
       {/* Chat List */}
       <div className="w-full md:w-72 bg-card border-r border-border flex flex-col">
         <div className="p-3 border-b border-border">
@@ -446,7 +472,7 @@ export function ChatPage() {
                     )}
                     {msg.type === 'voice' && msg.voice && <VoiceBubble src={msg.voice} duration={msg.duration || 0} />}
                     {msg.type === 'poll' && <Vote size={14} className="inline mr-1" />}
-                    {msg.text && <p className={msg.type !== 'text' ? 'text-xs' : ''}>{msg.text}</p>}
+                    {msg.text && <EmojiText text={msg.text} className={msg.type !== 'text' ? 'text-xs' : ''} />}
                     <div className="flex items-center justify-end gap-1 mt-0.5">
                       {msg.isOwn && msg.readBy && msg.readBy > 0 && <CheckCheck size={10} className="text-accent" />}
                       <p className={`text-[10px] ${msg.isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{msg.time}</p>
@@ -456,7 +482,8 @@ export function ChatPage() {
                   {msg.reactions && msg.reactions.length > 0 && (
                     <div className="flex gap-0.5 mt-0.5 -mb-1">
                       {[...new Set(msg.reactions)].map((r, i) => (
-                        <span key={i} className="text-xs bg-background border border-border rounded-full px-1.5 py-0.5 shadow-sm">{r}</span>
+                        <span key={i} className="text-xs bg-background border border-border rounded-full px-1.5 py-0.5 shadow-sm inline-flex items-center"
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { ext: '.svg', className: 'emoji-tw' }) }} />
                       ))}
                     </div>
                   )}
@@ -467,7 +494,8 @@ export function ChatPage() {
                       {/* Quick reactions */}
                       {reactionEmojis.map(r => (
                         <button key={r} onClick={() => handleReact(selectedChat!, msg.id, r)}
-                          className="w-7 h-7 flex items-center justify-center hover:bg-secondary rounded-full text-base transition">{r}</button>
+                          className="w-7 h-7 flex items-center justify-center hover:bg-secondary rounded-full text-base transition"
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { ext: '.svg', className: 'emoji-tw' }) }} />
                       ))}
                       <div className="w-px h-5 bg-border mx-0.5 self-center" />
                       <button onClick={() => handleCopy(msg.text || '')} className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground">
@@ -493,7 +521,8 @@ export function ChatPage() {
                 {hoveredMessage === msg.id && !expandedMessage && (
                   <div className="flex items-center">
                     <button onClick={() => handleReact(selectedChat!, msg.id, '❤️')}
-                      className="p-1 rounded-full hover:bg-secondary transition text-foreground text-base">❤️</button>
+                      className="p-1 rounded-full hover:bg-secondary transition text-foreground"
+                      dangerouslySetInnerHTML={{ __html: twemoji.parse('❤️', { ext: '.svg', className: 'emoji-tw w-4 h-4' }) }} />
                   </div>
                 )}
               </div>
@@ -524,13 +553,18 @@ export function ChatPage() {
                   <Smile size={22} />
                 </button>
                 {showEmoji && (
-                  <div className="absolute bottom-12 left-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-64 overflow-y-auto">
-                    <div className="flex flex-wrap gap-0.5">
-                      {emojis.map((emoji, i) => (
+                  <div className="absolute bottom-12 left-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-72 overflow-hidden">
+                    <div className="flex gap-0.5 mb-1 pb-1 border-b border-border">
+                      {emojiTabs.map((t, i) => (
+                        <button key={i} onClick={() => setEmojiTab(i)}
+                          className={`flex-1 text-center py-1 text-sm rounded-lg transition ${emojiTab === i ? 'bg-primary/10 scale-110' : 'hover:bg-secondary'}`}>{t.id}</button>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-0.5 max-h-52 overflow-y-auto">
+                      {emojiTabs[emojiTab].emojis.map((emoji, i) => (
                         <button key={i} onClick={() => { setMessageText(prev => prev + emoji); inputRef.current?.focus(); setShowEmoji(false); }}
-                          className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition">
-                          {emoji}
-                        </button>
+                          className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { ext: '.svg', className: 'emoji-tw' }) }} />
                       ))}
                     </div>
                   </div>
@@ -556,23 +590,23 @@ export function ChatPage() {
                   placeholder="Message..." autoFocus
                   className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
               </div>
-              <button onPointerDown={(e) => { e.preventDefault(); startRecording(); }}
-                onPointerUp={(e) => { if (isRecording) stopRecording(); }}
-                onPointerLeave={() => { if (isRecording) stopRecording(true); }}
+              <button onClick={() => { if (isRecording) { stopRecording(); } else { startRecording(); } }}
                 className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white shadow-lg scale-110' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
                 <Mic size={22} />
               </button>
               {isRecording && (
-                <div className="fixed bottom-0 left-0 right-0 z-30 bg-destructive/90 backdrop-blur-md px-4 py-3 flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-white animate-pulse" />
-                    <span className="text-white text-sm font-semibold">Recording</span>
+                <div className="fixed inset-x-0 bottom-0 z-30 bg-card border-t border-border px-4 py-3 flex items-center gap-3 shadow-2xl">
+                  <button onClick={() => stopRecording(true)} className="p-2 rounded-xl hover:bg-destructive/10 text-destructive transition">
+                    <Trash2 size={20} />
+                  </button>
+                  <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
+                  <span className="font-mono text-lg font-bold text-foreground">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
+                  <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-destructive rounded-full" style={{ width: `${Math.min(100, (recordingTime / 60) * 100)}%` }} />
                   </div>
-                  <span className="text-white/90 text-lg font-mono font-bold">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
-                  <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                    <div className="h-full bg-white rounded-full animate-pulse" style={{ width: `${(recordingTime % 10 + 1) * 10}%` }} />
-                  </div>
-                  <span className="text-white/60 text-xs">Release to send &#8593; swipe up to cancel</span>
+                  <button onClick={() => stopRecording()} className="p-2 rounded-xl bg-primary text-primary-foreground hover:shadow-lg transition">
+                    <Send size={18} />
+                  </button>
                 </div>
               )}
               <motion.button onClick={handleSendMessage}
