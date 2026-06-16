@@ -11,7 +11,7 @@ export function DashboardContent({ children }: DashboardContentProps) {
 
   return (
     <main
-      className={`transition-all duration-300 ease-out flex-1 min-h-0 ${
+      className={`transition-all duration-300 ease-out flex-1 min-h-0 flex flex-col ${
         isMinimized ? 'md:ml-20' : 'md:ml-64'
       }`}
     >
