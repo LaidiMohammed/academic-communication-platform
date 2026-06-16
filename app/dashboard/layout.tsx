@@ -1,15 +1,16 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
+import { SidebarProvider } from '@/lib/sidebar-context';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { Navbar } from '@/components/navbar';
+import { DashboardContent } from '@/components/dashboard-content';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn } = useAuth();
   const router = useRouter();
-  const [isSidebarMinimized, setIsSidebarMinimized] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -22,12 +23,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar />
-      <Navbar />
-      <main className="ml-0 md:ml-64 mt-16 transition-all duration-300 p-4 md:p-6">
-        {children}
-      </main>
-    </div>
+    <SidebarProvider>
+      <div className="min-h-screen bg-background">
+        <Sidebar />
+        <Navbar />
+        <DashboardContent>{children}</DashboardContent>
+      </div>
+    </SidebarProvider>
   );
 }

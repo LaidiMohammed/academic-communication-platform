@@ -18,13 +18,14 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useSidebar } from '@/lib/sidebar-context';
 import { useState } from 'react';
 
 export function Sidebar() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
+  const { isMinimized, setIsMinimized } = useSidebar();
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
 
   const menuItems = [
     { icon: Home, label: 'Home', href: '/dashboard', id: 'home' },

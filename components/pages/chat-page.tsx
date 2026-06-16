@@ -15,8 +15,10 @@ import {
   Eye,
   Copy,
   Trash2,
+  Info,
 } from 'lucide-react';
 import { ChatInputWidget } from '@/components/chat-input-widget';
+import { ChatDetailsPanel } from '@/components/chat-details-panel';
 
 export function ChatPage() {
   const [chatMode, setChatMode] = useState<'individual' | 'group'>('individual');
@@ -24,6 +26,8 @@ export function ChatPage() {
   const [messageText, setMessageText] = useState('');
   const [hoveredMessage, setHoveredMessage] = useState<number | null>(null);
   const [expandedMessage, setExpandedMessage] = useState<number | null>(null);
+  const [showDetailsPanel, setShowDetailsPanel] = useState(false);
+  const [isChatMuted, setIsChatMuted] = useState(false);
 
   const chats = [
     {
@@ -306,6 +310,12 @@ export function ChatPage() {
               <button className="p-2 rounded-lg hover:bg-secondary transition text-foreground hover:text-primary">
                 <Video size={20} strokeWidth={2} />
               </button>
+              <button 
+                onClick={() => setShowDetailsPanel(!showDetailsPanel)}
+                className={`p-2 rounded-lg transition text-foreground ${showDetailsPanel ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary hover:text-primary'}`}
+              >
+                <Info size={20} strokeWidth={2} />
+              </button>
               <button className="p-2 rounded-lg hover:bg-secondary transition text-foreground hover:text-primary">
                 <MoreVertical size={20} strokeWidth={2} />
               </button>
@@ -445,6 +455,25 @@ export function ChatPage() {
             <p className="text-muted-foreground">Select a chat to start messaging</p>
           </div>
         </div>
+      )}
+
+      {/* Chat Details Panel */}
+      {selectedChat && currentChat && (
+        <ChatDetailsPanel
+          isOpen={showDetailsPanel}
+          onClose={() => setShowDetailsPanel(false)}
+          chatName={currentChat.name}
+          chatAvatar={currentChat.avatar}
+          online={currentChat.online}
+          isMuted={isChatMuted}
+          onMute={() => setIsChatMuted(!isChatMuted)}
+          onChangeNickname={() => console.log('Change nickname')}
+          onBlock={() => console.log('Block user')}
+          onDelete={() => {
+            setSelectedChat(null);
+            setShowDetailsPanel(false);
+          }}
+        />
       )}
     </div>
   );
