@@ -44,18 +44,20 @@ interface Message {
 }
 
 function MapPreview({ lat, lng, onZoom }: { lat: number; lng: number; onZoom: () => void }) {
-  const url = `https://www.openstreetmap.org/export/embed.html?bbox=${lng-0.01},${lat-0.01},${lng+0.01},${lat+0.01}&layer=mapnik&marker=${lat},${lng}`;
+  const bbox = `${lng-0.01}%2C${lat-0.01}%2C${lng+0.01}%2C${lat+0.01}`;
+  const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
   return (
     <div onClick={onZoom} className="w-full h-28 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition border border-border relative mb-1">
-      <iframe src={url} className="w-full h-full pointer-events-none" title="Map" />
-      <div className="absolute inset-0" />
+      <iframe src={url} className="w-full h-full pointer-events-none" title="Map" loading="lazy" />
+      <div className="absolute inset-0 bg-transparent" />
     </div>
   );
 }
 
 function MapFull({ lat, lng }: { lat: number; lng: number }) {
-  const url = `https://www.openstreetmap.org/export/embed.html?bbox=${lng-0.02},${lat-0.02},${lng+0.02},${lat+0.02}&layer=mapnik&marker=${lat},${lng}`;
-  return <iframe src={url} className="w-full h-full" title="Map" />;
+  const bbox = `${lng-0.02}%2C${lat-0.02}%2C${lng+0.02}%2C${lat+0.02}`;
+  const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
+  return <iframe src={url} className="w-full h-full" title="Map" loading="lazy" />;
 }
 
 function VoiceBubble({ src, duration }: { src: string; duration: number }) {
@@ -91,8 +93,10 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   );
 }
 
+const appleEmoji = (icon: string) => `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${icon}.png`;
+
 function EmojiText({ text, className }: { text: string; className?: string }) {
-  const html = text ? twemoji.parse(text, { ext: '.svg', className: 'emoji-tw' }) : '';
+  const html = text ? twemoji.parse(text, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) : '';
   return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
@@ -281,11 +285,10 @@ export function ChatPage() {
 
   const startRecording = async () => {
     try {
+      if (!navigator.mediaDevices?.getUserMedia) { alert('Voice recording not supported in this browser'); return; }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
-        : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus'
-        : 'audio/mp4';
+      const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', ''];
+      const mimeType = types.find(t => !t || MediaRecorder.isTypeSupported(t)) || '';
       const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mr;
       audioChunksRef.current = [];
@@ -372,7 +375,7 @@ export function ChatPage() {
 
   return (
     <div className="flex flex-1 min-h-0 bg-background">
-      <style>{`.emoji-tw{display:inline;height:1.1em;width:1.1em;vertical-align:-0.15em;}.emoji-tw.w-4\\.5{height:1.125rem;width:1.125rem;}`}</style>
+      <style>{`.emoji-tw{display:inline;height:1.1em;width:1.1em;vertical-align:-0.15em;object-fit:contain;}`}</style>
       {/* Chat List */}
       <div className="w-full md:w-72 bg-card border-r border-border flex flex-col">
         <div className="p-3 border-b border-border">
@@ -493,7 +496,7 @@ export function ChatPage() {
                     <div className="flex gap-0.5 mt-0.5 -mb-1">
                       {[...new Set(msg.reactions)].map((r, i) => (
                         <span key={i} className="text-xs bg-background border border-border rounded-full px-1.5 py-0.5 shadow-sm inline-flex items-center"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { ext: '.svg', className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) }} />
                       ))}
                     </div>
                   )}
@@ -505,7 +508,7 @@ export function ChatPage() {
                       {reactionEmojis.map(r => (
                         <button key={r} onClick={() => handleReact(selectedChat!, msg.id, r)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-secondary rounded-full text-base transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { ext: '.svg', className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) }} />
                       ))}
                       <div className="w-px h-5 bg-border mx-0.5 self-center" />
                       <button onClick={() => handleCopy(msg.text || '')} className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground">
@@ -532,7 +535,7 @@ export function ChatPage() {
                   <div className="flex items-center">
                     <button onClick={() => handleReact(selectedChat!, msg.id, '❤️')}
                       className="p-1 rounded-full hover:bg-secondary transition text-foreground"
-                      dangerouslySetInnerHTML={{ __html: twemoji.parse('❤️', { base: twBase, ext: '.svg', className: 'emoji-tw w-4 h-4' }) }} />
+                      dangerouslySetInnerHTML={{ __html: twemoji.parse('❤️', { callback: (i) => appleEmoji(i), className: 'emoji-tw w-4 h-4' }) }} />
                   </div>
                 )}
               </div>
@@ -574,7 +577,7 @@ export function ChatPage() {
                       {emojiTabs[emojiTab].emojis.map((emoji, i) => (
                         <button key={i} onClick={() => { setMessageText(prev => prev + emoji); inputRef.current?.focus(); setShowEmoji(false); }}
                           className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { ext: '.svg', className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) }} />
                       ))}
                     </div>
                   </div>
