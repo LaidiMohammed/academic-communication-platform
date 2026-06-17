@@ -76,8 +76,8 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   const mins = Math.floor(duration / 60);
   const secs = duration % 60;
   return (
-    <div className="flex items-center gap-2 mb-1 min-w-40" onClick={(e) => e.stopPropagation()}>
-      <button onClick={toggle} className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0">
+    <div className="flex items-center gap-2 mb-1 min-w-40">
+      <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0">
         {playing
           ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
           : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg>}
@@ -268,19 +268,44 @@ export function ChatPage() {
 
   const handleLocationShared = () => {
     if (!selectedChat) return;
-    const lat = +(36.7372 + (Math.random() - 0.5) * 0.02).toFixed(4);
-    const lng = +(3.0862 + (Math.random() - 0.5) * 0.02).toFixed(4);
-    const newMsg: Message = {
-      id: getNextId(selectedChat),
-      sender: 'You',
-      text: '📍 Location',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isOwn: true,
-      type: 'location',
-      image: '', // empty - will render Leaflet map
-      lat, lng,
-    };
-    addMessage(selectedChat, newMsg);
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by this browser');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const newMsg: Message = {
+          id: getNextId(selectedChat!),
+          sender: 'You',
+          text: '📍 Location',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isOwn: true,
+          type: 'location',
+          image: '',
+          lat: +latitude.toFixed(4),
+          lng: +longitude.toFixed(4),
+        };
+        addMessage(selectedChat!, newMsg);
+      },
+      (err) => {
+        alert(`Location error: ${err.message}. Using approximate position.`);
+        const lat = +(36.7372 + (Math.random() - 0.5) * 0.02).toFixed(4);
+        const lng = +(3.0862 + (Math.random() - 0.5) * 0.02).toFixed(4);
+        const newMsg: Message = {
+          id: getNextId(selectedChat!),
+          sender: 'You',
+          text: '📍 Location (approx)',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isOwn: true,
+          type: 'location',
+          image: '',
+          lat, lng,
+        };
+        addMessage(selectedChat!, newMsg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
   };
 
   const startRecording = async () => {
@@ -570,7 +595,8 @@ export function ChatPage() {
                     <div className="flex gap-0.5 mb-1 pb-1 border-b border-border">
                       {emojiTabs.map((t, i) => (
                         <button key={i} onClick={() => setEmojiTab(i)}
-                          className={`flex-1 text-center py-1 text-sm rounded-lg transition ${emojiTab === i ? 'bg-primary/10 scale-110' : 'hover:bg-secondary'}`}>{t.id}</button>
+                          className={`flex-1 text-center py-1 text-sm rounded-lg transition ${emojiTab === i ? 'bg-primary/10 scale-110' : 'hover:bg-secondary'}`}
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(t.id, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) }} />
                       ))}
                     </div>
                     <div className="flex flex-wrap gap-0.5 max-h-52 overflow-y-auto">
@@ -608,27 +634,31 @@ export function ChatPage() {
                 <Mic size={22} />
               </button>
               {isRecording && (
-                <div className="fixed inset-x-0 bottom-0 z-30 bg-card border-t-2 border-primary/30 px-4 py-3 flex items-center gap-3 shadow-2xl">
-                  <button onClick={() => stopRecording(true)} className="p-2.5 rounded-full hover:bg-destructive/10 text-destructive transition">
-                    <Trash2 size={18} />
+                <div className="fixed inset-x-0 bottom-0 z-50 bg-card border-t-2 border-primary/30 px-4 py-4 flex items-center gap-4 shadow-2xl">
+                  <button onClick={() => stopRecording(true)}
+                    className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl hover:bg-destructive/10 text-destructive transition">
+                    <Trash2 size={20} />
+                    <span className="text-[10px] font-medium">Cancel</span>
                   </button>
-                  <div className="flex items-center gap-2.5 flex-1">
-                    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                      <Mic size={16} className="text-destructive" />
+                  <div className="flex items-center gap-3 flex-1 bg-secondary rounded-xl px-3 py-2.5">
+                    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                      <Mic size={18} className="text-destructive" />
                     </div>
-                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
                         <span className="text-xs font-semibold text-foreground">Recording</span>
                         <span className="font-mono text-sm font-bold text-foreground ml-auto">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
                       </div>
-                      <div className="h-1 bg-secondary rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
                         <div className="h-full bg-destructive rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (recordingTime / 60) * 100)}%` }} />
                       </div>
                     </div>
                   </div>
-                  <button onClick={() => stopRecording()} className="p-2.5 rounded-full bg-primary text-primary-foreground hover:shadow-lg transition shadow-lg">
-                    <Send size={16} />
+                  <button onClick={() => stopRecording()}
+                    className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition shadow-lg">
+                    <Send size={20} />
+                    <span className="text-[10px] font-medium">Send</span>
                   </button>
                 </div>
               )}
