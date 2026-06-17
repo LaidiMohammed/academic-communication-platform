@@ -70,8 +70,10 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   );
 }
 
+const twBase = 'https://cdn.jsdelivr.net/npm/twemoji@14.0.2/';
+
 function EmojiText({ text, className }: { text: string; className?: string }) {
-  const html = text ? twemoji.parse(text, { ext: '.svg', className: 'emoji-tw' }) : '';
+  const html = text ? twemoji.parse(text, { base: twBase, ext: '.svg', className: 'emoji-tw' }) : '';
   return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
@@ -98,6 +100,7 @@ export function ChatPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingTimeRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -282,7 +285,7 @@ export function ChatPage() {
         if (audioChunksRef.current.length === 0) return;
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         const url = URL.createObjectURL(blob);
-        const dur = recordingTime;
+        const dur = recordingTimeRef.current;
         const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
         const newMsg: Message = {
           id: getNextId(selectedChat),
@@ -296,13 +299,15 @@ export function ChatPage() {
         };
         addMessage(selectedChat, newMsg);
         if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        recordingTimeRef.current = 0;
         setRecordingTime(0);
         setIsRecording(false);
       };
       mr.start(250);
       setIsRecording(true);
+      recordingTimeRef.current = 0;
       setRecordingTime(0);
-      recordingTimerRef.current = setInterval(() => setRecordingTime(p => p + 1), 1000);
+      recordingTimerRef.current = setInterval(() => { recordingTimeRef.current += 1; setRecordingTime(recordingTimeRef.current); }, 1000);
     } catch { alert('Microphone access denied. Allow microphone to record voice.'); }
   };
 
@@ -483,7 +488,7 @@ export function ChatPage() {
                     <div className="flex gap-0.5 mt-0.5 -mb-1">
                       {[...new Set(msg.reactions)].map((r, i) => (
                         <span key={i} className="text-xs bg-background border border-border rounded-full px-1.5 py-0.5 shadow-sm inline-flex items-center"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { ext: '.svg', className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { base: twBase, ext: '.svg', className: 'emoji-tw' }) }} />
                       ))}
                     </div>
                   )}
@@ -495,7 +500,7 @@ export function ChatPage() {
                       {reactionEmojis.map(r => (
                         <button key={r} onClick={() => handleReact(selectedChat!, msg.id, r)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-secondary rounded-full text-base transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { ext: '.svg', className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { base: twBase, ext: '.svg', className: 'emoji-tw' }) }} />
                       ))}
                       <div className="w-px h-5 bg-border mx-0.5 self-center" />
                       <button onClick={() => handleCopy(msg.text || '')} className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground">
@@ -522,7 +527,7 @@ export function ChatPage() {
                   <div className="flex items-center">
                     <button onClick={() => handleReact(selectedChat!, msg.id, '❤️')}
                       className="p-1 rounded-full hover:bg-secondary transition text-foreground"
-                      dangerouslySetInnerHTML={{ __html: twemoji.parse('❤️', { ext: '.svg', className: 'emoji-tw w-4 h-4' }) }} />
+                      dangerouslySetInnerHTML={{ __html: twemoji.parse('❤️', { base: twBase, ext: '.svg', className: 'emoji-tw w-4 h-4' }) }} />
                   </div>
                 )}
               </div>
@@ -564,7 +569,7 @@ export function ChatPage() {
                       {emojiTabs[emojiTab].emojis.map((emoji, i) => (
                         <button key={i} onClick={() => { setMessageText(prev => prev + emoji); inputRef.current?.focus(); setShowEmoji(false); }}
                           className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { ext: '.svg', className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { base: twBase, ext: '.svg', className: 'emoji-tw' }) }} />
                       ))}
                     </div>
                   </div>
