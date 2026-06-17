@@ -600,45 +600,15 @@ export function ChatPage() {
           {/* Input Area */}
           <div className="border-t border-border px-3 pt-2 pb-2 shrink-0">
             <div className="flex items-end gap-1.5">
-              <div className="relative" ref={emojiRef}>
-                <button onClick={() => setShowEmoji(!showEmoji)}
-                  className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-primary shrink-0">
-                  <Smile size={22} />
-                </button>
-                {showEmoji && (
-                  <div className="absolute bottom-12 left-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-72 overflow-hidden">
-                    <div className="flex gap-0.5 mb-1 pb-1 border-b border-border">
-                      {emojiTabs.map((t, i) => (
-                        <button key={i} onClick={() => setEmojiTab(i)}
-                          className={`flex-1 text-center py-1 text-sm rounded-lg transition ${emojiTab === i ? 'bg-primary/10 scale-110' : 'hover:bg-secondary'}`}
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(t.id, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-0.5 max-h-52 overflow-y-auto">
-                      {emojiTabs[emojiTab].emojis.map((emoji, i) => (
-                        <button key={i} onClick={() => {
-                          const sel = window.getSelection();
-                          const div = inputRef.current;
-                          if (div && sel) {
-                            const range = sel.getRangeAt(0);
-                            const img = twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) });
-                            const frag = range.createContextualFragment(img);
-                            range.deleteContents();
-                            range.insertNode(frag);
-                            range.collapse(false);
-                            sel.removeAllRanges();
-                            sel.addRange(range);
-                            div.focus();
-                            setMessageText(div.innerText);
-                          }
-                        }}
-                          className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <motion.button onClick={handleSendMessage}
+                whileTap={{ scale: 0.9 }}
+                animate={sending ? { x: [0, 4, -4, 2, -2, 0] } : {}}
+                transition={{ duration: 0.4, ease: 'easeInOut' }}
+                className="p-2 rounded-xl bg-primary text-primary-foreground hover:shadow-md transition shrink-0">
+                <motion.div animate={sending ? { rotate: [0, -15, 15, 0], y: [0, -2, 0] } : {}} transition={{ duration: 0.4 }}>
+                  <Send size={18} />
+                </motion.div>
+              </motion.button>
               <ChatInputWidget
                 onSondage={() => setShowPollModal(true)}
                 onLocation={handleLocationShared}
@@ -656,8 +626,46 @@ export function ChatPage() {
                 <div ref={inputRef as any} contentEditable
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
                   data-placeholder="Message..."
-                  className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 whitespace-pre-wrap break-words max-h-32 overflow-y-auto"
+                  className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 whitespace-pre-wrap break-words max-h-32 overflow-y-auto pr-8"
                 />
+                <div className="absolute right-1 bottom-1.5" ref={emojiRef}>
+                  <button onClick={() => setShowEmoji(!showEmoji)}
+                    className="p-0.5 rounded hover:bg-secondary/80 transition text-muted-foreground hover:text-foreground">
+                    <Smile size={16} />
+                  </button>
+                  {showEmoji && (
+                    <div className="absolute bottom-8 right-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-72 overflow-hidden">
+                      <div className="flex gap-0.5 mb-1 pb-1 border-b border-border">
+                        {emojiTabs.map((t, i) => (
+                          <button key={i} onClick={() => setEmojiTab(i)}
+                            className={`flex-1 text-center py-1 text-sm rounded-lg transition ${emojiTab === i ? 'bg-primary/10 scale-110' : 'hover:bg-secondary'}`}
+                            dangerouslySetInnerHTML={{ __html: twemoji.parse(t.id, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-0.5 max-h-52 overflow-y-auto">
+                        {emojiTabs[emojiTab].emojis.map((emoji, i) => (
+                          <button key={i} onClick={() => {
+                            const sel = window.getSelection();
+                            const div = inputRef.current;
+                            if (div && sel) {
+                              const range = sel.getRangeAt(0);
+                              const img = twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) });
+                              const frag = range.createContextualFragment(img);
+                              range.deleteContents();
+                              range.insertNode(frag);
+                              range.collapse(false);
+                              sel.removeAllRanges();
+                              sel.addRange(range);
+                              div.focus();
+                            }
+                          }}
+                            className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
+                            dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex gap-0.5 items-center shrink-0">
                 {['👍','❤️','😂','🔥','🎉','😢'].map((e, i) => (
@@ -684,15 +692,6 @@ export function ChatPage() {
                 className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white shadow-lg scale-110' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
                 <Mic size={22} />
               </button>
-              <motion.button onClick={handleSendMessage}
-                whileTap={{ scale: 0.9 }}
-                animate={sending ? { x: [0, 4, -4, 2, -2, 0] } : {}}
-                transition={{ duration: 0.4, ease: 'easeInOut' }}
-                className="p-2 rounded-xl bg-primary text-primary-foreground hover:shadow-md transition shrink-0">
-                <motion.div animate={sending ? { rotate: [0, -15, 15, 0], y: [0, -2, 0] } : {}} transition={{ duration: 0.4 }}>
-                  <span dangerouslySetInnerHTML={{ __html: twemoji.parse('✈️', { callback: (i) => appleEmoji(i), className: 'emoji-tw w-4 h-4', attributes: (i) => emojiAttrs(i) }) }} />
-                </motion.div>
-              </motion.button>
             </div>
           </div>
           {isRecording && (
