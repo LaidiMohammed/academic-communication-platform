@@ -93,10 +93,12 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   );
 }
 
-const appleEmoji = (icon: string) => `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/${icon}.png`;
+const CDN = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/';
+const appleEmoji = (icon: string) => `${CDN}${icon}.png`;
+const emojiAttrs = (icon: string) => ({ onerror: `this.onerror=null;var s=this.src;this.src=s.includes('-fe0f')?s.replace('-fe0f',''):s.replace('.png','-fe0f.png')` });
 
 function EmojiText({ text, className }: { text: string; className?: string }) {
-  const html = text ? twemoji.parse(text, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) : '';
+  const html = text ? twemoji.parse(text, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) : '';
   return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
@@ -521,7 +523,7 @@ export function ChatPage() {
                     <div className="flex gap-0.5 mt-0.5 -mb-1">
                       {[...new Set(msg.reactions)].map((r, i) => (
                         <span key={i} className="text-xs bg-background border border-border rounded-full px-1.5 py-0.5 shadow-sm inline-flex items-center"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
                       ))}
                     </div>
                   )}
@@ -533,7 +535,7 @@ export function ChatPage() {
                       {reactionEmojis.map(r => (
                         <button key={r} onClick={() => handleReact(selectedChat!, msg.id, r)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-secondary rounded-full text-base transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
                       ))}
                       <div className="w-px h-5 bg-border mx-0.5 self-center" />
                       <button onClick={() => handleCopy(msg.text || '')} className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground">
@@ -560,7 +562,7 @@ export function ChatPage() {
                   <div className="flex items-center">
                     <button onClick={() => handleReact(selectedChat!, msg.id, '❤️')}
                       className="p-1 rounded-full hover:bg-secondary transition text-foreground"
-                      dangerouslySetInnerHTML={{ __html: twemoji.parse('❤️', { callback: (i) => appleEmoji(i), className: 'emoji-tw w-4 h-4' }) }} />
+                      dangerouslySetInnerHTML={{ __html: twemoji.parse('❤️', { callback: (i) => appleEmoji(i), className: 'emoji-tw w-4 h-4', attributes: (i) => emojiAttrs(i) }) }} />
                   </div>
                 )}
               </div>
@@ -596,14 +598,14 @@ export function ChatPage() {
                       {emojiTabs.map((t, i) => (
                         <button key={i} onClick={() => setEmojiTab(i)}
                           className={`flex-1 text-center py-1 text-sm rounded-lg transition ${emojiTab === i ? 'bg-primary/10 scale-110' : 'hover:bg-secondary'}`}
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(t.id, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(t.id, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
                       ))}
                     </div>
                     <div className="flex flex-wrap gap-0.5 max-h-52 overflow-y-auto">
                       {emojiTabs[emojiTab].emojis.map((emoji, i) => (
                         <button key={i} onClick={() => { setMessageText(prev => prev + emoji); inputRef.current?.focus(); setShowEmoji(false); }}
                           className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
                       ))}
                     </div>
                   </div>
