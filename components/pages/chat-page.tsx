@@ -446,7 +446,7 @@ export function ChatPage() {
 
       {/* Chat Window */}
       {selectedChat && currentChat ? (
-        <div className="hidden md:flex flex-1 flex-col bg-card overflow-hidden">
+        <div className="hidden md:flex flex-1 flex-col bg-card overflow-hidden relative">
           {/* Header */}
           <div className="border-b border-border px-3 py-2 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
@@ -633,35 +633,6 @@ export function ChatPage() {
                 className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white shadow-lg scale-110' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
                 <Mic size={22} />
               </button>
-              {isRecording && (
-                <div className="fixed inset-x-0 bottom-0 z-50 bg-card border-t-2 border-primary/30 px-4 py-4 flex items-center gap-4 shadow-2xl">
-                  <button onClick={() => stopRecording(true)}
-                    className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl hover:bg-destructive/10 text-destructive transition">
-                    <Trash2 size={20} />
-                    <span className="text-[10px] font-medium">Cancel</span>
-                  </button>
-                  <div className="flex items-center gap-3 flex-1 bg-secondary rounded-xl px-3 py-2.5">
-                    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                      <Mic size={18} className="text-destructive" />
-                    </div>
-                    <div className="flex flex-col gap-1 flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                        <span className="text-xs font-semibold text-foreground">Recording</span>
-                        <span className="font-mono text-sm font-bold text-foreground ml-auto">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
-                      </div>
-                      <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                        <div className="h-full bg-destructive rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (recordingTime / 60) * 100)}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                  <button onClick={() => stopRecording()}
-                    className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition shadow-lg">
-                    <Send size={20} />
-                    <span className="text-[10px] font-medium">Send</span>
-                  </button>
-                </div>
-              )}
               <motion.button onClick={handleSendMessage}
                 whileTap={{ scale: 0.9 }}
                 animate={sending ? { x: [0, 4, -4, 2, -2, 0] } : {}}
@@ -673,6 +644,35 @@ export function ChatPage() {
               </motion.button>
             </div>
           </div>
+          {isRecording && (
+            <div className="absolute inset-x-0 bottom-0 z-40 bg-card border-t-2 border-primary/30 px-3 py-2 flex items-center gap-3 shadow-2xl">
+              <button onClick={() => stopRecording(true)}
+                className="flex flex-col items-center gap-0.5 px-1.5 py-0.5 rounded-xl hover:bg-destructive/10 text-destructive transition">
+                <Trash2 size={16} />
+                <span className="text-[9px] font-medium">Cancel</span>
+              </button>
+              <div className="flex items-center gap-2 flex-1 bg-secondary rounded-lg px-2 py-1.5">
+                <div className="w-7 h-7 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                  <Mic size={14} className="text-destructive" />
+                </div>
+                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
+                    <span className="text-[10px] font-semibold text-foreground">Recording</span>
+                    <span className="font-mono text-[11px] font-bold text-foreground ml-auto">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
+                  </div>
+                  <div className="h-[3px] bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-destructive rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (recordingTime / 60) * 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => stopRecording()}
+                className="flex flex-col items-center gap-0.5 px-2.5 py-0.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition shadow-lg">
+                <Send size={16} />
+                <span className="text-[9px] font-medium">Send</span>
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="hidden md:flex flex-1 items-center justify-center bg-card border-l border-border">
