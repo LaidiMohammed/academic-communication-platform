@@ -600,41 +600,31 @@ export function ChatPage() {
           {/* Input Area */}
           <div className="border-t border-border px-3 pt-2 pb-2 shrink-0">
             <div className="flex items-end gap-1.5">
-              <motion.button onClick={handleSendMessage}
-                whileTap={{ scale: 0.9 }}
-                animate={sending ? { x: [0, 4, -4, 2, -2, 0] } : {}}
-                transition={{ duration: 0.4, ease: 'easeInOut' }}
-                className="p-2 rounded-xl bg-primary text-primary-foreground hover:shadow-md transition shrink-0">
-                <motion.div animate={sending ? { rotate: [0, -15, 15, 0], y: [0, -2, 0] } : {}} transition={{ duration: 0.4 }}>
-                  <Send size={18} />
-                </motion.div>
-              </motion.button>
+              <button onClick={() => {
+                const imgInput = document.createElement('input');
+                imgInput.type = 'file';
+                imgInput.accept = 'image/*';
+                imgInput.onchange = (e: any) => handleImagePicked(e);
+                imgInput.click();
+              }}
+                className="p-2 rounded-xl hover:bg-secondary text-foreground hover:text-primary transition shrink-0">
+                <ImageIcon size={18} />
+              </button>
               <ChatInputWidget
                 onSondage={() => setShowPollModal(true)}
                 onLocation={handleLocationShared}
                 onFile={() => fileInputRef.current?.click()}
-                onGenerateImage={() => {
-                  const imgInput = document.createElement('input');
-                  imgInput.type = 'file';
-                  imgInput.accept = 'image/*';
-                  imgInput.onchange = (e: any) => handleImagePicked(e);
-                  imgInput.click();
-                }}
+                onGenerateImage={() => {}}
               />
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePicked} />
               <div className="flex-1 relative">
-                <div ref={inputRef as any} contentEditable
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
-                  data-placeholder="Message..."
-                  className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 whitespace-pre-wrap break-words max-h-32 overflow-y-auto pr-8"
-                />
-                <div className="absolute right-1 bottom-1.5" ref={emojiRef}>
+                <div ref={emojiRef as any} className="absolute left-1 bottom-1.5 z-10">
                   <button onClick={() => setShowEmoji(!showEmoji)}
                     className="p-0.5 rounded hover:bg-secondary/80 transition text-muted-foreground hover:text-foreground">
                     <Smile size={16} />
                   </button>
                   {showEmoji && (
-                    <div className="absolute bottom-8 right-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-72 overflow-hidden">
+                    <div className="absolute bottom-8 left-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-72 overflow-hidden">
                       <div className="flex gap-0.5 mb-1 pb-1 border-b border-border">
                         {emojiTabs.map((t, i) => (
                           <button key={i} onClick={() => setEmojiTab(i)}
@@ -666,6 +656,11 @@ export function ChatPage() {
                     </div>
                   )}
                 </div>
+                <div ref={inputRef as any} contentEditable
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
+                  data-placeholder="Message..."
+                  className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 whitespace-pre-wrap break-words max-h-32 overflow-y-auto pl-8"
+                />
               </div>
               <div className="flex gap-0.5 items-center shrink-0">
                 {['👍','❤️','😂','🔥','🎉','😢'].map((e, i) => (
@@ -692,6 +687,15 @@ export function ChatPage() {
                 className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white shadow-lg scale-110' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
                 <Mic size={22} />
               </button>
+              <motion.button onClick={handleSendMessage}
+                whileTap={{ scale: 0.9 }}
+                animate={sending ? { x: [0, 4, -4, 2, -2, 0] } : {}}
+                transition={{ duration: 0.4, ease: 'easeInOut' }}
+                className="p-2 rounded-xl bg-primary text-primary-foreground hover:shadow-md transition shrink-0">
+                <motion.div animate={sending ? { rotate: [0, -15, 15, 0], y: [0, -2, 0] } : {}} transition={{ duration: 0.4 }}>
+                  <Send size={18} />
+                </motion.div>
+              </motion.button>
             </div>
           </div>
           {isRecording && (
