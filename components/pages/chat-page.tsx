@@ -206,11 +206,12 @@ export function ChatPage() {
   const emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤩','🤔','🤨','😐','😑','😶','😏','😮','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤝','🙏','✌️','🤟','🤘','👌','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💗','💖','💘','💝','✨','🔥','⭐','🌟','💫','🎉','🎊','🎈','🎁','💯','✅','❌','❓','❗','🚀','💪','👀','🙈','🙉','🙊','💀','☠️','👋','✋','👌','🤏','👆','👇','👈','👉','👊','👋','👏','🙌','👐','🤲','🙏','💅','👂','👃','🧠','👁️','👅','👄','💋','👶','👦','👧','🧑','👩','👨','👴','👵','🤶','🎅','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🐪','🐫','🦒','🐃','🐄','🐎','🐖','🐏','🐑','🐕','🐩','🐈','🐇','🐁','🐀','🐿️','🦔','🐾','🐉','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','⭐','🌟','✨','⚡','💥','🔥','🌈','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','💨','💧','💦','☔','🌊','🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌽','🥕','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🥓','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🌮','🌯','🥗','🥘','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','☕','🍵','🥤','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾','🥄','🍴','🍽️','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🏒','🏑','🥍','🏏','⛳','🏹','🎣','🥊','🥋','🎯','🎮','🎲','🧩','🎭','🎨','🎪','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🎿','🏂','🥇','🥈','🥉','🏅','🏆','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','🚏','⛽','🚢','✈️','🛩️','🛫','🛬','💺','🚁','🚀','🛸','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗾','🏔️','⛰️','🌋','🗻','🏖️','🏜️','🏝️','🏞️','🗺️','🇩🇿','🇺🇸','🇬🇧','🇫🇷','🇪🇸','🇩🇪','🇮🇹','🇯🇵','🇨🇳','🇷🇺','🇧🇷','🇮🇳','🇦🇪','🇸🇦','🇲🇦','🇹🇳','🇪🇬']; // cleaned, no ZWJ sequences
 
   const handleSendMessage = () => {
-    if (!messageText.trim() || !selectedChat) return;
+    const text = inputRef.current ? (inputRef.current as HTMLElement).innerText.trim() : messageText.trim();
+    if (!text || !selectedChat) return;
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',
-      text: messageText.trim(),
+      text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       readBy: 0,
@@ -218,6 +219,7 @@ export function ChatPage() {
       replyTo: replyTo || undefined,
     };
     addMessage(selectedChat, newMsg);
+    if (inputRef.current) (inputRef.current as HTMLElement).innerHTML = '';
     setMessageText('');
     setReplyTo(null);
     setSending(true);
@@ -494,27 +496,38 @@ export function ChatPage() {
                     } ${expandedMessage === msg.id ? 'shadow-md' : ''}`}
                   >
                     {msg.type === 'image' && msg.image && (
-                      <img src={msg.image} alt="Shared" onClick={(e) => { e.stopPropagation(); setZoomImage(msg.image!); }}
-                        className="rounded-lg max-w-full max-h-48 mb-1 cursor-pointer hover:opacity-90 transition" />
+                      <div className="relative group">
+                        <img src={msg.image} alt="Shared" onClick={(e) => { e.stopPropagation(); setZoomImage(msg.image!); }}
+                          className="rounded-lg max-w-full max-h-48 mb-1 cursor-pointer hover:opacity-90 transition" />
+                        <button onClick={(e) => { e.stopPropagation(); const a = document.createElement('a'); a.href = msg.image!; a.download = 'image.png'; a.click(); }}
+                          className="absolute top-1 right-1 p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 transition">
+                          <Download size={12} />
+                        </button>
+                      </div>
                     )}
                     {msg.type === 'location' && msg.lat != null && msg.lng != null && (
                       <MapPreview lat={msg.lat} lng={msg.lng} onZoom={() => setZoomLocation({ lat: msg.lat!, lng: msg.lng! })} />
                     )}
                     {msg.type === 'file' && msg.file && (
                       <div onClick={(e) => { e.stopPropagation(); setPreviewFile(msg.file!); }}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-background/20 cursor-pointer hover:bg-background/30 transition mb-1">
+                        className="flex items-center gap-2 p-2 rounded-lg bg-background/20 cursor-pointer hover:bg-background/30 transition mb-1 group">
                         <FileText size={20} />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs font-medium truncate">{msg.file.name}</p>
                           <p className="text-[10px] opacity-70">{msg.file.size}</p>
                         </div>
+                        {msg.file.url && <Download size={14} className="opacity-0 group-hover:opacity-100 transition shrink-0" onClick={(e) => { e.stopPropagation(); const a = document.createElement('a'); a.href = msg.file!.url!; a.download = msg.file!.name; a.click(); }} />}
                       </div>
                     )}
                     {msg.type === 'voice' && msg.voice && <VoiceBubble src={msg.voice} duration={msg.duration || 0} />}
                     {msg.type === 'poll' && <Vote size={14} className="inline mr-1" />}
                     {msg.text && <EmojiText text={msg.text} className={msg.type !== 'text' ? 'text-xs' : ''} />}
                     <div className="flex items-center justify-end gap-1 mt-0.5">
-                      {msg.isOwn && msg.readBy && msg.readBy > 0 && <CheckCheck size={10} className="text-accent" />}
+                      {msg.isOwn && msg.readBy != null && (
+                        msg.readBy > 0
+                          ? <div className="flex items-center gap-0.5" title={`Seen by ${msg.readBy}`}><CheckCheck size={10} className="text-accent" /><span className="text-[8px] text-accent">{msg.readBy}</span></div>
+                          : <CheckCheck size={10} className="text-muted-foreground/50" />
+                      )}
                       <p className={`text-[10px] ${msg.isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{msg.time}</p>
                     </div>
                   </div>
@@ -603,7 +616,22 @@ export function ChatPage() {
                     </div>
                     <div className="flex flex-wrap gap-0.5 max-h-52 overflow-y-auto">
                       {emojiTabs[emojiTab].emojis.map((emoji, i) => (
-                        <button key={i} onClick={() => { setMessageText(prev => prev + emoji); inputRef.current?.focus(); setShowEmoji(false); }}
+                        <button key={i} onClick={() => {
+                          const sel = window.getSelection();
+                          const div = inputRef.current;
+                          if (div && sel) {
+                            const range = sel.getRangeAt(0);
+                            const img = twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) });
+                            const frag = range.createContextualFragment(img);
+                            range.deleteContents();
+                            range.insertNode(frag);
+                            range.collapse(false);
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                            div.focus();
+                            setMessageText(div.innerText);
+                          }
+                        }}
                           className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
                           dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
                       ))}
@@ -625,11 +653,13 @@ export function ChatPage() {
               />
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePicked} />
               <div className="flex-1 relative">
-                <input ref={inputRef} type="text" value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Message..." autoFocus
-                  className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
+                <div ref={inputRef as any} contentEditable
+                  onInput={(e) => setMessageText((e.target as HTMLElement).innerText)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
+                  data-placeholder="Message..."
+                  className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 whitespace-pre-wrap break-words max-h-32 overflow-y-auto"
+                  dangerouslySetInnerHTML={{ __html: twemoji.parse(messageText || '', { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }}
+                />
               </div>
               <button onClick={() => { if (isRecording) { stopRecording(); } else { startRecording(); } }}
                 className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white shadow-lg scale-110' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
@@ -690,7 +720,8 @@ export function ChatPage() {
         <ChatDetailsPanel isOpen={showDetailsPanel} onClose={() => setShowDetailsPanel(false)}
           chatName={currentChat.name} chatAvatar={currentChat.avatar} online={'online' in currentChat ? currentChat.online : false}
           isMuted={isChatMuted} onMute={() => setIsChatMuted(!isChatMuted)}
-          onChangeNickname={() => {}} onBlock={() => {}} onDelete={() => { setSelectedChat(null); setShowDetailsPanel(false); }} />
+          onChangeNickname={() => {}} onBlock={() => {}} onDelete={() => { setSelectedChat(null); setShowDetailsPanel(false); }}
+          messages={messages} />
       )}
 
       {/* Image Zoom Modal */}

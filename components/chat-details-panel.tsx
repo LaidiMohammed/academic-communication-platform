@@ -20,6 +20,7 @@ interface ChatDetailsPanelProps {
   onDelete: () => void;
   onChangeNickname: () => void;
   isMuted?: boolean;
+  messages?: { type: string; image?: string; file?: { name: string; size: string; url?: string }; text?: string }[];
 }
 
 type Tab = 'info' | 'media' | 'links' | 'files';
@@ -47,7 +48,7 @@ const members = [
 
 export function ChatDetailsPanel({
   isOpen, onClose, chatName, chatAvatar, online,
-  onMute, onBlock, onDelete, onChangeNickname, isMuted = false,
+  onMute, onBlock, onDelete, onChangeNickname, isMuted = false, messages = [],
 }: ChatDetailsPanelProps) {
   const [tab, setTab] = useState<Tab>('info');
   const [showNicknameModal, setShowNicknameModal] = useState(false);
@@ -203,22 +204,21 @@ export function ChatDetailsPanel({
           {/* MEDIA TAB */}
           {tab === 'media' && (
             <div className="p-3">
-              <p className="text-xs text-muted-foreground mb-3">Shared Media</p>
-              <div className="grid grid-cols-3 gap-1">
-                {[...Array(9)].map((_, i) => (
-                  <div key={i} className="aspect-square bg-secondary rounded-md flex items-center justify-center text-muted-foreground hover:bg-secondary/80 cursor-pointer">
-                    <Camera size={20} strokeWidth={1.5} />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 space-y-1">
-                {sharedMedia.map((m, i) => (
-                  <div key={i} className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-secondary transition cursor-pointer text-sm text-foreground">
-                    <m.icon size={16} className="text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{m.label}</span>
-                  </div>
-                ))}
-              </div>
+              <p className="text-xs text-muted-foreground mb-3">Shared Media ({messages.filter(m => m.type === 'image').length})</p>
+              {messages.filter(m => m.type === 'image').length > 0 ? (
+                <div className="grid grid-cols-3 gap-1">
+                  {messages.filter(m => m.type === 'image').map((m, i) => (
+                    <div key={i} className="aspect-square bg-secondary rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition">
+                      <img src={m.image} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Camera size={24} className="mx-auto mb-2 opacity-40" />
+                  <p className="text-xs">No images shared yet</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -246,21 +246,28 @@ export function ChatDetailsPanel({
           {/* FILES TAB */}
           {tab === 'files' && (
             <div className="p-3">
-              <p className="text-xs text-muted-foreground mb-3">Shared Files</p>
-              <div className="space-y-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary transition cursor-pointer">
-                    <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                      <FileText size={14} className="text-accent" />
+              <p className="text-xs text-muted-foreground mb-3">Shared Files ({messages.filter(m => m.type === 'file').length})</p>
+              {messages.filter(m => m.type === 'file').length > 0 ? (
+                <div className="space-y-2">
+                  {messages.filter(m => m.type === 'file').map((m, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary transition cursor-pointer group">
+                      <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                        <FileText size={14} className="text-accent" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-foreground truncate">{m.file?.name || 'Unknown file'}</p>
+                        <p className="text-[10px] text-muted-foreground">{m.file?.size || 'Unknown size'}</p>
+                      </div>
+                      <Download size={12} className="text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-foreground truncate">Document_{i}.pdf</p>
-                      <p className="text-[10px] text-muted-foreground">{(i * 2.4).toFixed(1)} MB</p>
-                    </div>
-                    <Download size={12} className="text-muted-foreground shrink-0" />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText size={24} className="mx-auto mb-2 opacity-40" />
+                  <p className="text-xs">No files shared yet</p>
+                </div>
+              )}
             </div>
           )}
         </div>
