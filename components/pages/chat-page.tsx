@@ -11,6 +11,8 @@ import { ChatInputWidget } from '@/components/chat-input-widget';
 import { ChatDetailsPanel } from '@/components/chat-details-panel';
 import { motion, AnimatePresence } from 'framer-motion';
 import twemoji from 'twemoji';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
 interface ReplyTo {
   id: number;
@@ -39,6 +41,34 @@ interface Message {
   type: 'text' | 'image' | 'file' | 'poll' | 'location' | 'voice';
   voice?: string;
   duration?: number;
+  lat?: number;
+  lng?: number;
+}
+
+function MapPreview({ lat, lng, onZoom }: { lat: number; lng: number; onZoom: () => void }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const instanceRef = useRef<L.Map | null>(null);
+  useEffect(() => {
+    if (!mapRef.current || instanceRef.current) return;
+    const m = L.map(mapRef.current, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false }).setView([lat, lng], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+    L.marker([lat, lng], { icon: L.divIcon({ html: '<div style="width:24px;height:24px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>', iconSize: [24, 24], iconAnchor: [12, 12] }) }).addTo(m);
+    instanceRef.current = m;
+    return () => { m.remove(); instanceRef.current = null; };
+  }, [lat, lng]);
+  return <div ref={mapRef} onClick={onZoom} className="w-full h-28 rounded-lg cursor-pointer hover:opacity-90 transition border border-border" />;
+}
+
+function MapFull({ lat, lng }: { lat: number; lng: number }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const m = L.map(mapRef.current, { zoomControl: true, attributionControl: false }).setView([lat, lng], 15);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+    L.marker([lat, lng], { icon: L.divIcon({ html: '<div style="width:28px;height:28px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>', iconSize: [28, 28], iconAnchor: [14, 14] }) }).addTo(m);
+    return () => m.remove();
+  }, [lat, lng]);
+  return <div ref={mapRef} className="w-full h-full" />;
 }
 
 function VoiceBubble({ src, duration }: { src: string; duration: number }) {
@@ -59,21 +89,23 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   return (
     <div className="flex items-center gap-2 mb-1 min-w-40" onClick={(e) => e.stopPropagation()}>
       <button onClick={toggle} className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0">
-        {playing ? <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-          : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg>}
+        {playing
+          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg>}
       </button>
       <div className="flex-1 h-1.5 bg-background/20 rounded-full overflow-hidden">
         <div className="h-full bg-white rounded-full transition-all" style={{ width: `${progress * 100}%` }} />
       </div>
-      <span className="text-[11px] opacity-70 font-mono">{mins}:{secs.toString().padStart(2, '0')}</span>
+      <div className="flex flex-col items-end leading-tight">
+        <span className="text-[10px] opacity-80 font-mono">{mins}:{secs.toString().padStart(2, '0')}</span>
+        <span className="text-[8px] opacity-50">{playing ? 'Playing' : ''}</span>
+      </div>
     </div>
   );
 }
 
-const twBase = 'https://cdn.jsdelivr.net/npm/twemoji@14.0.2/';
-
 function EmojiText({ text, className }: { text: string; className?: string }) {
-  const html = text ? twemoji.parse(text, { base: twBase, ext: '.svg', className: 'emoji-tw' }) : '';
+  const html = text ? twemoji.parse(text, { ext: '.svg', className: 'emoji-tw' }) : '';
   return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
@@ -88,6 +120,7 @@ export function ChatPage() {
   const [replyTo, setReplyTo] = useState<ReplyTo | null>(null);
   const [showForward, setShowForward] = useState<Message | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [zoomLocation, setZoomLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);
   const [sending, setSending] = useState(false);
   const [showPollModal, setShowPollModal] = useState(false);
@@ -244,18 +277,8 @@ export function ChatPage() {
 
   const handleLocationShared = () => {
     if (!selectedChat) return;
-    const lat = (36.7372 + (Math.random() - 0.5) * 0.02).toFixed(4);
-    const lng = (3.0862 + (Math.random() - 0.5) * 0.02).toFixed(4);
-    const svgMap = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 150">
-      <defs><pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#e8f5e9"/><rect width="1" height="20" fill="#c8e6c9"/><rect width="20" height="1" fill="#c8e6c9"/></pattern></defs>
-      <rect width="300" height="150" fill="url(#g)"/>
-      <rect width="300" height="150" fill="#4caf50" opacity="0.08"/>
-      <text x="150" y="75" text-anchor="middle" font-size="32" opacity="0.3">🗺️</text>
-      <circle cx="150" cy="65" r="20" fill="#ef4444" opacity="0.2"/>
-      <circle cx="150" cy="65" r="8" fill="#ef4444" stroke="white" stroke-width="2"/>
-      <polygon points="150,85 145,95 155,95" fill="#ef4444" opacity="0.3"/>
-      <text x="150" y="130" text-anchor="middle" font-size="11" fill="#666" font-family="sans-serif">${lat}, ${lng}</text>
-    </svg>`)}`;
+    const lat = +(36.7372 + (Math.random() - 0.5) * 0.02).toFixed(4);
+    const lng = +(3.0862 + (Math.random() - 0.5) * 0.02).toFixed(4);
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',
@@ -263,7 +286,8 @@ export function ChatPage() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'location',
-      image: svgMap,
+      image: '', // empty - will render Leaflet map
+      lat, lng,
     };
     addMessage(selectedChat, newMsg);
   };
@@ -456,14 +480,8 @@ export function ChatPage() {
                       <img src={msg.image} alt="Shared" onClick={(e) => { e.stopPropagation(); setZoomImage(msg.image!); }}
                         className="rounded-lg max-w-full max-h-48 mb-1 cursor-pointer hover:opacity-90 transition" />
                     )}
-                    {msg.type === 'location' && msg.image && (
-                      <div onClick={(e) => { e.stopPropagation(); setZoomImage(msg.image!); }}
-                        className="relative mb-1 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition border border-border">
-                        <img src={msg.image} alt="Map" className="w-full h-28 object-cover" />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1.5">
-                          <p className="text-[10px] text-white font-medium flex items-center gap-1"><MapPin size={10} /> Location</p>
-                        </div>
-                      </div>
+                    {msg.type === 'location' && msg.lat != null && msg.lng != null && (
+                      <MapPreview lat={msg.lat} lng={msg.lng} onZoom={() => setZoomLocation({ lat: msg.lat!, lng: msg.lng! })} />
                     )}
                     {msg.type === 'file' && msg.file && (
                       <div onClick={(e) => { e.stopPropagation(); setPreviewFile(msg.file!); }}
@@ -488,7 +506,7 @@ export function ChatPage() {
                     <div className="flex gap-0.5 mt-0.5 -mb-1">
                       {[...new Set(msg.reactions)].map((r, i) => (
                         <span key={i} className="text-xs bg-background border border-border rounded-full px-1.5 py-0.5 shadow-sm inline-flex items-center"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { base: twBase, ext: '.svg', className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { ext: '.svg', className: 'emoji-tw' }) }} />
                       ))}
                     </div>
                   )}
@@ -500,7 +518,7 @@ export function ChatPage() {
                       {reactionEmojis.map(r => (
                         <button key={r} onClick={() => handleReact(selectedChat!, msg.id, r)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-secondary rounded-full text-base transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { base: twBase, ext: '.svg', className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { ext: '.svg', className: 'emoji-tw' }) }} />
                       ))}
                       <div className="w-px h-5 bg-border mx-0.5 self-center" />
                       <button onClick={() => handleCopy(msg.text || '')} className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground">
@@ -569,7 +587,7 @@ export function ChatPage() {
                       {emojiTabs[emojiTab].emojis.map((emoji, i) => (
                         <button key={i} onClick={() => { setMessageText(prev => prev + emoji); inputRef.current?.focus(); setShowEmoji(false); }}
                           className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { base: twBase, ext: '.svg', className: 'emoji-tw' }) }} />
+                          dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { ext: '.svg', className: 'emoji-tw' }) }} />
                       ))}
                     </div>
                   </div>
@@ -600,17 +618,27 @@ export function ChatPage() {
                 <Mic size={22} />
               </button>
               {isRecording && (
-                <div className="fixed inset-x-0 bottom-0 z-30 bg-card border-t border-border px-4 py-3 flex items-center gap-3 shadow-2xl">
-                  <button onClick={() => stopRecording(true)} className="p-2 rounded-xl hover:bg-destructive/10 text-destructive transition">
-                    <Trash2 size={20} />
+                <div className="fixed inset-x-0 bottom-0 z-30 bg-card border-t-2 border-primary/30 px-4 py-3 flex items-center gap-3 shadow-2xl">
+                  <button onClick={() => stopRecording(true)} className="p-2.5 rounded-full hover:bg-destructive/10 text-destructive transition">
+                    <Trash2 size={18} />
                   </button>
-                  <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
-                  <span className="font-mono text-lg font-bold text-foreground">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
-                  <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-destructive rounded-full" style={{ width: `${Math.min(100, (recordingTime / 60) * 100)}%` }} />
+                  <div className="flex items-center gap-2.5 flex-1">
+                    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <Mic size={16} className="text-destructive" />
+                    </div>
+                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+                        <span className="text-xs font-semibold text-foreground">Recording</span>
+                        <span className="font-mono text-sm font-bold text-foreground ml-auto">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
+                      </div>
+                      <div className="h-1 bg-secondary rounded-full overflow-hidden">
+                        <div className="h-full bg-destructive rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (recordingTime / 60) * 100)}%` }} />
+                      </div>
+                    </div>
                   </div>
-                  <button onClick={() => stopRecording()} className="p-2 rounded-xl bg-primary text-primary-foreground hover:shadow-lg transition">
-                    <Send size={18} />
+                  <button onClick={() => stopRecording()} className="p-2.5 rounded-full bg-primary text-primary-foreground hover:shadow-lg transition shadow-lg">
+                    <Send size={16} />
                   </button>
                 </div>
               )}
@@ -659,6 +687,25 @@ export function ChatPage() {
               className="absolute top-6 right-6 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm transition">
               <X size={20} />
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Map Zoom Modal */}
+      <AnimatePresence>
+        {zoomLocation && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4"
+            onClick={() => setZoomLocation(null)}>
+            <motion.div initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.3, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg h-80 rounded-2xl overflow-hidden shadow-2xl border border-border relative">
+              <MapFull lat={zoomLocation.lat} lng={zoomLocation.lng} />
+              <button onClick={() => setZoomLocation(null)}
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-sm transition">
+                <X size={18} />
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
