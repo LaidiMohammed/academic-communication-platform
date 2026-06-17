@@ -11,8 +11,6 @@ import { ChatInputWidget } from '@/components/chat-input-widget';
 import { ChatDetailsPanel } from '@/components/chat-details-panel';
 import { motion, AnimatePresence } from 'framer-motion';
 import twemoji from 'twemoji';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 
 interface ReplyTo {
   id: number;
@@ -46,29 +44,18 @@ interface Message {
 }
 
 function MapPreview({ lat, lng, onZoom }: { lat: number; lng: number; onZoom: () => void }) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const instanceRef = useRef<L.Map | null>(null);
-  useEffect(() => {
-    if (!mapRef.current || instanceRef.current) return;
-    const m = L.map(mapRef.current, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false }).setView([lat, lng], 14);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
-    L.marker([lat, lng], { icon: L.divIcon({ html: '<div style="width:24px;height:24px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>', iconSize: [24, 24], iconAnchor: [12, 12] }) }).addTo(m);
-    instanceRef.current = m;
-    return () => { m.remove(); instanceRef.current = null; };
-  }, [lat, lng]);
-  return <div ref={mapRef} onClick={onZoom} className="w-full h-28 rounded-lg cursor-pointer hover:opacity-90 transition border border-border" />;
+  const url = `https://www.openstreetmap.org/export/embed.html?bbox=${lng-0.01},${lat-0.01},${lng+0.01},${lat+0.01}&layer=mapnik&marker=${lat},${lng}`;
+  return (
+    <div onClick={onZoom} className="w-full h-28 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition border border-border relative mb-1">
+      <iframe src={url} className="w-full h-full pointer-events-none" title="Map" />
+      <div className="absolute inset-0" />
+    </div>
+  );
 }
 
 function MapFull({ lat, lng }: { lat: number; lng: number }) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!mapRef.current) return;
-    const m = L.map(mapRef.current, { zoomControl: true, attributionControl: false }).setView([lat, lng], 15);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
-    L.marker([lat, lng], { icon: L.divIcon({ html: '<div style="width:28px;height:28px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>', iconSize: [28, 28], iconAnchor: [14, 14] }) }).addTo(m);
-    return () => m.remove();
-  }, [lat, lng]);
-  return <div ref={mapRef} className="w-full h-full" />;
+  const url = `https://www.openstreetmap.org/export/embed.html?bbox=${lng-0.02},${lat-0.02},${lng+0.02},${lat+0.02}&layer=mapnik&marker=${lat},${lng}`;
+  return <iframe src={url} className="w-full h-full" title="Map" />;
 }
 
 function VoiceBubble({ src, duration }: { src: string; duration: number }) {
