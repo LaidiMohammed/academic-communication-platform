@@ -206,7 +206,8 @@ export function ChatPage() {
   const emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤩','🤔','🤨','😐','😑','😶','😏','😮','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤝','🙏','✌️','🤟','🤘','👌','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💗','💖','💘','💝','✨','🔥','⭐','🌟','💫','🎉','🎊','🎈','🎁','💯','✅','❌','❓','❗','🚀','💪','👀','🙈','🙉','🙊','💀','☠️','👋','✋','👌','🤏','👆','👇','👈','👉','👊','👋','👏','🙌','👐','🤲','🙏','💅','👂','👃','🧠','👁️','👅','👄','💋','👶','👦','👧','🧑','👩','👨','👴','👵','🤶','🎅','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🐪','🐫','🦒','🐃','🐄','🐎','🐖','🐏','🐑','🐕','🐩','🐈','🐇','🐁','🐀','🐿️','🦔','🐾','🐉','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','⭐','🌟','✨','⚡','💥','🔥','🌈','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','💨','💧','💦','☔','🌊','🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌽','🥕','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🥓','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🌮','🌯','🥗','🥘','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','☕','🍵','🥤','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾','🥄','🍴','🍽️','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🏒','🏑','🥍','🏏','⛳','🏹','🎣','🥊','🥋','🎯','🎮','🎲','🧩','🎭','🎨','🎪','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🎿','🏂','🥇','🥈','🥉','🏅','🏆','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','🚏','⛽','🚢','✈️','🛩️','🛫','🛬','💺','🚁','🚀','🛸','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗾','🏔️','⛰️','🌋','🗻','🏖️','🏜️','🏝️','🏞️','🗺️','🇩🇿','🇺🇸','🇬🇧','🇫🇷','🇪🇸','🇩🇪','🇮🇹','🇯🇵','🇨🇳','🇷🇺','🇧🇷','🇮🇳','🇦🇪','🇸🇦','🇲🇦','🇹🇳','🇪🇬']; // cleaned, no ZWJ sequences
 
   const handleSendMessage = () => {
-    const text = inputRef.current ? (inputRef.current as HTMLElement).innerText.trim() : messageText.trim();
+    const div = inputRef.current as HTMLElement | null;
+    const text = div ? div.innerText.trim() : '';
     if (!text || !selectedChat) return;
     const newMsg: Message = {
       id: getNextId(selectedChat),
@@ -220,7 +221,6 @@ export function ChatPage() {
     };
     addMessage(selectedChat, newMsg);
     if (inputRef.current) (inputRef.current as HTMLElement).innerHTML = '';
-    setMessageText('');
     setReplyTo(null);
     setSending(true);
     setTimeout(() => setSending(false), 300);
@@ -404,7 +404,7 @@ export function ChatPage() {
 
   return (
     <div className="flex flex-1 min-h-0 bg-background">
-      <style>{`.emoji-tw{display:inline;height:1.1em;width:1.1em;vertical-align:-0.15em;object-fit:contain;}`}</style>
+      <style>{`.emoji-tw{display:inline;height:1.1em;width:1.1em;vertical-align:-0.15em;object-fit:contain;}.emoji-tw.inline{display:inline;height:1em;width:1em;vertical-align:0;}`}</style>
       {/* Chat List */}
       <div className="w-full md:w-72 bg-card border-r border-border flex flex-col">
         <div className="p-3 border-b border-border">
@@ -654,12 +654,31 @@ export function ChatPage() {
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePicked} />
               <div className="flex-1 relative">
                 <div ref={inputRef as any} contentEditable
-                  onInput={(e) => setMessageText((e.target as HTMLElement).innerText)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
                   data-placeholder="Message..."
                   className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 whitespace-pre-wrap break-words max-h-32 overflow-y-auto"
-                  dangerouslySetInnerHTML={{ __html: twemoji.parse(messageText || '', { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }}
                 />
+              </div>
+              <div className="flex gap-0.5 items-center shrink-0">
+                {['👍','❤️','😂','🔥','🎉','😢'].map((e, i) => (
+                  <button key={i} onClick={() => {
+                    const div = inputRef.current as HTMLElement | null;
+                    if (!div) return;
+                    div.focus();
+                    const sel = window.getSelection();
+                    if (!sel) return;
+                    const range = sel.getRangeAt(0);
+                    const img = twemoji.parse(e, { callback: (i) => appleEmoji(i), className: 'emoji-tw inline', attributes: (i) => emojiAttrs(i) });
+                    const frag = range.createContextualFragment(img + ' ');
+                    range.deleteContents();
+                    range.insertNode(frag);
+                    range.collapse(false);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                  }}
+                    className="w-6 h-6 flex items-center justify-center hover:bg-secondary rounded transition opacity-60 hover:opacity-100"
+                    dangerouslySetInnerHTML={{ __html: twemoji.parse(e, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
+                ))}
               </div>
               <button onClick={() => { if (isRecording) { stopRecording(); } else { startRecording(); } }}
                 className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white shadow-lg scale-110' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
@@ -669,9 +688,9 @@ export function ChatPage() {
                 whileTap={{ scale: 0.9 }}
                 animate={sending ? { x: [0, 4, -4, 2, -2, 0] } : {}}
                 transition={{ duration: 0.4, ease: 'easeInOut' }}
-                className="p-2.5 rounded-xl bg-primary text-primary-foreground hover:shadow-md transition shrink-0">
+                className="p-2 rounded-xl bg-primary text-primary-foreground hover:shadow-md transition shrink-0">
                 <motion.div animate={sending ? { rotate: [0, -15, 15, 0], y: [0, -2, 0] } : {}} transition={{ duration: 0.4 }}>
-                  <Send size={18} />
+                  <span dangerouslySetInnerHTML={{ __html: twemoji.parse('✈️', { callback: (i) => appleEmoji(i), className: 'emoji-tw w-4 h-4', attributes: (i) => emojiAttrs(i) }) }} />
                 </motion.div>
               </motion.button>
             </div>
