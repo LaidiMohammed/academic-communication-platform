@@ -121,7 +121,6 @@ export function MembershipSection({
                 size={200}
                 level="H"
                 includeMargin={true}
-                renderAs="canvas"
               />
             </div>
           </div>

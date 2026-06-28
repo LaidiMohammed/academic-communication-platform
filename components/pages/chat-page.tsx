@@ -5,7 +5,7 @@ import {
   Send, Heart, Search, MoreVertical, Mic, Phone, Video, Info,
   Eye, Copy, Trash2, MessageCircle, Smile, Reply, Forward,
   Image as ImageIcon, FileText, MapPin, Vote, ChevronDown,
-  X, Download, ExternalLink, CheckCheck,
+  X, Download, ExternalLink, CheckCheck, BellOff, Pin, Users,
 } from 'lucide-react';
 import { ChatInputWidget } from '@/components/chat-input-widget';
 import { ChatDetailsPanel } from '@/components/chat-details-panel';
@@ -95,10 +95,15 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
 
 const CDN = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/apple/64/';
 const appleEmoji = (icon: string) => `${CDN}${icon}.png`;
-const emojiAttrs = (icon: string) => ({ onerror: `this.onerror=null;var s=this.src;this.src=s.includes('-fe0f')?s.replace('-fe0f',''):s.replace('.png','-fe0f.png')` });
+const onerrorAttr = 'onerror="this.onerror=null;var s=this.src;this.src=s.includes(\'fe0f\')?s.replace(\'fe0f\',\'\'):s.replace(\'.png\',\'-fe0f.png\')"';
+
+function parseEmoji(text: string, className = 'emoji-tw') {
+  const html = twemoji.parse(text, { callback: (i) => appleEmoji(i), className });
+  return html.replace(/<img /g, `<img ${onerrorAttr} `);
+}
 
 function EmojiText({ text, className }: { text: string; className?: string }) {
-  const html = text ? twemoji.parse(text, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) : '';
+  const html = text ? parseEmoji(text, className) : '';
   return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
@@ -123,6 +128,8 @@ export function ChatPage() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [showEmoji, setShowEmoji] = useState(false);
   const [emojiTab, setEmojiTab] = useState(0);
+  const [contextMenu, setContextMenu] = useState<{ chatId: string; x: number; y: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -144,6 +151,7 @@ export function ChatPage() {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmoji(false);
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) setContextMenu(null);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -152,14 +160,14 @@ export function ChatPage() {
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   const [chats, setChats] = useState([
-    { id: 'chat-1', name: 'Sarah Johnson', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', lastMessage: 'See you at the meeting!', time: '2m', unread: 2, online: true, type: 'individual' },
-    { id: 'chat-2', name: 'Prof. Smith', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=smith', lastMessage: 'Check the assignment', time: '1h', unread: 0, online: false, type: 'individual' },
-    { id: 'chat-3', name: 'Alex Chen', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', lastMessage: 'Thanks for helping!', time: '3h', unread: 1, online: true, type: 'individual' },
-    { id: 'chat-4', name: 'Jessica Lee', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jessica', lastMessage: "Let's grab coffee!", time: '2h', unread: 3, online: true, type: 'individual' },
-    { id: 'chat-5', name: 'Michael Brown', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael', lastMessage: 'Project deadline is tomorrow', time: '30m', unread: 0, online: false, type: 'individual' },
-    { id: 'group-1', name: 'Math Study Circle', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=math', lastMessage: 'Has anyone solved problem 5?', time: '10m', unread: 5, type: 'group', members: 24 },
-    { id: 'group-2', name: 'Physics Lab Notes', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=physics', lastMessage: 'The experiment results are in', time: '1h', unread: 0, type: 'group', members: 18 },
-    { id: 'group-3', name: 'English Literature', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=english', lastMessage: 'New chapter discussion', time: '3h', unread: 2, type: 'group', members: 32 },
+    { id: 'chat-1', name: 'Sarah Johnson', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', lastMessage: 'See you at the meeting!', time: '2m', unread: 2, online: true, typing: false, muted: false, pinned: true, lastSeen: '', type: 'individual' },
+    { id: 'chat-2', name: 'Prof. Smith', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=smith', lastMessage: 'Check the assignment', time: '1h', unread: 0, online: false, typing: false, muted: false, pinned: false, lastSeen: 'il y a 5m', type: 'individual' },
+    { id: 'chat-3', name: 'Alex Chen', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', lastMessage: 'Thanks for helping!', time: '3h', unread: 1, online: true, typing: true, muted: false, pinned: false, lastSeen: '', type: 'individual' },
+    { id: 'chat-4', name: 'Jessica Lee', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jessica', lastMessage: "Let's grab coffee!", time: '2h', unread: 3, online: true, typing: false, muted: true, pinned: false, lastSeen: '', type: 'individual' },
+    { id: 'chat-5', name: 'Michael Brown', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael', lastMessage: 'Project deadline is tomorrow', time: '30m', unread: 0, online: false, typing: false, muted: false, pinned: false, lastSeen: 'il y a 2h', type: 'individual' },
+    { id: 'group-1', name: 'Math Study Circle', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=math', lastMessage: 'Has anyone solved problem 5?', time: '10m', unread: 5, typing: false, muted: false, pinned: true, type: 'group', members: 24 },
+    { id: 'group-2', name: 'Physics Lab Notes', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=physics', lastMessage: 'The experiment results are in', time: '1h', unread: 0, typing: false, muted: false, pinned: false, type: 'group', members: 18 },
+    { id: 'group-3', name: 'English Literature', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=english', lastMessage: 'New chapter discussion', time: '3h', unread: 2, typing: false, muted: false, pinned: false, type: 'group', members: 32 },
   ]);
 
   const initialMessages: Record<string, Message[]> = {
@@ -168,7 +176,7 @@ export function ChatPage() {
       { id: 2, sender: 'You', text: 'Hi! Doing great!', time: '10:31', isOwn: true, readBy: 1, type: 'text' },
       { id: 3, sender: 'Sarah', text: 'Want to work on the project?', time: '10:32', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', reactions: [], readBy: 0, type: 'text' },
       { id: 4, sender: 'You', text: "Sure! Let's start tomorrow.", time: '10:33', isOwn: true, readBy: 1, type: 'text' },
-      { id: 5, sender: 'Sarah', text: 'Perfect! See you at the meeting!', time: '10:35', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', reactions: ['❤️'], readBy: 2, type: 'text' },
+      { id: 5, sender: 'Sarah', text: 'Perfect! See you at the meeting!', time: '10:35', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', reactions: [], readBy: 2, type: 'text' },
     ],
     'group-1': [
       { id: 1, sender: 'Alex', text: 'Has anyone solved problem 5?', time: '10:30', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', type: 'text' },
@@ -180,13 +188,75 @@ export function ChatPage() {
 
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(initialMessages);
 
-  useEffect(() => { setSelectedChat(null); setExpandedMessage(null); }, [chatMode]);
+  // Removed chatMode effect to prevent race condition
   useEffect(() => { scrollToBottom(); }, [messagesMap, selectedChat]);
+
+  useEffect(() => {
+    const savedGroups = localStorage.getItem('groups_page_data');
+    if (savedGroups) {
+      try {
+        const parsedGroups = JSON.parse(savedGroups);
+        setChats(prev => {
+          const individuals = prev.filter(c => c.type === 'individual');
+          const groupChats = parsedGroups.map((g: any) => {
+            const existing = prev.find(c => c.id === g.id);
+            return {
+              id: g.id,
+              name: g.name,
+              avatar: g.image,
+              lastMessage: existing ? existing.lastMessage : g.bio || 'New group chat',
+              time: existing ? existing.time : 'now',
+              unread: existing ? existing.unread : 0,
+              typing: existing ? existing.typing : false,
+              muted: existing ? existing.muted : false,
+              pinned: existing ? existing.pinned : false,
+              type: 'group',
+              members: g.members,
+            };
+          });
+          // Merge to keep the existing hardcoded groups if they are not in localStorage
+          const existingGroups = prev.filter(c => c.type === 'group' && !parsedGroups.find((pg: any) => pg.id === c.id));
+          return [...individuals, ...existingGroups, ...groupChats];
+        });
+      } catch (e) {}
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const groupId = params.get('group');
+    if (groupId) {
+      setChatMode('group');
+      setSelectedChat(groupId);
+    }
+  }, []);
 
   const handleChatSelect = (chatId: string) => {
     setSelectedChat(chatId);
     setExpandedMessage(null);
     setReplyTo(null);
+    setContextMenu(null);
+  };
+
+  const handleMuteChat = (chatId: string) => {
+    setChats(chats.map(c => c.id === chatId ? { ...c, muted: !c.muted } : c));
+    setContextMenu(null);
+  };
+
+  const handlePinChat = (chatId: string) => {
+    setChats(chats.map(c => c.id === chatId ? { ...c, pinned: !c.pinned } : c));
+    setContextMenu(null);
+  };
+
+  const handleDeleteChat = (chatId: string) => {
+    setChats(chats.filter(c => c.id !== chatId));
+    if (selectedChat === chatId) setSelectedChat(null);
+    setContextMenu(null);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, chatId: string) => {
+    e.preventDefault();
+    const sidebar = e.currentTarget.closest('[class*="w-full md:w-72"]');
+    const rect = sidebar?.getBoundingClientRect();
+    setContextMenu({ chatId, x: e.clientX - (rect?.left || 0), y: e.clientY - (rect?.top || 0) });
   };
 
   const getNextId = (chatId: string) => {
@@ -233,7 +303,7 @@ export function ChatPage() {
 
   const handleReact = (chatId: string, msgId: number, emoji: string) => {
     const msgs = messagesMap[chatId]?.map(m =>
-      m.id === msgId ? { ...m, reactions: [...(m.reactions || []), emoji] } : m
+      m.id === msgId ? { ...m, reactions: (m.reactions || []).includes(emoji) ? (m.reactions || []).filter(e => e !== emoji) : [...(m.reactions || []), emoji] } : m
     );
     setMessagesMap({ ...messagesMap, [chatId]: msgs });
   };
@@ -403,16 +473,16 @@ export function ChatPage() {
   const reactionEmojis = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
 
   return (
-    <div className="flex flex-1 min-h-0 bg-background">
+    <div className="flex flex-1 min-h-0 bg-background overflow-hidden">
       <style>{`.emoji-tw{display:inline;height:1.1em;width:1.1em;vertical-align:-0.15em;object-fit:contain;}.emoji-tw.inline{display:inline;height:1em;width:1em;vertical-align:0;}`}</style>
-      {/* Chat List */}
-      <div className="w-full md:w-72 bg-card border-r border-border flex flex-col">
+      {/* Chat List - hides on mobile when a chat is selected */}
+      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-x-hidden max-w-full`}>
         <div className="p-3 border-b border-border">
           <h2 className="text-lg font-bold text-foreground mb-2">Messages</h2>
           <div className="flex gap-1 mb-2 bg-secondary rounded-lg p-0.5">
-            <button onClick={() => setChatMode('individual')}
+            <button onClick={() => { setChatMode('individual'); setSelectedChat(null); setExpandedMessage(null); }}
               className={`flex-1 py-1 text-xs font-semibold rounded-md transition ${chatMode === 'individual' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Individual</button>
-            <button onClick={() => setChatMode('group')}
+            <button onClick={() => { setChatMode('group'); setSelectedChat(null); setExpandedMessage(null); }}
               className={`flex-1 py-1 text-xs font-semibold rounded-md transition ${chatMode === 'group' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Groups</button>
           </div>
           <div className="relative">
@@ -420,56 +490,243 @@ export function ChatPage() {
             <input type="text" placeholder="Search..." className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto relative">
           {filteredChats.map(chat => (
-            <div key={chat.id} onClick={() => handleChatSelect(chat.id)}
-              className={`py-2.5 px-3 border-b border-border cursor-pointer transition-all ${selectedChat === chat.id ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-secondary'}`}>
+            <motion.div
+              key={chat.id}
+              onClick={() => handleChatSelect(chat.id)}
+              onContextMenu={(e) => handleContextMenu(e, chat.id)}
+              whileHover={{ x: 2 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className={`py-2.5 px-3 border-b border-border cursor-pointer transition-colors relative ${
+                selectedChat === chat.id
+                  ? 'bg-primary/10 border-l-2 border-l-primary'
+                  : 'hover:bg-secondary/60'
+              }`}
+            >
               <div className="flex items-center gap-2.5">
+                {/* Avatar with online dot */}
                 <div className="relative flex-shrink-0">
-                  <img src={chat.avatar} alt={chat.name} className="w-9 h-9 rounded-full" />
-                  {chat.type === 'individual' && chat.online && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-accent rounded-full border-2 border-card" />}
+                  <img src={chat.avatar} alt={chat.name} className="w-10 h-10 rounded-full" />
+                  {chat.type === 'individual' && (
+                    <motion.div
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
+                        chat.online ? 'bg-green-400' : 'bg-muted-foreground/40'
+                      }`}
+                      animate={chat.online ? { scale: [1, 1.25, 1] } : {}}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  )}
+                  {chat.type === 'group' && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-blue-500 rounded-full border-2 border-card flex items-center justify-center">
+                      <Users size={7} className="text-white" />
+                    </div>
+                  )}
                 </div>
+
+                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center gap-1">
-                    <p className="text-sm font-semibold text-foreground truncate">{chat.name}</p>
-                    <span className="text-xs text-muted-foreground shrink-0">{chat.time}</span>
+                    <div className="flex items-center gap-1 min-w-0">
+                      {chat.pinned && <Pin size={10} className="text-blue-400 shrink-0" />}
+                      <p className="text-sm font-semibold text-foreground truncate">{chat.name}</p>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/70 shrink-0 tabular-nums">{chat.time}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{chat.lastMessage}</p>
-                  {chat.type === 'group' && <p className="text-[10px] text-muted-foreground">{chat.members} members</p>}
+
+                  {/* Typing or last message */}
+                  <div className="flex items-center gap-1 mt-0.5 min-h-[16px]">
+                    <AnimatePresence mode="wait" initial={false}>
+                      {chat.typing ? (
+                        <motion.div
+                          key="typing"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.18 }}
+                          className="flex items-center gap-1.5"
+                        >
+                          <span className="text-xs font-medium text-blue-400">écrit...</span>
+                          <span className="flex gap-[3px] items-center">
+                            {[0, 0.18, 0.36].map((delay, i) => (
+                              <motion.span
+                                key={i}
+                                className="w-1.5 h-1.5 bg-blue-400 rounded-full block"
+                                animate={{ y: [0, -4, 0], opacity: [0.5, 1, 0.5] }}
+                                transition={{ repeat: Infinity, duration: 0.72, delay, ease: 'easeInOut' }}
+                              />
+                            ))}
+                          </span>
+                        </motion.div>
+                      ) : (
+                        <motion.p
+                          key="msg"
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                          className="text-xs text-muted-foreground truncate flex-1"
+                        >
+                          {chat.lastMessage}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Online / last seen line */}
+                  {chat.type === 'individual' && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {chat.online ? (
+                        <span className="text-[10px] font-medium text-green-400">En ligne</span>
+                      ) : chat.lastSeen ? (
+                        <span className="text-[10px] text-muted-foreground/50">{chat.lastSeen}</span>
+                      ) : null}
+                    </div>
+                  )}
+                  {chat.type === 'group' && (
+                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">{(chat as any).members} membres</p>
+                  )}
                 </div>
-                {chat.unread > 0 && (
-                  <div className="flex-shrink-0 w-5 h-5 bg-accent rounded-full flex items-center justify-center">
-                    <span className="text-[10px] font-bold text-white">{chat.unread}</span>
-                  </div>
-                )}
+
+                {/* Right side badges */}
+                <div className="flex flex-col items-center gap-1 shrink-0 ml-1">
+                  {chat.muted && <BellOff size={11} className="text-muted-foreground/40" />}
+                  {chat.unread > 0 && (
+                    <motion.div
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="min-w-[18px] h-[18px] bg-blue-500 rounded-full flex items-center justify-center px-1"
+                    >
+                      <span className="text-[10px] font-bold text-white">{chat.unread > 9 ? '9+' : chat.unread}</span>
+                    </motion.div>
+                  )}
+                  {chat.unread === 0 && chat.type === 'individual' && messagesMap[chat.id]?.some(m => m.isOwn && m.readBy && m.readBy > 0) && (
+                    <CheckCheck size={12} className="text-blue-400" />
+                  )}
+                </div>
               </div>
-            </div>
+            </motion.div>
           ))}
+
+          {/* Context Menu */}
+          <AnimatePresence>
+            {contextMenu && (
+              <motion.div
+                ref={contextMenuRef}
+                style={{ left: contextMenu.x, top: contextMenu.y, position: 'absolute', zIndex: 100 }}
+                initial={{ opacity: 0, scale: 0.92, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: -6 }}
+                transition={{ duration: 0.14, ease: 'easeOut' }}
+                className="bg-card border border-border rounded-xl shadow-2xl py-1 w-44 overflow-hidden"
+              >
+                {(() => {
+                  const chat = chats.find(c => c.id === contextMenu.chatId);
+                  if (!chat) return null;
+                  return (<>
+                    <button onClick={() => handleMuteChat(chat.id)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-secondary transition">
+                      <BellOff size={15} className={chat.muted ? 'text-blue-400' : 'text-muted-foreground'} />
+                      <span>{chat.muted ? 'Activer les notifs' : 'Désactiver'}</span>
+                    </button>
+                    <button onClick={() => handlePinChat(chat.id)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-secondary transition">
+                      <Pin size={15} className={chat.pinned ? 'text-blue-400' : 'text-muted-foreground'} />
+                      <span>{chat.pinned ? 'Désépingler' : 'Épingler'}</span>
+                    </button>
+                    <div className="h-px bg-border mx-2 my-0.5" />
+                    <button onClick={() => handleDeleteChat(chat.id)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition">
+                      <Trash2 size={15} />
+                      <span>Supprimer</span>
+                    </button>
+                  </>);
+                })()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* Chat Window */}
+      {/* Chat Window + Details Panel (side by side) */}
       {selectedChat && currentChat ? (
-        <div className="hidden md:flex flex-1 flex-col bg-card overflow-hidden relative">
+        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col bg-card overflow-hidden relative min-w-0">
           {/* Header */}
-          <div className="border-b border-border px-3 py-2 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2.5">
-              <img src={currentChat.avatar} alt={currentChat.name} className="w-9 h-9 rounded-full" />
+          <div className="border-b border-border px-3 py-2.5 flex items-center justify-between shrink-0 bg-card/80 backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSelectedChat(null)} className="md:hidden p-1 -ml-1 rounded-lg hover:bg-secondary transition text-foreground">
+                <ChevronDown size={18} className="rotate-90" />
+              </button>
+              <div className="relative">
+                <img src={currentChat.avatar} alt={currentChat.name} className="w-10 h-10 rounded-full" />
+                {currentChat.type === 'individual' && (
+                  <motion.div
+                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
+                      currentChat.online ? 'bg-green-400' : 'bg-muted-foreground/40'
+                    }`}
+                    animate={currentChat.online ? { scale: [1, 1.3, 1] } : {}}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                )}
+              </div>
               <div>
-                <p className="text-sm font-semibold text-foreground leading-tight">{currentChat.name}</p>
-                <p className="text-xs text-muted-foreground leading-tight">
-                  {currentChat.type === 'group' ? `${currentChat.members} members` : currentChat.online ? 'Online' : 'Offline'}
-                </p>
+                <p className="text-sm font-bold text-foreground leading-tight">{currentChat.name}</p>
+                <AnimatePresence mode="wait" initial={false}>
+                  {(currentChat as any).typing ? (
+                    <motion.div
+                      key="hdr-typing"
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-center gap-1.5"
+                    >
+                      <span className="text-xs font-medium text-blue-400">écrit un message</span>
+                      <span className="flex gap-[3px] items-center">
+                        {[0, 0.2, 0.4].map((delay, i) => (
+                          <motion.span
+                            key={i}
+                            className="w-1 h-1 bg-blue-400 rounded-full block"
+                            animate={{ y: [0, -3, 0], opacity: [0.5, 1, 0.5] }}
+                            transition={{ repeat: Infinity, duration: 0.7, delay, ease: 'easeInOut' }}
+                          />
+                        ))}
+                      </span>
+                    </motion.div>
+                  ) : (
+                    <motion.p
+                      key="hdr-status"
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className="text-xs leading-tight"
+                    >
+                      {currentChat.type === 'group' ? (
+                        <span className="text-muted-foreground">{(currentChat as any).members} membres</span>
+                      ) : currentChat.online ? (
+                        <span className="text-green-400 font-medium">En ligne</span>
+                      ) : (currentChat as any).lastSeen ? (
+                        <span className="text-muted-foreground">{(currentChat as any).lastSeen}</span>
+                      ) : (
+                        <span className="text-muted-foreground/60">Hors ligne</span>
+                      )}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              <button className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-primary"><Phone size={18} /></button>
-              <button className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-primary"><Video size={18} /></button>
-              <button onClick={() => setShowDetailsPanel(!showDetailsPanel)}
-                className={`p-1.5 rounded-lg transition text-foreground ${showDetailsPanel ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary hover:text-primary'}`}>
-                <Info size={18} />
-              </button>
-              <button className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-primary"><MoreVertical size={18} /></button>
+            <div className="flex items-center gap-0.5">
+              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }} className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-green-400"><Phone size={17} /></motion.button>
+              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }} className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-blue-400"><Video size={17} /></motion.button>
+              <motion.button
+                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
+                onClick={() => setShowDetailsPanel(!showDetailsPanel)}
+                className={`p-1.5 rounded-lg transition text-foreground ${showDetailsPanel ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-secondary hover:text-primary'}`}>
+                <Info size={17} />
+              </motion.button>
+              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }} className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-primary"><MoreVertical size={17} /></motion.button>
             </div>
           </div>
 
@@ -536,7 +793,7 @@ export function ChatPage() {
                     <div className="flex gap-0.5 mt-0.5 -mb-1">
                       {[...new Set(msg.reactions)].map((r, i) => (
                         <span key={i} className="text-xs bg-background border border-border rounded-full px-1.5 py-0.5 shadow-sm inline-flex items-center"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
+                          dangerouslySetInnerHTML={{ __html: parseEmoji(r) }} />
                       ))}
                     </div>
                   )}
@@ -548,7 +805,7 @@ export function ChatPage() {
                       {reactionEmojis.map(r => (
                         <button key={r} onClick={() => handleReact(selectedChat!, msg.id, r)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-secondary rounded-full text-base transition"
-                          dangerouslySetInnerHTML={{ __html: twemoji.parse(r, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
+                          dangerouslySetInnerHTML={{ __html: parseEmoji(r) }} />
                       ))}
                       <div className="w-px h-5 bg-border mx-0.5 self-center" />
                       <button onClick={() => handleCopy(msg.text || '')} className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground">
@@ -570,12 +827,11 @@ export function ChatPage() {
                     </motion.div>
                   )}
                 </div>
-                {/* Hover quick react */}
                 {hoveredMessage === msg.id && !expandedMessage && (
                   <div className="flex items-center">
                     <button onClick={() => handleReact(selectedChat!, msg.id, '❤️')}
                       className="p-1 rounded-full hover:bg-secondary transition text-foreground"
-                      dangerouslySetInnerHTML={{ __html: twemoji.parse('❤️', { callback: (i) => appleEmoji(i), className: 'emoji-tw w-4 h-4', attributes: (i) => emojiAttrs(i) }) }} />
+                      dangerouslySetInnerHTML={{ __html: parseEmoji('❤️', 'emoji-tw w-4 h-4') }} />
                   </div>
                 )}
               </div>
@@ -617,82 +873,67 @@ export function ChatPage() {
                 onGenerateImage={() => {}}
               />
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleFilePicked} />
-              <div className="flex-1 relative">
-                <div ref={emojiRef as any} className="absolute left-1 bottom-1.5 z-10">
-                  <button onClick={() => setShowEmoji(!showEmoji)}
-                    className="p-0.5 rounded hover:bg-secondary/80 transition text-muted-foreground hover:text-foreground">
-                    <Smile size={16} />
-                  </button>
-                  {showEmoji && (
-                    <div className="absolute bottom-8 left-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-72 overflow-hidden">
-                      <div className="flex gap-0.5 mb-1 pb-1 border-b border-border">
-                        {emojiTabs.map((t, i) => (
-                          <button key={i} onClick={() => setEmojiTab(i)}
-                            className={`flex-1 text-center py-1 text-sm rounded-lg transition ${emojiTab === i ? 'bg-primary/10 scale-110' : 'hover:bg-secondary'}`}
-                            dangerouslySetInnerHTML={{ __html: twemoji.parse(t.id, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap gap-0.5 max-h-52 overflow-y-auto">
-                        {emojiTabs[emojiTab].emojis.map((emoji, i) => (
-                          <button key={i} onClick={() => {
-                            const sel = window.getSelection();
-                            const div = inputRef.current;
-                            if (div && sel) {
-                              const range = sel.getRangeAt(0);
-                              const img = twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) });
-                              const frag = range.createContextualFragment(img);
-                              range.deleteContents();
-                              range.insertNode(frag);
-                              range.collapse(false);
-                              sel.removeAllRanges();
-                              sel.addRange(range);
-                              div.focus();
-                            }
-                          }}
-                            className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
-                            dangerouslySetInnerHTML={{ __html: twemoji.parse(emoji, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
-                        ))}
-                      </div>
+              <div className="relative" ref={emojiRef}>
+                <button onClick={() => setShowEmoji(!showEmoji)}
+                  className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-primary shrink-0">
+                  <Smile size={20} />
+                </button>
+                {showEmoji && (
+                  <div className="absolute bottom-10 left-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-72 overflow-hidden">
+                    <div className="flex gap-0.5 mb-1 pb-1 border-b border-border">
+                      {emojiTabs.map((t, i) => (
+                        <button key={i} onClick={() => setEmojiTab(i)}
+                          className={`flex-1 text-center py-1 text-sm rounded-lg transition ${emojiTab === i ? 'bg-primary/10 scale-110' : 'hover:bg-secondary'}`}
+                          dangerouslySetInnerHTML={{ __html: parseEmoji(t.id) }} />
+                      ))}
                     </div>
-                  )}
-                </div>
+                    <div className="flex flex-wrap gap-0.5 max-h-52 overflow-y-auto">
+                      {emojiTabs[emojiTab].emojis.map((emoji, i) => (
+                        <button key={i} onClick={() => {
+                          const div = inputRef.current;
+                          if (!div) return;
+                          div.focus();
+                          const sel = window.getSelection();
+                          if (!sel) return;
+                          if (!sel.rangeCount) {
+                            const range = document.createRange();
+                            range.selectNodeContents(div);
+                            range.collapse(false);
+                            sel.addRange(range);
+                          }
+                          const range = sel.getRangeAt(0);
+                          const img = parseEmoji(emoji);
+                          const frag = range.createContextualFragment(img);
+                          range.deleteContents();
+                          range.insertNode(frag);
+                          range.collapse(false);
+                          sel.removeAllRanges();
+                          sel.addRange(range);
+                        }}
+                          className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
+                          dangerouslySetInnerHTML={{ __html: parseEmoji(emoji) }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 relative">
                 <div ref={inputRef as any} contentEditable
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
                   data-placeholder="Message..."
-                  className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 whitespace-pre-wrap break-words max-h-32 overflow-y-auto pl-8"
+                  className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 whitespace-pre-wrap break-words max-h-32 overflow-y-auto"
                 />
-              </div>
-              <div className="flex gap-0.5 items-center shrink-0">
-                {['👍','❤️','😂','🔥','🎉','😢'].map((e, i) => (
-                  <button key={i} onClick={() => {
-                    const div = inputRef.current as HTMLElement | null;
-                    if (!div) return;
-                    div.focus();
-                    const sel = window.getSelection();
-                    if (!sel) return;
-                    const range = sel.getRangeAt(0);
-                    const img = twemoji.parse(e, { callback: (i) => appleEmoji(i), className: 'emoji-tw inline', attributes: (i) => emojiAttrs(i) });
-                    const frag = range.createContextualFragment(img + ' ');
-                    range.deleteContents();
-                    range.insertNode(frag);
-                    range.collapse(false);
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                  }}
-                    className="w-6 h-6 flex items-center justify-center hover:bg-secondary rounded transition opacity-60 hover:opacity-100"
-                    dangerouslySetInnerHTML={{ __html: twemoji.parse(e, { callback: (i) => appleEmoji(i), className: 'emoji-tw', attributes: (i) => emojiAttrs(i) }) }} />
-                ))}
               </div>
               <button onClick={() => { if (isRecording) { stopRecording(); } else { startRecording(); } }}
                 className={`self-center p-2 rounded-xl transition shrink-0 -mb-1 ${isRecording ? 'bg-destructive text-white shadow-lg scale-110' : 'hover:bg-secondary text-foreground hover:text-accent'}`}>
                 <Mic size={22} />
               </button>
               <motion.button onClick={handleSendMessage}
-                whileTap={{ scale: 0.9 }}
-                animate={sending ? { x: [0, 4, -4, 2, -2, 0] } : {}}
-                transition={{ duration: 0.4, ease: 'easeInOut' }}
-                className="p-2 rounded-xl bg-primary text-primary-foreground hover:shadow-md transition shrink-0">
-                <motion.div animate={sending ? { rotate: [0, -15, 15, 0], y: [0, -2, 0] } : {}} transition={{ duration: 0.4 }}>
+                whileTap={{ scale: 0.85 }}
+                animate={sending ? { scale: [1, 1.3, 0.9, 1.15, 1], rotate: [0, -20, 10, -5, 0] } : {}}
+                transition={{ duration: 0.5, ease: 'easeInOut' }}
+                className="p-2.5 rounded-xl bg-primary text-primary-foreground hover:shadow-lg transition shrink-0 active:scale-90">
+                <motion.div animate={sending ? { y: [0, -4, 0], rotate: [0, -15, 0] } : {}} transition={{ duration: 0.5 }}>
                   <Send size={18} />
                 </motion.div>
               </motion.button>
@@ -728,6 +969,16 @@ export function ChatPage() {
             </div>
           )}
         </div>
+
+        {/* Details Panel (inline, compresses chat) */}
+        {showDetailsPanel && (
+          <ChatDetailsPanel isOpen={true} onClose={() => setShowDetailsPanel(false)}
+          chatName={currentChat!.name} chatAvatar={currentChat!.avatar} online={'online' in currentChat! ? Boolean(currentChat!.online) : false}
+          isMuted={isChatMuted} onMute={() => setIsChatMuted(!isChatMuted)}
+          onChangeNickname={() => {}} onBlock={() => {}} onDelete={() => { setSelectedChat(null); setShowDetailsPanel(false); }}
+          messages={messages} />
+        )}
+      </div>
       ) : (
         <div className="hidden md:flex flex-1 items-center justify-center bg-card border-l border-border">
           <div className="text-center">
@@ -735,15 +986,6 @@ export function ChatPage() {
             <p className="text-sm text-muted-foreground">Select a chat to start messaging</p>
           </div>
         </div>
-      )}
-
-      {/* Chat Details Panel */}
-      {selectedChat && currentChat && (
-        <ChatDetailsPanel isOpen={showDetailsPanel} onClose={() => setShowDetailsPanel(false)}
-          chatName={currentChat.name} chatAvatar={currentChat.avatar} online={'online' in currentChat ? currentChat.online : false}
-          isMuted={isChatMuted} onMute={() => setIsChatMuted(!isChatMuted)}
-          onChangeNickname={() => {}} onBlock={() => {}} onDelete={() => { setSelectedChat(null); setShowDetailsPanel(false); }}
-          messages={messages} />
       )}
 
       {/* Image Zoom Modal */}

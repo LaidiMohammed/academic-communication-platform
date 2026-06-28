@@ -79,12 +79,13 @@ export function ChatDetailsPanel({
         )}
       </AnimatePresence>
 
-      {/* Desktop Panel */}
+      {/* Desktop Panel (inline flex, compresses chat) */}
       <motion.div
-        initial={{ x: 288, opacity: 0 }}
-        animate={isOpen ? { x: 0, opacity: 1 } : { x: 288, opacity: 0 }}
+        initial={{ width: 0, opacity: 0 }}
+        animate={{ width: 288, opacity: 1 }}
+        exit={{ width: 0, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="hidden md:flex fixed right-0 top-0 h-screen w-72 bg-card border-l border-border flex-col shadow-xl z-40"
+        className="hidden md:flex w-72 bg-card border-l border-border flex-col shadow-xl shrink-0 overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-3 border-b border-border shrink-0">

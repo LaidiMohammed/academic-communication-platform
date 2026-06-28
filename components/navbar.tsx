@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, Bell, Search, ChevronDown } from 'lucide-react';
+import { Settings, Bell, Search, ChevronDown, Home } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 
@@ -26,6 +26,9 @@ export function Navbar() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-600 hover:text-blue-600 hidden sm:block">
+            <Home size={20} />
+          </Link>
           {/* Notifications */}
           <button className="relative p-2 rounded-lg hover:bg-gray-100 transition group">
             <Bell size={20} className="text-gray-600 group-hover:text-blue-600 transition" />

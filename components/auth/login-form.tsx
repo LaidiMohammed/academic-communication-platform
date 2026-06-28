@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
@@ -15,188 +16,147 @@ export function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
 
+  const mascots = [
+    { img: '/bendellamas-removebg-preview.png', bgText: 'LEADERSHIP', phrase: 'Leads with vision, inspires with action. Every team needs a captain.' },
+    { img: '/bendellamas2-removebg-preview.png', bgText: 'STRATEGY', phrase: 'Always three moves ahead. Calculated, calm, and always in control.' },
+    { img: '/bendellamas3-removebg-preview.png', bgText: 'RESILIENCE', phrase: 'Clutch when it counts. Pressure? That\'s just another challenge.' },
+    { img: '/bendellamas4-removebg-preview.png', bgText: 'INNOVATION', phrase: 'Builds the future, one idea at a time. Innovation never sleeps.' },
+  ];
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent(prev => (prev + 1) % mascots.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
-      if (!email || !password) {
-        setError('Please fill in all fields');
-        setLoading(false);
-        return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setError('Please enter a valid email');
-        setLoading(false);
-        return;
-      }
+      if (!email || !password) { setError('Please fill in all fields'); setLoading(false); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Please enter a valid email'); setLoading(false); return; }
       await login(email, password);
       router.push('/dashboard');
-    } catch (err) {
-      setError('Login failed. Please try again.');
-      setLoading(false);
-    }
+    } catch { setError('Login failed. Please try again.'); setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-200 via-purple-300 to-blue-900 overflow-hidden flex items-center justify-center p-4">
-      <div className="absolute top-10 right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 left-10 w-60 h-60 bg-white/5 rounded-full blur-3xl" />
+    <div className="h-screen bg-[#0F172A] overflow-hidden flex items-center justify-center p-4">
+      <div className="absolute top-10 right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 left-10 w-60 h-60 bg-blue-500/5 rounded-full blur-3xl" />
 
-      <div className="relative z-10 w-full max-w-6xl">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-          {/* Left side - Form */}
           <div className="order-2 lg:order-1">
-            <div className="bg-white/15 backdrop-blur-2xl rounded-3xl p-8 md:p-10 border border-white/20 shadow-2xl">
-              {/* Header */}
-              <div className="mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Sign In</h1>
-                <p className="text-white/70">Welcome back to EduConnect</p>
+            <div className="bg-[#111827] border border-blue-500/20 rounded-3xl p-8 md:p-10 shadow-2xl">
+              <div className="mb-8 flex items-center gap-4">
+                <img src="/logo.png" alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-blue-500/30 shadow-lg shadow-blue-500/20" />
+                <div>
+                  <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">Welcome Back</h1>
+                  <p className="text-gray-400">Sign in to continue your journey</p>
+                </div>
               </div>
 
-              {/* Error message */}
               {error && (
-                <div className="mb-6 p-4 bg-red-500/20 border border-red-400/50 rounded-xl text-red-200 text-sm backdrop-blur-sm">
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Email field */}
                 <div className="group">
-                  <label className="block text-sm font-semibold text-white/90 mb-3">Email</label>
+                  <label className="block text-sm font-semibold text-gray-300 mb-3">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 group-focus-within:text-white transition-colors" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="student@school.edu"
-                      disabled={loading}
-                      className="w-full pl-12 pr-4 py-3 bg-white/10 border-b-2 border-white/30 text-white placeholder:text-white/40 focus:outline-none focus:border-white/60 transition-all rounded-lg backdrop-blur-sm focus:bg-white/15"
-                    />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                      placeholder="student@school.edu" disabled={loading}
+                      className="w-full pl-12 pr-4 py-3 bg-[#1E293B] border border-blue-500/20 text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400 transition-all rounded-xl" />
                   </div>
                 </div>
 
-                {/* Password field */}
                 <div className="group">
-                  <label className="block text-sm font-semibold text-white/90 mb-3">Password</label>
+                  <label className="block text-sm font-semibold text-gray-300 mb-3">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 group-focus-within:text-white transition-colors" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      disabled={loading}
-                      className="w-full pl-12 pr-12 py-3 bg-white/10 border-b-2 border-white/30 text-white placeholder:text-white/40 focus:outline-none focus:border-white/60 transition-all rounded-lg backdrop-blur-sm focus:bg-white/15"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                    >
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                    <input type={showPassword ? 'text' : 'password'} value={password}
+                      onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" disabled={loading}
+                      className="w-full pl-12 pr-12 py-3 bg-[#1E293B] border border-blue-500/20 text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400 transition-all rounded-xl" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-400 transition-colors">
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Sign in button */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full mt-8 py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all disabled:opacity-60 backdrop-blur-sm hover:scale-105 active:scale-95"
-                >
+                <motion.button type="submit" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  className="w-full mt-8 py-3 bg-blue-500 text-white font-bold rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all disabled:opacity-60 hover:bg-blue-400 active:scale-95">
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       Signing in...
                     </span>
-                  ) : (
-                    'Sign In'
-                  )}
-                </button>
+                  ) : 'Sign In'}
+                </motion.button>
               </form>
 
-              {/* Links */}
               <div className="mt-8 space-y-3 text-center">
-                <p className="text-white/70 text-sm">
+                <p className="text-gray-400 text-sm">
                   Don&apos;t have an account?{' '}
-                  <Link href="/signup" className="text-white font-semibold hover:text-white/90 transition-colors">
-                    Sign up
-                  </Link>
+                  <Link href="/signup" className="text-blue-400 font-semibold hover:text-blue-300 transition-colors">Sign up</Link>
                 </p>
-                <p className="text-white/50 text-xs">
-                  <Link href="#" className="hover:text-white/70 transition-colors">
-                    Forgot password?
-                  </Link>
+                <p className="text-gray-600 text-[11px]">
+                  Admin demo: <span className="text-blue-400">hamda.laidi.14@gmail.com</span> — any password
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Right side - Illustration */}
           <div className="order-1 lg:order-2 flex items-center justify-center">
-            <div className="relative w-full max-w-sm aspect-square">
-              <svg
-                viewBox="0 0 300 400"
-                className="w-full h-full drop-shadow-2xl"
-              >
-                <defs>
-                  <linearGradient id="potGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: 'rgba(147, 51, 234, 0.6)', stopOpacity: 1 }} />
-                    <stop offset="100%" style={{ stopColor: 'rgba(59, 130, 246, 0.4)', stopOpacity: 1 }} />
-                  </linearGradient>
-                  <linearGradient id="plantGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-                    <stop offset="0%" style={{ stopColor: 'rgba(168, 85, 247, 0.8)', stopOpacity: 1 }} />
-                    <stop offset="50%" style={{ stopColor: 'rgba(99, 102, 241, 0.9)', stopOpacity: 1 }} />
-                    <stop offset="100%" style={{ stopColor: 'rgba(147, 197, 253, 0.8)', stopOpacity: 1 }} />
-                  </linearGradient>
-                </defs>
-
-                <ellipse cx="150" cy="320" rx="90" ry="30" fill="url(#potGradient)" />
-                <path d="M 60 320 Q 50 280 70 260 L 230 260 Q 250 280 240 320" fill="url(#potGradient)" opacity="0.8" />
-                <ellipse cx="150" cy="260" rx="85" ry="25" fill="url(#potGradient)" opacity="0.6" />
-
-                <ellipse cx="100" cy="200" rx="35" ry="70" fill="url(#plantGradient)" opacity="0.85" />
-                <circle cx="75" cy="160" r="22" fill="url(#plantGradient)" opacity="0.9" />
-                <circle cx="85" cy="120" r="18" fill="url(#plantGradient)" opacity="0.85" />
-
-                <ellipse cx="150" cy="140" rx="28" ry="90" fill="url(#plantGradient)" opacity="0.9" />
-                <circle cx="150" cy="50" r="25" fill="url(#plantGradient)" opacity="0.95" />
-                <circle cx="130" cy="80" r="15" fill="url(#plantGradient)" opacity="0.8" />
-                <circle cx="170" cy="75" r="15" fill="url(#plantGradient)" opacity="0.8" />
-
-                <ellipse cx="200" cy="210" rx="32" ry="65" fill="url(#plantGradient)" opacity="0.85" />
-                <circle cx="220" cy="165" r="20" fill="url(#plantGradient)" opacity="0.9" />
-                <circle cx="215" cy="125" r="17" fill="url(#plantGradient)" opacity="0.85" />
-
-                <path d="M 120 180 Q 100 170 110 150" stroke="rgba(236, 72, 153, 0.6)" strokeWidth="6" fill="none" strokeLinecap="round" />
-                <path d="M 180 190 Q 200 175 195 155" stroke="rgba(236, 72, 153, 0.6)" strokeWidth="6" fill="none" strokeLinecap="round" />
-                <path d="M 140 110 Q 125 95 135 75" stroke="rgba(236, 72, 153, 0.5)" strokeWidth="5" fill="none" strokeLinecap="round" />
-                <path d="M 160 105 Q 175 95 170 75" stroke="rgba(236, 72, 153, 0.5)" strokeWidth="5" fill="none" strokeLinecap="round" />
-
-                <circle cx="140" cy="60" r="3" fill="rgba(255, 255, 255, 0.8)" opacity="0.7" />
-                <circle cx="160" cy="50" r="2" fill="rgba(255, 255, 255, 0.9)" opacity="0.6" />
-                <circle cx="95" cy="140" r="2.5" fill="rgba(255, 255, 255, 0.8)" opacity="0.5" />
-                <circle cx="210" cy="150" r="2" fill="rgba(255, 255, 255, 0.7)" opacity="0.6" />
-              </svg>
-
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-blue-400/20 rounded-full blur-3xl -z-10" />
+            <div className="relative w-full max-w-sm min-h-[400px] flex items-center justify-center">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={current}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="relative w-full h-full flex items-center justify-center"
+                >
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                    <span className="text-[clamp(3rem,10vw,5rem)] font-black text-blue-500/5 leading-none whitespace-nowrap tracking-wide">
+                      {mascots[current].bgText}
+                    </span>
+                  </div>
+                  <div className="relative z-10 flex flex-col items-center">
+                    <div className="relative mb-4">
+                      <div className="absolute inset-0 bg-blue-500/15 rounded-full blur-3xl scale-150" />
+                      <div className="w-[27rem] h-[27rem] relative flex items-center justify-center">
+                        <img src={mascots[current].img} alt="Mascot" className="w-full h-full object-contain drop-shadow-2xl" />
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-lg leading-relaxed max-w-xs mx-auto text-center font-light">
+                      {mascots[current].phrase}
+                    </p>
+                    <div className="flex gap-2 mt-5">
+                      {mascots.map((_, i) => (
+                        <button key={i} onClick={() => setCurrent(i)}
+                          className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                            i === current ? 'bg-blue-400 w-6' : 'bg-gray-600 hover:bg-gray-500'
+                          }`} />
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Mobile logo in corner */}
-      <div className="absolute top-6 left-6 md:top-10 md:left-10 z-20">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/30">
-            <span className="text-lg font-bold text-white">E</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

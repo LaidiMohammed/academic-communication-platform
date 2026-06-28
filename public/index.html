@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>المنصة التعليمية — الدروس، التمارين، والإمتحانات الجزائرية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#05080f;--surface:#080c1a;--card:rgba(8,12,26,0.45);--indigo:#4f6ef7;--cyan:#06f7f7;--emerald:#34d399;--amber:#fbbf24;--purple:#8b5cf6;--rose:#fb7185;--gold:#ffbc2c;--text:#f1f5f9;--muted:rgba(241,245,249,0.3);--border:rgba(79,110,247,0.1)}
+html{scroll-behavior:smooth}
+body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;min-height:100vh;direction:rtl}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(79,110,247,0.3);color:#fff}
+
+/* Animated gradient background */
+body::before{content:'';position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79,110,247,0.08) 0%, transparent 70%),
+  radial-gradient(ellipse 60% 50% at 80% 40%, rgba(6,247,247,0.04) 0%, transparent 60%),
+  radial-gradient(ellipse 50% 40% at 20% 60%, rgba(255,188,44,0.03) 0%, transparent 50%),
+  radial-gradient(ellipse 70% 50% at 50% 110%, rgba(139,92,246,0.05) 0%, transparent 60%);
+  animation:ambient 12s ease-in-out infinite alternate}
+@keyframes ambient{0%{opacity:0.6}100%{opacity:1}}
+
+/* Subtle grid overlay */
+body::after{content:'';position:fixed;inset:0;z-index:-1;
+  background-image:linear-gradient(rgba(79,110,247,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,0.02) 1px,transparent 1px);
+  background-size:60px 60px}
+
+/* Progress bar */
+#scroll-progress{position:fixed;top:0;left:0;height:2px;z-index:200;background:linear-gradient(90deg,var(--indigo),var(--cyan),var(--gold));width:0%;transition:width .05s linear}
+
+/* Navbar */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(5,8,15,0.75);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between}
+nav .logo{font-size:20px;font-weight:900;color:var(--text);display:flex;align-items:center;gap:10px;letter-spacing:-0.3px}
+nav .logo .accent{color:var(--gold)}
+nav .nav-links{display:flex;gap:2px;flex-wrap:wrap}
+nav .nav-links a{color:var(--muted);padding:6px 16px;border-radius:8px;font-size:13px;font-weight:500;transition:all .25s}
+nav .nav-links a:hover{color:var(--text);background:rgba(79,110,247,0.08)}
+
+/* Hero */
+.hero{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px 40px;max-width:960px;margin:0 auto}
+.hero h1{font-size:clamp(40px,6vw,68px);font-weight:900;line-height:1.1;margin-bottom:14px;letter-spacing:-0.5px}
+.hero h1 .gradient{background:linear-gradient(135deg,var(--indigo),var(--cyan),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero h1 .glow{text-shadow:0 0 40px rgba(79,110,247,0.15),0 0 80px rgba(6,247,247,0.08)}
+.hero p{color:var(--muted);font-size:clamp(15px,2vw,18px);max-width:620px;margin-bottom:34px;line-height:1.8}
+.hero-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.btn-primary{background:linear-gradient(135deg,var(--indigo),#3a56d4);color:#fff;padding:14px 34px;border-radius:12px;font-size:16px;font-weight:700;border:none;cursor:pointer;transition:all .3s;box-shadow:0 0 30px rgba(79,110,247,0.2),0 4px 16px rgba(0,0,0,0.3);font-family:'Tajawal',sans-serif}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(79,110,247,0.35),0 8px 24px rgba(0,0,0,0.4)}
+.btn-secondary{background:rgba(255,255,255,0.04);color:var(--text);padding:14px 28px;border-radius:12px;font-size:16px;font-weight:500;border:1px solid var(--border);cursor:pointer;transition:all .3s;font-family:'Tajawal',sans-serif}
+.btn-secondary:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.15)}
+
+.scroll-hint{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:6px;animation:bounce 2s infinite;opacity:0.5}
+.scroll-hint svg{width:18px;height:18px}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(5px)}}
+
+/* Section common */
+section.content{position:relative;z-index:2;padding:70px 24px;max-width:1140px;margin:0 auto}
+section.content .section-header{text-align:center;margin-bottom:40px}
+section.content .section-header h2{font-size:clamp(22px,3vw,30px);font-weight:800;margin-bottom:8px;letter-spacing:-0.3px}
+section.content .section-header h2 .highlight{background:linear-gradient(135deg,var(--gold),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+section.content .section-header p{color:var(--muted);font-size:14px;max-width:500px;margin:0 auto}
+
+/* Levels grid */
+.levels-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.level-card{background:var(--card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:26px 14px 22px;text-align:center;transition:all .4s cubic-bezier(0.16,1,0.3,1);cursor:pointer;position:relative;overflow:hidden}
+.level-card::before{content:'';position:absolute;inset:0;border-radius:16px;opacity:0;background:linear-gradient(135deg,rgba(79,110,247,0.06),transparent);transition:opacity .4s}
+.level-card:hover{transform:translateY(-6px);border-color:rgba(79,110,247,0.25);box-shadow:0 12px 40px rgba(0,0,0,0.4),0 0 30px rgba(79,110,247,0.05)}
+.level-card:hover::before{opacity:1}
+.level-card .emoji{font-size:30px;display:block;margin-bottom:10px;position:relative}
+.level-card h3{font-size:15px;font-weight:700;position:relative}
+.level-card p{font-size:11px;color:var(--muted);margin-top:4px;position:relative}
+
+/* Subjects grid */
+.subjects-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:13px}
+.subject-card{background:var(--card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:14px;padding:20px;transition:all .4s cubic-bezier(0.16,1,0.3,1);cursor:pointer}
+.subject-card:hover{transform:translateY(-5px);border-color:rgba(79,110,247,0.2);box-shadow:0 10px 36px rgba(0,0,0,0.35),0 0 24px rgba(79,110,247,0.04)}
+.subject-card .top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.subject-card .top .icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:1px solid rgba(255,255,255,0.04)}
+.subject-card .top h3{font-size:15px;font-weight:700}
+.subject-card .top .badge{font-size:10px;padding:3px 10px;border-radius:6px;background:rgba(79,110,247,0.08);color:var(--indigo);margin-right:auto;font-weight:500}
+.subject-card .links{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.subject-card .links a{font-size:11px;padding:4px 12px;border-radius:6px;background:rgba(255,255,255,0.03);color:var(--muted);transition:all .25s;font-weight:500}
+.subject-card .links a:hover{background:rgba(79,110,247,0.1);color:var(--text)}
+.icon-indigo{background:rgba(79,110,247,0.08);color:var(--indigo)}.icon-cyan{background:rgba(6,247,247,0.08);color:var(--cyan)}.icon-emerald{background:rgba(52,211,153,0.08);color:var(--emerald)}.icon-amber{background:rgba(251,191,36,0.08);color:var(--amber)}.icon-purple{background:rgba(139,92,246,0.08);color:var(--purple)}.icon-rose{background:rgba(251,112,133,0.08);color:var(--rose)}
+
+/* Exam cards */
+.exam-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.exam-card{background:var(--card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:26px;transition:all .4s cubic-bezier(0.16,1,0.3,1);cursor:pointer}
+.exam-card:hover{transform:translateY(-5px);border-color:rgba(79,110,247,0.25);box-shadow:0 12px 40px rgba(0,0,0,0.35),0 0 30px rgba(79,110,247,0.05)}
+.exam-card .title{font-size:17px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+.exam-card .desc{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.7}
+.exam-card .years{display:flex;flex-wrap:wrap;gap:4px}
+.exam-card .years span{font-size:10px;padding:3px 9px;border-radius:4px;background:rgba(79,110,247,0.05);color:var(--muted);font-weight:500}
+
+/* Resources grid */
+.resources-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:16px}
+.resource-card{background:var(--card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:26px;transition:all .4s cubic-bezier(0.16,1,0.3,1);cursor:pointer}
+.resource-card:hover{transform:translateY(-5px);border-color:rgba(79,110,247,0.25);box-shadow:0 12px 40px rgba(0,0,0,0.35),0 0 30px rgba(79,110,247,0.05)}
+.resource-card .title{font-size:16px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+.resource-card .desc{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.7}
+.resource-card .tag{display:inline-block;font-size:10px;padding:3px 10px;border-radius:4px;background:rgba(79,110,247,0.06);color:var(--indigo);margin-bottom:10px;font-weight:500}
+
+/* Footer */
+footer{position:relative;z-index:2;text-align:center;padding:40px 24px 44px;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}
+footer a{color:var(--gold)}
+
+/* Fade-in */
+.fade-in{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(0.16,1,0.3,1)}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+
+.fade-in .level-card,.fade-in .subject-card,.fade-in .exam-card,.fade-in .resource-card{opacity:0;transform:translateY(20px);transition:all .5s cubic-bezier(0.16,1,0.3,1)}
+.fade-in.visible .level-card,.fade-in.visible .subject-card,.fade-in.visible .exam-card,.fade-in.visible .resource-card{opacity:1;transform:translateY(0)}
+
+.fade-in.visible .level-card:nth-child(1){transition-delay:.04s}
+.fade-in.visible .level-card:nth-child(2){transition-delay:.08s}
+.fade-in.visible .level-card:nth-child(3){transition-delay:.12s}
+.fade-in.visible .level-card:nth-child(4){transition-delay:.16s}
+.fade-in.visible .level-card:nth-child(5){transition-delay:.2s}
+.fade-in.visible .level-card:nth-child(6){transition-delay:.24s}
+.fade-in.visible .level-card:nth-child(7){transition-delay:.28s}
+
+.fade-in.visible .subject-card:nth-child(1){transition-delay:.02s}
+.fade-in.visible .subject-card:nth-child(2){transition-delay:.04s}
+.fade-in.visible .subject-card:nth-child(3){transition-delay:.06s}
+.fade-in.visible .subject-card:nth-child(4){transition-delay:.08s}
+.fade-in.visible .subject-card:nth-child(5){transition-delay:.1s}
+.fade-in.visible .subject-card:nth-child(6){transition-delay:.12s}
+.fade-in.visible .subject-card:nth-child(7){transition-delay:.14s}
+.fade-in.visible .subject-card:nth-child(8){transition-delay:.16s}
+.fade-in.visible .subject-card:nth-child(9){transition-delay:.18s}
+.fade-in.visible .subject-card:nth-child(10){transition-delay:.2s}
+.fade-in.visible .subject-card:nth-child(11){transition-delay:.22s}
+.fade-in.visible .subject-card:nth-child(12){transition-delay:.24s}
+
+/* Mobile */
+@media(max-width:640px){
+  nav{padding:0 14px;height:54px}
+  nav .logo{font-size:17px}
+  nav .nav-links a{font-size:12px;padding:4px 10px}
+  .hero{padding:72px 16px 32px;min-height:92vh}
+  section.content{padding:44px 16px}
+  .levels-grid{grid-template-columns:repeat(3,1fr)}
+  .level-card{padding:18px 10px}
+  .level-card .emoji{font-size:24px}
+  .subjects-grid{grid-template-columns:1fr}
+  .exam-cards,.resources-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="scroll-progress"></div>
+
+<nav>
+  <div class="logo"><span class="accent">◆</span> المنصة التعليمية</div>
+  <div class="nav-links">
+    <a href="#levels">المستويات</a>
+    <a href="#subjects">المواد</a>
+    <a href="#exams">الإمتحانات</a>
+    <a href="#resources">مصادر</a>
+  </div>
+</nav>
+
+<section class="hero" id="top">
+  <h1 class="glow">منصة التعلم <span class="gradient">الجزائرية</span></h1>
+  <p>دروس مفصلة، تمارين تفاعلية، وإمتحانات رسمية مصححة لكل المستويات — من السنة الأولى متوسط إلى الثالثة ثانوي. وفق المنهاج الرسمي الجزائري.</p>
+  <div class="hero-btns">
+    <a class="btn-primary" href="#levels">تصفح المستويات ←</a>
+    <a class="btn-secondary" href="#exams">الإمتحانات الرسمية</a>
+  </div>
+  <div class="scroll-hint">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 13l5 5 5-5"/><path d="M7 6l5 5 5-5"/></svg>
+  </div>
+</section>
+
+<section class="content fade-in" id="levels">
+  <div class="section-header">
+    <h2>المستويات <span class="highlight">التعليمية</span></h2>
+    <p>اختر مستواك الدراسي للوصول إلى الدروس والتمارين</p>
+  </div>
+  <div class="levels-grid">
+    <a href="https://eddirasa.com/ens-cm/1am/" target="_blank" rel="noopener" class="level-card"><span class="emoji">📘</span><h3>سنة أولى متوسط</h3><p>1AM — الجيل الثاني</p></a>
+    <a href="https://eddirasa.com/ens-cm/2am/" target="_blank" rel="noopener" class="level-card"><span class="emoji">📗</span><h3>سنة ثانية متوسط</h3><p>2AM — الجيل الثاني</p></a>
+    <a href="https://eddirasa.com/ens-cm/3am/" target="_blank" rel="noopener" class="level-card"><span class="emoji">📕</span><h3>سنة ثالثة متوسط</h3><p>3AM — الجيل الثاني</p></a>
+    <a href="https://eddirasa.com/ens-cm/4am/" target="_blank" rel="noopener" class="level-card"><span class="emoji">📙</span><h3>سنة رابعة متوسط</h3><p>4AM — تحضير BEM</p></a>
+    <a href="https://eddirasa.com/ens-sec/1as/" target="_blank" rel="noopener" class="level-card"><span class="emoji">📚</span><h3>سنة أولى ثانوي</h3><p>1AS — جذع مشترك</p></a>
+    <a href="https://eddirasa.com/ens-sec/2as/" target="_blank" rel="noopener" class="level-card"><span class="emoji">📚</span><h3>سنة ثانية ثانوي</h3><p>2AS — شعب علمية/أدبية</p></a>
+    <a href="https://eddirasa.com/ens-sec/3as/" target="_blank" rel="noopener" class="level-card"><span class="emoji">🎓</span><h3>سنة ثالثة ثانوي</h3><p>3AS — تحضير BAC</p></a>
+  </div>
+</section>
+
+<section class="content fade-in" id="subjects">
+  <div class="section-header">
+    <h2>المواد <span class="highlight">الدراسية</span></h2>
+    <p>جميع المواد وفق المنهاج الرسمي الجزائري — دروس، تمارين، فروض وإختبارات</p>
+  </div>
+  <div class="subjects-grid">
+    <div class="subject-card"><div class="top"><div class="icon icon-indigo">∫</div><h3>الرياضيات</h3><span class="badge">جميع المستويات</span></div><div class="links"><a href="https://eddirasa.com/tag/الرياضيات/" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/mathematiques" target="_blank" rel="noopener">إختبارات</a><a href="https://www.dzexams.com/fr/bem/mathematiques" target="_blank" rel="noopener">BEM</a><a href="https://www.dzexams.com/fr/bac/mathematiques" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-cyan">⚛</div><h3>العلوم الفيزيائية</h3><span class="badge">جميع المستويات</span></div><div class="links"><a href="https://eddirasa.com/tag/العلوم-الفيزيائية/" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/physique" target="_blank" rel="noopener">إختبارات</a><a href="https://www.dzexams.com/fr/bem/physique" target="_blank" rel="noopener">BEM</a><a href="https://www.dzexams.com/fr/bac/physique" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-emerald">🧬</div><h3>علوم الطبيعة والحياة</h3><span class="badge">جميع المستويات</span></div><div class="links"><a href="https://eddirasa.com/tag/علوم-الطبيعة-والحياة/" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/sciences-naturelles" target="_blank" rel="noopener">إختبارات</a><a href="https://www.dzexams.com/fr/bem/sciences-naturelles" target="_blank" rel="noopener">BEM</a><a href="https://www.dzexams.com/fr/bac/sciences-naturelles" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-amber">🔠</div><h3>اللغة العربية وآدابها</h3><span class="badge">جميع المستويات</span></div><div class="links"><a href="https://eddirasa.com/tag/اللغة-العربية/" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/arabe" target="_blank" rel="noopener">إختبارات</a><a href="https://www.dzexams.com/fr/bem/arabe" target="_blank" rel="noopener">BEM</a><a href="https://www.dzexams.com/fr/bac/arabe" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-purple">🔤</div><h3>اللغة الفرنسية</h3><span class="badge">جميع المستويات</span></div><div class="links"><a href="https://eddirasa.com/tag/اللغة-الفرنسية/" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/francais" target="_blank" rel="noopener">إختبارات</a><a href="https://www.dzexams.com/fr/bem/francais" target="_blank" rel="noopener">BEM</a><a href="https://www.dzexams.com/fr/bac/francais" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-rose">🌍</div><h3>التاريخ والجغرافيا</h3><span class="badge">جميع المستويات</span></div><div class="links"><a href="https://eddirasa.com/tag/التاريخ-والجغرافيا/" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/histoire-geographie" target="_blank" rel="noopener">إختبارات</a><a href="https://www.dzexams.com/fr/bem/histoire-geographie" target="_blank" rel="noopener">BEM</a><a href="https://www.dzexams.com/fr/bac/histoire-geographie" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-indigo">📖</div><h3>التربية الإسلامية</h3><span class="badge">جميع المستويات</span></div><div class="links"><a href="https://espace-etudiant.net/cem/viewforum.php?f=8" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/tarbia-islamia" target="_blank" rel="noopener">إختبارات</a><a href="https://www.dzexams.com/fr/bem/tarbia-islamia" target="_blank" rel="noopener">BEM</a><a href="https://www.dzexams.com/fr/bac/tarbia-islamia" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-cyan">⚖️</div><h3>التربية المدنية</h3><span class="badge">جميع المستويات</span></div><div class="links"><a href="https://espace-etudiant.net/cem/viewforum.php?f=9" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/education-civique" target="_blank" rel="noopener">إختبارات</a><a href="https://www.dzexams.com/fr/bem/education-civique" target="_blank" rel="noopener">BEM</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-emerald">💬</div><h3>اللغة الإنجليزية</h3><span class="badge">من 1AM إلى BAC</span></div><div class="links"><a href="https://eddirasa.com/tag/اللغة-الإنجليزية/" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/anglais" target="_blank" rel="noopener">إختبارات</a><a href="https://www.dzexams.com/fr/bem/anglais" target="_blank" rel="noopener">BEM</a><a href="https://www.dzexams.com/fr/bac/anglais" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-amber">🧪</div><h3>الهندسة الكهربائية</h3><span class="badge">ثانوي تقني</span></div><div class="links"><a href="https://espace-etudiant.net/secondaire/viewforum.php?f=44" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/bac/genie-electrique" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-purple">🔧</div><h3>الهندسة الميكانيكية</h3><span class="badge">ثانوي تقني</span></div><div class="links"><a href="https://espace-etudiant.net/secondaire/viewforum.php?f=40" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/bac/genie-mecanique" target="_blank" rel="noopener">BAC</a></div></div>
+    <div class="subject-card"><div class="top"><div class="icon icon-rose">💻</div><h3>الإعلام الآلي</h3><span class="badge">جميع المستويات</span></div><div class="links"><a href="https://eddirasa.com/tag/الإعلام-آلي/" target="_blank" rel="noopener">دروس</a><a href="https://www.dzexams.com/fr/1am/informatique" target="_blank" rel="noopener">إختبارات</a></div></div>
+  </div>
+</section>
+
+<section class="content fade-in" id="exams">
+  <div class="section-header">
+    <h2>الإمتحانات <span class="highlight">الرسمية</span></h2>
+    <p>جميع مواضيع شهادتي التعليم المتوسط (BEM) والبكالوريا (BAC) من 2000 إلى 2025 مع التصحيح</p>
+  </div>
+  <div class="exam-cards">
+    <a href="https://espace-etudiant.net/am/bem/bem-solutions/" target="_blank" rel="noopener" class="exam-card">
+      <div class="title">📘 BEM — شهادة التعليم المتوسط</div>
+      <div class="desc">جميع المواد مع التصحيح النموذجي. مواضيع من 1997 إلى 2025 في الرياضيات، الفيزياء، العربية، الفرنسية، الإنجليزية، التاريخ، التربية الإسلامية والمدنية.</div>
+      <div class="years"><span>1997</span><span>1998</span><span>1999</span><span>2000</span><span>2001</span><span>2002</span><span>2003</span><span>2004</span><span>2005</span><span>2006</span><span>2007</span><span>2008</span><span>2009</span><span>2010</span><span>2011</span><span>2012</span><span>2013</span><span>2014</span><span>2015</span><span>2016</span><span>2017</span><span>2018</span><span>2019</span><span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span></div>
+    </a>
+    <a href="https://eddirasa.com/bac-solutions/" target="_blank" rel="noopener" class="exam-card">
+      <div class="title">🎓 BAC — البكالوريا الجزائرية</div>
+      <div class="desc">جميع الشعب والمواد مع التصحيح. مواضيع السنوات السابقة لشعبة علوم تجريبية، رياضيات، تقني رياضي، آداب، لغات، تسيير وإقتصاد.</div>
+      <div class="years"><span>2000</span><span>2001</span><span>2002</span><span>2003</span><span>2004</span><span>2005</span><span>2006</span><span>2007</span><span>2008</span><span>2009</span><span>2010</span><span>2011</span><span>2012</span><span>2013</span><span>2014</span><span>2015</span><span>2016</span><span>2017</span><span>2018</span><span>2019</span><span>2020</span><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span></div>
+    </a>
+  </div>
+</section>
+
+<section class="content fade-in" id="resources">
+  <div class="section-header">
+    <h2>المصادر <span class="highlight">التعليمية</span></h2>
+    <p>أفضل المواقع الجزائرية للدراسة والتعلم</p>
+  </div>
+  <div class="resources-grid">
+    <a href="https://eddirasa.com/" target="_blank" rel="noopener" class="resource-card">
+      <div class="tag">دروس وتمارين</div>
+      <div class="title">موقع الدراسة الجزائري</div>
+      <div class="desc">أول موقع تعليمي جزائري — يحتوي على أكثر من 30 ألف مادة من الدروس، حلول التمارين، الفروض والإختبارات لجميع الأطوار.</div>
+    </a>
+    <a href="https://espace-etudiant.net/" target="_blank" rel="noopener" class="resource-card">
+      <div class="tag">FGMA — فضاء الطالب</div>
+      <div class="title">فضاء الطالب</div>
+      <div class="desc">منصة تعليمية جزائرية شاملة تحتوي على دروس، تمارين، أعمال تطبيقية، إختبارات مصححة لكل المستويات والتخصصات.</div>
+    </a>
+    <a href="https://www.dzexams.com/" target="_blank" rel="noopener" class="resource-card">
+      <div class="tag">إمتحانات رسمية</div>
+      <div class="title">DzExams — فروض وإختبارات</div>
+      <div class="desc">الموقع الأول لتحضير الفروض والإختبارات في الجزائر. جميع المواد مع التصحيح لجميع المستويات.</div>
+    </a>
+    <a href="https://zad-dz.com/" target="_blank" rel="noopener" class="resource-card">
+      <div class="tag">ملفات تعليمية</div>
+      <div class="title">زاد المناهج الجزائرية</div>
+      <div class="desc">دروس، ملخصات، تمارين محلولة، وإمتحانات سابقة بصيغة PDF لجميع المواد والمستويات.</div>
+    </a>
+    <a href="https://www.t-onec.com/" target="_blank" rel="noopener" class="resource-card">
+      <div class="tag">تعليم متوسط</div>
+      <div class="title">تسنيم للتربية والتعليم</div>
+      <div class="desc">دروس وتمارين وفروض وإختبارات للسنة الرابعة متوسط وتحضير BEM مع سلاسل تمارين محلولة.</div>
+    </a>
+    <a href="https://www.education.gov.dz/" target="_blank" rel="noopener" class="resource-card">
+      <div class="tag">رسمي</div>
+      <div class="title">وزارة التربية الوطنية</div>
+      <div class="desc">الموقع الرسمي لوزارة التربية الوطنية الجزائرية — البرامج، المناهج، والنشرات الرسمية.</div>
+    </a>
+  </div>
+</section>
+
+<footer>
+  المنصة التعليمية الجزائرية — جميع المصادر من <a href="https://eddirasa.com" target="_blank" rel="noopener">eddirasa.com</a>، <a href="https://espace-etudiant.net" target="_blank" rel="noopener">espace-etudiant.net</a>، <a href="https://dzexams.com" target="_blank" rel="noopener">dzexams.com</a> و <a href="https://zad-dz.com" target="_blank" rel="noopener">zad-dz.com</a>
+</footer>
+
+<script>
+/* Scroll progress */
+(function() {
+  const el = document.getElementById('scroll-progress');
+  window.addEventListener('scroll', () => {
+    const p = Math.min(window.scrollY / Math.max(document.body.scrollHeight - window.innerHeight, 1), 1);
+    el.style.width = (p * 100) + '%';
+  }, { passive: true });
+})();
+
+/* Fade-in observer */
+(function() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.06 });
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+})();
+</script>
+
+</body>
+</html>

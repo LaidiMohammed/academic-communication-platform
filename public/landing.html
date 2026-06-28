@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bendella AI — School Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@800&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #050816;
+  --indigo: #6366f1;
+  --cyan: #06b6d4;
+  --purple: #a855f7;
+  --text: #f1f5f9;
+  --muted: rgba(241,245,249,0.45);
+  --card-glass: rgba(255,255,255,0.04);
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* ===== CANVAS LAYERS ===== */
+#starfield { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+#particles-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+
+/* ===== GRID FLOOR ===== */
+.grid-floor {
+  position: fixed; bottom: 0; left: 0; width: 100%; height: 50vh;
+  perspective: 400px; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.grid-floor-inner {
+  position: absolute; bottom: -30%; left: 50%; transform: translateX(-50%) rotateX(60deg);
+  width: 200%; height: 200%;
+  background-image:
+    linear-gradient(rgba(99,102,241,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,0.06) 1px, transparent 1px);
+  background-size: 60px 60px;
+  transform-origin: bottom center;
+}
+
+/* ===== GLOWING ORBS ===== */
+.orb {
+  position: fixed; border-radius: 50%; filter: blur(100px); z-index: 0; pointer-events: none;
+  opacity: 0.3;
+}
+.orb-1 { width: 500px; height: 500px; background: var(--indigo); top: -10%; left: -10%; animation: floatOrb1 12s ease-in-out infinite; }
+.orb-2 { width: 400px; height: 400px; background: var(--cyan); bottom: -5%; right: -5%; animation: floatOrb2 15s ease-in-out infinite; }
+.orb-3 { width: 350px; height: 350px; background: var(--purple); top: 40%; left: 50%; animation: floatOrb3 18s ease-in-out infinite; }
+@keyframes floatOrb1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(80px, 60px) scale(1.05); }
+  66% { transform: translate(-40px, -30px) scale(0.95); }
+}
+@keyframes floatOrb2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-60px, -50px) scale(1.08); }
+  66% { transform: translate(30px, 40px) scale(0.92); }
+}
+@keyframes floatOrb3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, 80px) scale(1.03); }
+  66% { transform: translate(-50px, -60px) scale(0.97); }
+}
+
+/* ===== NAVBAR ===== */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(5,8,22,0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(99,102,241,0.12);
+  padding: 0 24px; height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-logo { font-family: var(--font-display); font-size: 20px; color: #fff; letter-spacing: -0.5px; }
+.nav-logo span { background: linear-gradient(135deg, var(--indigo), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.nav-links { display: flex; gap: 8px; }
+.nav-links a {
+  padding: 8px 18px; border-radius: 100px; text-decoration: none; color: var(--muted);
+  font-size: 13px; font-weight: 500; transition: all .3s cubic-bezier(.16,1,.3,1);
+  background: transparent;
+}
+.nav-links a:hover { background: rgba(99,102,241,0.12); color: #fff; }
+
+/* ===== HERO ===== */
+.hero {
+  position: relative; z-index: 2; min-height: 90vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 24px; text-align: center;
+}
+.hero-title {
+  font-family: var(--font-display); font-size: clamp(48px, 10vw, 120px); line-height: 1.05;
+  font-weight: 800; letter-spacing: -3px; max-width: 900px;
+}
+.hero-title .line1 { color: #fff; }
+.hero-title .line2 { background: linear-gradient(135deg, var(--indigo), var(--cyan), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.word { display: inline-block; opacity: 0; transform: translateY(30px); animation: wordReveal .6s cubic-bezier(.16,1,.3,1) forwards; }
+@keyframes wordReveal { to { opacity: 1; transform: translateY(0); } }
+.hero-sub {
+  font-size: clamp(16px, 2vw, 22px); color: var(--muted); margin-top: 20px; max-width: 600px;
+  opacity: 0; animation: fadeUp .8s .8s cubic-bezier(.16,1,.3,1) forwards;
+}
+@keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+.hero-cta { margin-top: 32px; display: flex; gap: 12px; opacity: 0; animation: fadeUp .8s 1s cubic-bezier(.16,1,.3,1) forwards; }
+.btn-primary {
+  padding: 14px 36px; border-radius: 100px; border: none; font-family: var(--font-body); font-weight: 500;
+  font-size: 15px; cursor: pointer; background: linear-gradient(135deg, var(--indigo), var(--purple));
+  color: #fff; transition: all .3s cubic-bezier(.16,1,.3,1); box-shadow: 0 0 30px rgba(99,102,241,0.3);
+}
+.btn-primary:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 0 50px rgba(99,102,241,0.5); }
+.btn-outline {
+  padding: 14px 36px; border-radius: 100px; border: 1px solid rgba(99,102,241,0.3);
+  font-family: var(--font-body); font-weight: 500; font-size: 15px; cursor: pointer;
+  background: transparent; color: #fff; transition: all .3s cubic-bezier(.16,1,.3,1);
+}
+.btn-outline:hover { background: rgba(99,102,241,0.1); border-color: var(--indigo); }
+
+/* ===== TILT CARD ===== */
+.tilt-card {
+  margin-top: 50px; perspective: 1000px; opacity: 0; animation: fadeUp .8s 1.2s cubic-bezier(.16,1,.3,1) forwards;
+}
+.tilt-card-inner {
+  padding: 28px 36px; border-radius: 24px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.10), rgba(6,182,212,0.06));
+  border: 1px solid rgba(99,102,241,0.15);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  transform-style: preserve-3d; transition: transform .15s ease-out;
+  max-width: 500px; width: 100%;
+}
+.tilt-card-inner h3 { font-family: var(--font-display); font-size: 22px; margin-bottom: 4px; }
+.tilt-card-inner p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+/* ===== SECTIONS ===== */
+section { position: relative; z-index: 2; padding: 80px 24px; max-width: 1200px; margin: 0 auto; }
+.section-title {
+  font-family: var(--font-display); font-size: clamp(32px, 5vw, 56px);
+  text-align: center; margin-bottom: 48px; letter-spacing: -1px;
+}
+.section-title span { background: linear-gradient(135deg, var(--indigo), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.section-subtitle { text-align: center; color: var(--muted); font-size: 16px; margin-top: -32px; margin-bottom: 48px; }
+
+/* ===== SUBJECT CARDS ===== */
+.cards-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;
+}
+.subject-card {
+  padding: 32px 24px; border-radius: 20px;
+  background: var(--card-glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.06);
+  transform-style: preserve-3d; perspective: 800px;
+  transition: all .4s cubic-bezier(.16,1,.3,1);
+  cursor: default; text-align: center;
+}
+.subject-card:hover {
+  transform: translateY(-8px) scale(1.02); border-color: var(--accent, var(--indigo));
+  box-shadow: 0 0 40px var(--glow, rgba(99,102,241,0.15));
+  background: rgba(255,255,255,0.07);
+}
+.subject-card .emoji { font-size: 48px; display: block; margin-bottom: 16px; }
+.subject-card h3 { font-family: var(--font-display); font-size: 20px; margin-bottom: 8px; }
+.subject-card p { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.card-math { --accent: #6366f1; --glow: rgba(99,102,241,0.15); }
+.card-physics { --accent: #06b6d4; --glow: rgba(6,182,212,0.15); }
+.card-chemistry { --accent: #a855f7; --glow: rgba(168,85,247,0.15); }
+.card-geometry { --accent: #f59e0b; --glow: rgba(245,158,11,0.15); }
+.card-languages { --accent: #22c55e; --glow: rgba(34,197,94,0.15); }
+
+/* ===== SCROLL FADE ===== */
+.fade-up { opacity: 0; transform: translateY(60px); transition: all .8s cubic-bezier(.16,1,.3,1); }
+.fade-up.visible { opacity: 1; transform: translateY(0); }
+.fade-up[data-delay="0"] { transition-delay: 0ms; }
+.fade-up[data-delay="1"] { transition-delay: 100ms; }
+.fade-up[data-delay="2"] { transition-delay: 200ms; }
+.fade-up[data-delay="3"] { transition-delay: 300ms; }
+.fade-up[data-delay="4"] { transition-delay: 400ms; }
+.fade-up[data-delay="5"] { transition-delay: 500ms; }
+
+/* ===== AI DEMO ===== */
+.ai-panel {
+  max-width: 700px; margin: 0 auto;
+  border-radius: 16px; border: 1px solid rgba(99,102,241,0.2);
+  background: rgba(5,8,22,0.8); backdrop-filter: blur(16px); overflow: hidden;
+}
+.ai-panel-header {
+  padding: 14px 20px; border-bottom: 1px solid rgba(99,102,241,0.1);
+  display: flex; align-items: center; gap: 10px;
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(90deg, var(--indigo), var(--cyan), var(--purple)) 1;
+}
+.ai-panel-header .dot { width: 10px; height: 10px; border-radius: 50%; }
+.ai-panel-header .dot.r { background: #ef4444; }
+.ai-panel-header .dot.y { background: #f59e0b; }
+.ai-panel-header .dot.g { background: #22c55e; }
+.ai-panel-header span { color: var(--muted); font-size: 12px; margin-left: 8px; }
+#ai-output {
+  min-height: 180px; padding: 20px; font-size: 14px; line-height: 1.7;
+  color: #cbd5e1; white-space: pre-wrap; font-family: 'Space Grotesk', monospace;
+}
+#ai-output .cursor {
+  display: inline-block; width: 2px; height: 18px;
+  background: var(--cyan); margin-left: 2px;
+  animation: blink .8s step-end infinite; vertical-align: text-bottom;
+}
+@keyframes blink { 50% { opacity: 0; } }
+#ai-output .badge {
+  display: inline-block; margin-top: 12px; padding: 4px 12px;
+  border-radius: 100px; font-size: 11px; font-weight: 500;
+  background: rgba(99,102,241,0.15); color: var(--indigo);
+  border: 1px solid rgba(99,102,241,0.2);
+}
+.ai-input-row {
+  display: flex; gap: 8px; padding: 12px 16px;
+  border-top: 1px solid rgba(99,102,241,0.08);
+}
+.ai-input-row input {
+  flex: 1; padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(99,102,241,0.15);
+  background: rgba(255,255,255,0.03); color: #fff; font-family: var(--font-body);
+  font-size: 14px; outline: none; transition: border .3s;
+}
+.ai-input-row input:focus { border-color: var(--indigo); }
+.ai-input-row input::placeholder { color: var(--muted); }
+.ai-input-row button {
+  padding: 12px 24px; border-radius: 12px; border: none;
+  background: linear-gradient(135deg, var(--indigo), var(--purple));
+  color: #fff; font-weight: 500; cursor: pointer; font-family: var(--font-body);
+  transition: all .3s cubic-bezier(.16,1,.3,1); white-space: nowrap;
+}
+.ai-input-row button:hover { transform: scale(1.03); box-shadow: 0 0 30px rgba(99,102,241,0.3); }
+.ai-input-row button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ===== STATS ===== */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 800px; margin: 0 auto;
+}
+.stat-card {
+  text-align: center; padding: 32px 16px; border-radius: 20px;
+  background: var(--card-glass); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.04); transition: all .3s;
+}
+.stat-card:hover { border-color: rgba(99,102,241,0.15); transform: translateY(-4px); }
+.stat-number {
+  font-family: var(--font-display); font-size: 40px; font-weight: 800;
+  background: linear-gradient(135deg, var(--indigo), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.stat-label { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+/* ===== FOOTER ===== */
+footer {
+  position: relative; z-index: 2; text-align: center; padding: 32px 24px;
+  color: var(--muted); font-size: 13px; border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .hero { min-height: 80vh; }
+  .nav-links { gap: 4px; }
+  .nav-links a { padding: 6px 12px; font-size: 11px; }
+  .stats-grid { grid-template-columns: 1fr; gap: 12px; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  .ai-input-row { flex-direction: column; }
+  .tilt-card-inner { padding: 20px; }
+}
+@media (max-width: 480px) {
+  .cards-grid { grid-template-columns: 1fr; }
+  .hero-title { letter-spacing: -1px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Canvas backgrounds -->
+<canvas id="starfield"></canvas>
+<canvas id="particles-canvas"></canvas>
+
+<!-- Grid floor -->
+<div class="grid-floor"><div class="grid-floor-inner"></div></div>
+
+<!-- Glowing orbs -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- Navbar -->
+<nav>
+  <div class="nav-logo">Bendella <span>AI</span></div>
+  <div class="nav-links">
+    <a href="#subjects">Subjects</a>
+    <a href="#ai-demo">Try AI</a>
+    <a href="#stats">Stats</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <h1 class="hero-title" id="hero-title">
+    <div class="line1"></div>
+    <div class="line2"></div>
+  </h1>
+  <p class="hero-sub">Your intelligent school tutor — math, physics, chemistry, geometry & languages. Powered by DeepSeek.</p>
+  <div class="hero-cta">
+    <button class="btn-primary" onclick="document.getElementById('ai-demo').scrollIntoView({behavior:'smooth'})">Ask AI Now</button>
+    <button class="btn-outline" onclick="document.getElementById('subjects').scrollIntoView({behavior:'smooth'})">Explore Subjects</button>
+  </div>
+  <div class="tilt-card" id="tilt-card">
+    <div class="tilt-card-inner" id="tilt-card-inner">
+      <h3>⚡ 50,000+ problems solved</h3>
+      <p>Step-by-step explanations across all school subjects. Available 24/7.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Subjects -->
+<section id="subjects">
+  <h2 class="section-title fade-up">Master <span>Every Subject</span></h2>
+  <p class="section-subtitle fade-up">Five subjects, one AI tutor. Get unstuck in seconds.</p>
+  <div class="cards-grid">
+    <div class="subject-card card-math fade-up" data-delay="0">
+      <span class="emoji">📐</span>
+      <h3>Mathematics</h3>
+      <p>Algebra, calculus, statistics & more. Step-by-step solutions with clear reasoning.</p>
+    </div>
+    <div class="subject-card card-physics fade-up" data-delay="1">
+      <span class="emoji">⚛️</span>
+      <h3>Physics</h3>
+      <p>Mechanics, thermodynamics, waves, electromagnetism. Explained with real-world analogies.</p>
+    </div>
+    <div class="subject-card card-chemistry fade-up" data-delay="2">
+      <span class="emoji">🧪</span>
+      <h3>Chemistry</h3>
+      <p>Chemical reactions, stoichiometry, periodic table, organic chemistry made simple.</p>
+    </div>
+    <div class="subject-card card-geometry fade-up" data-delay="3">
+      <span class="emoji">🔷</span>
+      <h3>Geometry</h3>
+      <p>Theorems, proofs, trigonometry, 3D shapes. Visual approaches to spatial problems.</p>
+    </div>
+    <div class="subject-card card-languages fade-up" data-delay="4">
+      <span class="emoji">🌍</span>
+      <h3>Languages</h3>
+      <p>Grammar, vocabulary, essay writing, translation help in multiple languages.</p>
+    </div>
+  </div>
+</section>
+
+<!-- AI Demo -->
+<section id="ai-demo">
+  <h2 class="section-title fade-up">Ask <span>the AI</span></h2>
+  <p class="section-subtitle fade-up">Type any school question and get a step-by-step answer.</p>
+  <div class="ai-panel fade-up">
+    <div class="ai-panel-header">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span>Bendella AI — DeepSeek V4 Flash</span>
+    </div>
+    <div id="ai-output">Ask me anything about your school subjects...</div>
+    <div class="ai-input-row">
+      <input id="ai-input" type="text" placeholder="e.g. Solve for x: 2x + 5 = 13" onkeydown="if(event.key==='Enter') askAI()">
+      <button id="ai-btn" onclick="askAI()">Ask →</button>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section id="stats">
+  <h2 class="section-title fade-up">By the <span>Numbers</span></h2>
+  <div class="stats-grid">
+    <div class="stat-card fade-up" data-delay="0">
+      <div class="stat-number" data-target="50000">0</div>
+      <div class="stat-label">Problems Solved</div>
+    </div>
+    <div class="stat-card fade-up" data-delay="1">
+      <div class="stat-number" data-target="12">0</div>
+      <div class="stat-label">Subjects Covered</div>
+    </div>
+    <div class="stat-card fade-up" data-delay="2">
+      <div class="stat-number" data-target="800">0</div>
+      <div class="stat-label">Avg. Response Time (ms)</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  Powered by DeepSeek V4 Flash &mdash; Bendella School AI &copy; 2026
+</footer>
+
+<script>
+/* ========================================
+   CONSTANTS
+======================================== */
+const API_KEY = 'YOUR_DEEPSEEK_KEY_HERE';
+const API_URL = 'https://api.deepseek.com/v1/chat/completions';
+
+/* ========================================
+   HERO TITLE WORD REVEAL
+======================================== */
+(function initTitle() {
+  const line1 = document.querySelector('.hero-title .line1');
+  const line2 = document.querySelector('.hero-title .line2');
+  const words1 = 'Learn Anything'.split(' ');
+  const words2 = 'with AI School Tutor'.split(' ');
+  line1.innerHTML = words1.map(w => `<span class="word">${w}</span>`).join(' ');
+  line2.innerHTML = words2.map(w => `<span class="word">${w}</span>`).join(' ');
+  document.querySelectorAll('.hero-title .word').forEach((el, i) => {
+    el.style.animationDelay = `${0.1 + i * 0.1}s`;
+  });
+})();
+
+/* ========================================
+   STARFIELD (150+ stars)
+======================================== */
+(function starfield() {
+  const c = document.getElementById('starfield');
+  const ctx = c.getContext('2d');
+  let stars = [];
+  function resize() { c.width = window.innerWidth; c.height = window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+  for (let i = 0; i < 180; i++) {
+    stars.push({
+      x: Math.random() * c.width, y: Math.random() * c.height,
+      r: Math.random() * 1.5 + 0.3, a: Math.random() * 0.6 + 0.1,
+      dx: (Math.random() - 0.5) * 0.15, dy: (Math.random() - 0.5) * 0.15,
+    });
+  }
+  function draw() {
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (const s of stars) {
+      s.x += s.dx; s.y += s.dy;
+      if (s.x < 0 || s.x > c.width) s.dx *= -1;
+      if (s.y < 0 || s.y > c.height) s.dy *= -1;
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ========================================
+   PARTICLE NETWORK (80 particles + connections)
+======================================== */
+(function particleNetwork() {
+  const c = document.getElementById('particles-canvas');
+  const ctx = c.getContext('2d');
+  const particles = [];
+  let w, h;
+  function resize() { w = c.width = window.innerWidth; h = c.height = window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.5,
+    });
+  }
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > w) p.vx *= -1;
+      if (p.y < 0 || p.y > h) p.vy *= -1;
+      if (Math.random() < 0.005) { p.vx += (Math.random() - 0.5) * 0.1; p.vy += (Math.random() - 0.5) * 0.1; }
+      const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      if (speed > 0.5) { p.vx *= 0.98; p.vy *= 0.98; }
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(99,102,241,0.3)'; ctx.fill();
+      for (let j = i + 1; j < particles.length; j++) {
+        const q = particles[j];
+        const dx = p.x - q.x, dy = p.y - q.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 140) {
+          ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+          ctx.strokeStyle = `rgba(99,102,241,${(1 - dist / 140) * 0.08})`;
+          ctx.lineWidth = 0.5; ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ========================================
+   TILT CARD (mouse parallax)
+======================================== */
+(function tiltCard() {
+  const card = document.getElementById('tilt-card-inner');
+  if (!card) return;
+  document.addEventListener('mousemove', (e) => {
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    card.style.transform = `rotateY(${x * 12}deg) rotateX(${-y * 12}deg)`;
+  });
+  card.addEventListener('mouseleave', () => { card.style.transform = 'rotateY(0deg) rotateX(0deg)'; });
+})();
+
+/* ========================================
+   SCROLL ANIMATIONS (IntersectionObserver)
+======================================== */
+(function scrollAnim() {
+  const els = document.querySelectorAll('.fade-up');
+  const obs = new IntersectionObserver((entries) => {
+    for (const e of entries) { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } }
+  }, { threshold: 0.1 });
+  for (const el of els) obs.observe(el);
+})();
+
+/* ========================================
+   COUNT-UP ANIMATION
+======================================== */
+(function countUp() {
+  const els = document.querySelectorAll('.stat-number');
+  const obs = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      const el = e.target;
+      const target = parseInt(el.dataset.target);
+      let current = 0; const step = target / 60;
+      const timer = setInterval(() => {
+        current += step;
+        if (current >= target) { el.textContent = target.toLocaleString(); clearInterval(timer); return; }
+        el.textContent = Math.round(current).toLocaleString();
+      }, 20);
+      obs.unobserve(el);
+    }
+  }, { threshold: 0.5 });
+  for (const el of els) obs.observe(el);
+})();
+
+/* ========================================
+   AI STREAMING (DeepSeek API)
+======================================== */
+async function askAI() {
+  const input = document.getElementById('ai-input');
+  const output = document.getElementById('ai-output');
+  const btn = document.getElementById('ai-btn');
+  const text = input.value.trim();
+  if (!text) return;
+  btn.disabled = true; btn.textContent = 'Thinking...';
+  output.innerHTML = '<span class="cursor"></span>';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: 'You are a brilliant school tutor. Answer step by step, clearly, under 200 words.' },
+          { role: 'user', content: text },
+        ],
+        stream: true,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      output.innerHTML = `<span style="color:#ef4444;">API Error (${res.status}): ${errText}</span>`;
+      btn.disabled = false; btn.textContent = 'Ask →';
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === 'data: [DONE]') continue;
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const json = JSON.parse(trimmed.slice(6));
+            const content = json.choices?.[0]?.delta?.content || '';
+            if (content) fullText += content;
+          } catch {}
+        }
+      }
+      output.innerHTML = escapeHtml(fullText) + '<span class="cursor"></span>';
+    }
+
+    /* Detect topic */
+    const topics = ['math','physics','chemistry','geometry','language','algebra','calculus','trigonometry','biology'];
+    const lower = text.toLowerCase();
+    const detected = topics.find(t => lower.includes(t));
+    if (detected) {
+      output.innerHTML = escapeHtml(fullText) + `<span class="badge">📖 ${detected.charAt(0).toUpperCase() + detected.slice(1)}</span>`;
+    } else {
+      output.innerHTML = escapeHtml(fullText);
+    }
+
+  } catch (err) {
+    output.innerHTML = `<span style="color:#ef4444;">Error: ${err.message}</span>`;
+  }
+  btn.disabled = false; btn.textContent = 'Ask →';
+  input.value = '';
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

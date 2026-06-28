@@ -1,28 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, User, School, BookOpen, UserCheck, Eye, EyeOff, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Mail, Lock, User, School, BookOpen, UserCheck, Eye, EyeOff, AlertCircle, ChevronLeft, ChevronRight, Calendar, Hash } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function SignupForm() {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    name: '',
-    school: '',
-    level: '',
-    role: 'student',
+    name: '', age: '', sex: '', email: '', password: '',
+    level: '', specialty: '', school: '', role: 'student',
   });
+  const [code, setCode] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { signup } = useAuth();
   const router = useRouter();
+
+  const mascots = [
+    { img: '/bendellamas-removebg-preview.png', bgText: 'LEARNING', phrase: 'Create your account and unlock a world of collaborative learning.' },
+    { img: '/bendellamas2-removebg-preview.png', bgText: 'CONNECTION', phrase: 'Real-time chat, study groups, and shared resources at your fingertips.' },
+    { img: '/bendellamas3-removebg-preview.png', bgText: 'SUCCESS', phrase: 'Smart scheduling, group projects, and tools built for student success.' },
+    { img: '/bendellamas4-removebg-preview.png', bgText: 'COMMUNITY', phrase: 'Free to join. Connect, learn, and grow with EduConnect.' },
+  ];
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent(prev => (prev + 1) % mascots.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -32,385 +45,305 @@ export function SignupForm() {
 
   const validateStep = (currentStep: number) => {
     if (currentStep === 1) {
-      if (!formData.name || !formData.email) {
-        setError('Please fill in all fields');
-        return false;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        setError('Please enter a valid email');
-        return false;
-      }
+      if (!formData.name || !formData.age || !formData.sex || !formData.email || !formData.password) { setError('Please fill in all fields'); return false; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) { setError('Please enter a valid email'); return false; }
+      if (formData.password.length < 6) { setError('Password must be at least 6 characters'); return false; }
     } else if (currentStep === 2) {
-      if (!formData.school || !formData.level || !formData.role) {
-        setError('Please fill in all fields');
-        return false;
-      }
-    } else if (currentStep === 3) {
-      if (!formData.password || !formData.confirmPassword) {
-        setError('Please fill in all fields');
-        return false;
-      }
-      if (formData.password !== formData.confirmPassword) {
-        setError('Passwords do not match');
-        return false;
-      }
-      if (formData.password.length < 6) {
-        setError('Password must be at least 6 characters');
-        return false;
-      }
+      if (!formData.level || !formData.specialty || !formData.school || !formData.role) { setError('Please fill in all fields'); return false; }
     }
     return true;
   };
 
   const handleNext = () => {
-    if (validateStep(step)) {
-      setStep(step + 1);
-    }
+    if (validateStep(step)) setStep(step + 1);
+  };
+  const handleBack = () => { setStep(step - 1); setError(''); };
+
+  const handleCodeChange = (i: number, val: string) => {
+    if (val.length > 1) return;
+    const newCode = [...code];
+    newCode[i] = val;
+    setCode(newCode);
+    if (val && i < 5) codeRefs.current[i + 1]?.focus();
+    setError('');
   };
 
-  const handleBack = () => {
-    setStep(step - 1);
-    setError('');
+  const handleCodeKeyDown = (i: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !code[i] && i > 0) codeRefs.current[i - 1]?.focus();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateStep(3)) return;
-
-    setLoading(true);
-    try {
-      await signup(formData.email, formData.password, formData.name, formData.school, formData.level, formData.role);
-      router.push('/dashboard');
-    } catch (err) {
-      setError('Signup failed. Please try again.');
-      setLoading(false);
+    if (step === 3) {
+      const fullCode = code.join('');
+      if (fullCode.length !== 6) { setError('Please enter the 6-digit code'); return; }
+      setVerified(true);
+      setLoading(true);
+      try {
+        await signup(formData.email, formData.password, formData.name, formData.school, formData.level, formData.role);
+        router.push('/dashboard');
+      } catch { setError('Verification failed. Please try again.'); setLoading(false); }
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-200 via-purple-300 to-blue-900 overflow-hidden flex items-center justify-center p-4">
-      <div className="absolute top-10 right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 left-10 w-60 h-60 bg-white/5 rounded-full blur-3xl" />
+    <div className="h-screen bg-[#0F172A] overflow-hidden flex items-center justify-center p-4">
+      <div className="absolute top-10 right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 left-10 w-60 h-60 bg-blue-500/5 rounded-full blur-3xl" />
 
-      <div className="relative z-10 w-full max-w-6xl">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-          {/* Left side - Form */}
+          {/* Form */}
           <div className="order-2 lg:order-1">
-            <div className="bg-white/15 backdrop-blur-2xl rounded-3xl p-8 md:p-10 border border-white/20 shadow-2xl">
-              {/* Progress indicator */}
-              <div className="mb-8">
-                <div className="flex justify-between items-center mb-4">
+            <div className="bg-[#111827] border border-blue-500/20 rounded-3xl p-6 md:p-8 shadow-2xl">
+              <div className="mb-5">
+                <div className="flex justify-between items-center mb-3">
                   <div className="flex gap-2">
                     {[1, 2, 3].map((s) => (
-                      <div
-                        key={s}
-                        className={`h-2 rounded-full transition-all ${
-                          s <= step ? 'bg-white w-6' : 'bg-white/30 w-6'
-                        }`}
-                      />
+                      <div key={s} className={`h-1.5 rounded-full transition-all ${s <= step ? 'bg-blue-400 w-5' : 'bg-gray-600 w-5'}`} />
                     ))}
                   </div>
-                  <span className="text-white/70 text-sm">Step {step} of 3</span>
+                  <span className="text-gray-400 text-xs">Step {step} of 3</span>
                 </div>
               </div>
 
-              {/* Header */}
-              <div className="mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-                  {step === 1 && 'Basic Information'}
-                  {step === 2 && 'School Details'}
-                  {step === 3 && 'Create Password'}
-                </h1>
-                <p className="text-white/70">
-                  {step === 1 && 'Tell us who you are'}
-                  {step === 2 && 'Select your school information'}
-                  {step === 3 && 'Set up your account security'}
-                </p>
+              <div className="mb-5 flex items-center gap-3">
+                <img src="/logo.png" alt="Logo" className="w-14 h-14 rounded-full object-cover border-2 border-blue-500/30 shadow-lg shadow-blue-500/20" />
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-white mb-0.5">
+                    {step === 1 && 'Personal Info'}
+                    {step === 2 && 'School Details'}
+                    {step === 3 && 'Email Verification'}
+                  </h1>
+                  <p className="text-gray-400 text-sm">
+                    {step === 1 && 'Tell us about yourself'}
+                    {step === 2 && 'Select your education information'}
+                    {step === 3 && 'Enter the 6-digit code sent to your email'}
+                  </p>
+                </div>
               </div>
 
-              {/* Error message */}
               {error && (
-                <div className="mb-6 p-4 bg-red-500/20 border border-red-400/50 rounded-xl text-red-200 text-sm backdrop-blur-sm flex items-center gap-2">
-                  <AlertCircle size={18} />
-                  {error}
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center gap-2">
+                  <AlertCircle size={14} /> {error}
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Step 1 - Basic Information */}
-                {step === 1 && (
-                  <>
-                    {/* Full Name */}
-                    <div className="group">
-                      <label className="block text-sm font-semibold text-white/90 mb-3">Full Name</label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 group-focus-within:text-white transition-colors" />
-                        <input
-                          type="text"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleChange}
-                          placeholder="John Doe"
-                          disabled={loading}
-                          className="w-full pl-12 pr-4 py-3 bg-white/10 border-b-2 border-white/30 text-white placeholder:text-white/40 focus:outline-none focus:border-white/60 transition-all rounded-lg backdrop-blur-sm focus:bg-white/15"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Email */}
-                    <div className="group">
-                      <label className="block text-sm font-semibold text-white/90 mb-3">Email</label>
-                      <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 group-focus-within:text-white transition-colors" />
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          placeholder="you@school.edu"
-                          disabled={loading}
-                          className="w-full pl-12 pr-4 py-3 bg-white/10 border-b-2 border-white/30 text-white placeholder:text-white/40 focus:outline-none focus:border-white/60 transition-all rounded-lg backdrop-blur-sm focus:bg-white/15"
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Step 2 - School Details */}
-                {step === 2 && (
-                  <>
-                    {/* School */}
-                    <div className="group">
-                      <label className="block text-sm font-semibold text-white/90 mb-3">School</label>
-                      <div className="relative">
-                        <School className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 group-focus-within:text-white transition-colors" />
-                        <input
-                          type="text"
-                          name="school"
-                          value={formData.school}
-                          onChange={handleChange}
-                          placeholder="Central High School"
-                          disabled={loading}
-                          className="w-full pl-12 pr-4 py-3 bg-white/10 border-b-2 border-white/30 text-white placeholder:text-white/40 focus:outline-none focus:border-white/60 transition-all rounded-lg backdrop-blur-sm focus:bg-white/15"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Level and Role - Grid */}
-                    <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <AnimatePresence mode="wait">
+                  {step === 1 && (
+                    <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
                       <div className="group">
-                        <label className="block text-sm font-semibold text-white/90 mb-3">Level</label>
+                        <label className="block text-xs font-semibold text-gray-300 mb-2">Full Name</label>
                         <div className="relative">
-                          <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 pointer-events-none" />
-                          <select
-                            name="level"
-                            value={formData.level}
-                            onChange={handleChange}
-                            disabled={loading}
-                            className="w-full pl-12 pr-4 py-3 bg-white/10 border-b-2 border-white/30 text-white focus:outline-none focus:border-white/60 transition-all rounded-lg backdrop-blur-sm focus:bg-white/15 appearance-none"
-                          >
-                            <option value="" className="bg-gray-900 text-white">Select level</option>
-                            <option value="CEM-1" className="bg-gray-900 text-white">CEM 1</option>
-                            <option value="CEM-2" className="bg-gray-900 text-white">CEM 2</option>
-                            <option value="CEM-3" className="bg-gray-900 text-white">CEM 3</option>
-                            <option value="Lycée-1" className="bg-gray-900 text-white">Lycée 1</option>
-                            <option value="Lycée-2" className="bg-gray-900 text-white">Lycée 2</option>
-                            <option value="Lycée-3" className="bg-gray-900 text-white">Lycée 3</option>
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                          <input type="text" name="name" value={formData.name} onChange={handleChange}
+                            placeholder="John Doe" disabled={loading}
+                            className="w-full pl-9 pr-3 py-2.5 bg-[#1E293B] border border-blue-500/20 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400 transition-all rounded-xl" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="group">
+                          <label className="block text-xs font-semibold text-gray-300 mb-2">Age</label>
+                          <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                            <input type="number" name="age" value={formData.age} onChange={handleChange}
+                              placeholder="18" min="10" max="99" disabled={loading}
+                              className="w-full pl-9 pr-3 py-2.5 bg-[#1E293B] border border-blue-500/20 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400 transition-all rounded-xl" />
+                          </div>
+                        </div>
+                        <div className="group">
+                          <label className="block text-xs font-semibold text-gray-300 mb-2">Sex</label>
+                          <div className="relative">
+                            <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                            <select name="sex" value={formData.sex} onChange={handleChange} disabled={loading}
+                              className="w-full pl-9 pr-3 py-2.5 bg-[#1E293B] border border-blue-500/20 text-sm text-white focus:outline-none focus:border-blue-400 transition-all rounded-xl appearance-none">
+                              <option value="" className="bg-[#111827]">Select</option>
+                              <option value="male" className="bg-[#111827]">Male</option>
+                              <option value="female" className="bg-[#111827]">Female</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="group">
+                        <label className="block text-xs font-semibold text-gray-300 mb-2">Email</label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                          <input type="email" name="email" value={formData.email} onChange={handleChange}
+                            placeholder="you@school.edu" disabled={loading}
+                            className="w-full pl-9 pr-3 py-2.5 bg-[#1E293B] border border-blue-500/20 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400 transition-all rounded-xl" />
+                        </div>
+                      </div>
+                      <div className="group">
+                        <label className="block text-xs font-semibold text-gray-300 mb-2">Password</label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                          <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password}
+                            onChange={handleChange} placeholder="At least 6 characters" disabled={loading}
+                            className="w-full pl-9 pr-9 py-2.5 bg-[#1E293B] border border-blue-500/20 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400 transition-all rounded-xl" />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-400 transition-colors">
+                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {step === 2 && (
+                    <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                      <div className="group">
+                        <label className="block text-xs font-semibold text-gray-300 mb-2">School</label>
+                        <div className="relative">
+                          <School className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                          <input type="text" name="school" value={formData.school} onChange={handleChange}
+                            placeholder="Central High School" disabled={loading}
+                            className="w-full pl-9 pr-3 py-2.5 bg-[#1E293B] border border-blue-500/20 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400 transition-all rounded-xl" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="group">
+                          <label className="block text-xs font-semibold text-gray-300 mb-2">Level</label>
+                          <div className="relative">
+                            <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                            <select name="level" value={formData.level} onChange={handleChange} disabled={loading}
+                              className="w-full pl-9 pr-3 py-2.5 bg-[#1E293B] border border-blue-500/20 text-sm text-white focus:outline-none focus:border-blue-400 transition-all rounded-xl appearance-none">
+                              <option value="" className="bg-[#111827]">Select level</option>
+                              {['CEM-1','CEM-2','CEM-3','Lycée-1','Lycée-2','Lycée-3'].map(l => (
+                                <option key={l} value={l} className="bg-[#111827]">{l}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="group">
+                          <label className="block text-xs font-semibold text-gray-300 mb-2">Specialty</label>
+                          <div className="relative">
+                            <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                            <select name="specialty" value={formData.specialty} onChange={handleChange} disabled={loading}
+                              className="w-full pl-9 pr-3 py-2.5 bg-[#1E293B] border border-blue-500/20 text-sm text-white focus:outline-none focus:border-blue-400 transition-all rounded-xl appearance-none">
+                              <option value="" className="bg-[#111827]">Select specialty</option>
+                              {['Science','Mathematics','Literature','Languages','Arts','Technology'].map(s => (
+                                <option key={s} value={s} className="bg-[#111827]">{s}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="group">
+                        <label className="block text-xs font-semibold text-gray-300 mb-2">Role</label>
+                        <div className="relative">
+                          <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                          <select name="role" value={formData.role} onChange={handleChange} disabled={loading}
+                            className="w-full pl-9 pr-3 py-2.5 bg-[#1E293B] border border-blue-500/20 text-sm text-white focus:outline-none focus:border-blue-400 transition-all rounded-xl appearance-none">
+                            <option value="student" className="bg-[#111827]">Student</option>
+                            <option value="teacher" className="bg-[#111827]">Teacher</option>
                           </select>
                         </div>
                       </div>
+                    </motion.div>
+                  )}
 
-                      <div className="group">
-                        <label className="block text-sm font-semibold text-white/90 mb-3">Role</label>
-                        <div className="relative">
-                          <UserCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 pointer-events-none" />
-                          <select
-                            name="role"
-                            value={formData.role}
-                            onChange={handleChange}
-                            disabled={loading}
-                            className="w-full pl-12 pr-4 py-3 bg-white/10 border-b-2 border-white/30 text-white focus:outline-none focus:border-white/60 transition-all rounded-lg backdrop-blur-sm focus:bg-white/15 appearance-none"
-                          >
-                            <option value="student" className="bg-gray-900 text-white">Student</option>
-                            <option value="teacher" className="bg-gray-900 text-white">Teacher</option>
-                          </select>
-                        </div>
+                  {step === 3 && (
+                    <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
+                      <div className="text-center">
+                        <Mail className="w-10 h-10 text-blue-400 mx-auto mb-2" />
+                        <p className="text-gray-400 text-xs mb-1">Verification code sent to</p>
+                        <p className="text-blue-400 font-semibold text-sm">{formData.email}</p>
                       </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Step 3 - Password */}
-                {step === 3 && (
-                  <>
-                    {/* Password */}
-                    <div className="group">
-                      <label className="block text-sm font-semibold text-white/90 mb-3">Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 group-focus-within:text-white transition-colors" />
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          name="password"
-                          value={formData.password}
-                          onChange={handleChange}
-                          placeholder="••••••••"
-                          disabled={loading}
-                          className="w-full pl-12 pr-12 py-3 bg-white/10 border-b-2 border-white/30 text-white placeholder:text-white/40 focus:outline-none focus:border-white/60 transition-all rounded-lg backdrop-blur-sm focus:bg-white/15"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                        >
-                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
+                      <div className="flex justify-center gap-2">
+                        {code.map((digit, i) => (
+                          <input key={i} ref={el => { codeRefs.current[i] = el; }} type="text" maxLength={1}
+                            value={digit} onChange={e => handleCodeChange(i, e.target.value)}
+                            onKeyDown={e => handleCodeKeyDown(i, e)}
+                            className="w-10 h-12 text-center text-lg font-bold text-white bg-[#1E293B] border border-blue-500/20 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 transition-all"
+                          />
+                        ))}
                       </div>
-                    </div>
+                      <p className="text-center text-gray-500 text-[10px]">Didn't receive the code? <button type="button" className="text-blue-400 hover:text-blue-300">Resend</button></p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-                    {/* Confirm Password */}
-                    <div className="group">
-                      <label className="block text-sm font-semibold text-white/90 mb-3">Confirm Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 group-focus-within:text-white transition-colors" />
-                        <input
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          name="confirmPassword"
-                          value={formData.confirmPassword}
-                          onChange={handleChange}
-                          placeholder="••••••••"
-                          disabled={loading}
-                          className="w-full pl-12 pr-12 py-3 bg-white/10 border-b-2 border-white/30 text-white placeholder:text-white/40 focus:outline-none focus:border-white/60 transition-all rounded-lg backdrop-blur-sm focus:bg-white/15"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                        >
-                          {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Navigation buttons */}
-                <div className="flex gap-4 mt-8 pt-4 border-t border-white/10">
+                <div className="flex gap-3 mt-5 pt-4 border-t border-blue-500/20">
                   {step > 1 && (
-                    <button
-                      type="button"
-                      onClick={handleBack}
-                      disabled={loading}
-                      className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full transition transform hover:scale-105 flex items-center justify-center gap-2 disabled:opacity-60"
-                    >
-                      <ChevronLeft size={20} />
-                      Back
+                    <button type="button" onClick={handleBack} disabled={loading}
+                      className="flex-1 py-2.5 bg-[#1E293B] hover:bg-[#243447] text-white font-semibold text-sm rounded-xl transition disabled:opacity-60 flex items-center justify-center gap-1.5">
+                      <ChevronLeft size={16} /> Back
                     </button>
                   )}
                   {step < 3 && (
-                    <button
-                      type="button"
-                      onClick={handleNext}
-                      disabled={loading}
-                      className="flex-1 py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition transform hover:scale-105 flex items-center justify-center gap-2 disabled:opacity-60"
-                    >
-                      Next
-                      <ChevronRight size={20} />
+                    <button type="button" onClick={handleNext} disabled={loading}
+                      className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-60 flex items-center justify-center gap-1.5">
+                      Next <ChevronRight size={16} />
                     </button>
                   )}
                   {step === 3 && (
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition transform hover:scale-105 disabled:opacity-60"
-                    >
+                    <button type="submit" disabled={loading || code.join('').length !== 6}
+                      className="w-full py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-60">
                       {loading ? (
                         <span className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Creating Account...
+                          <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Verifying...
                         </span>
-                      ) : (
-                        'Create Account'
-                      )}
+                      ) : 'Verify & Create Account'}
                     </button>
                   )}
                 </div>
               </form>
 
-              {/* Links */}
-              <div className="mt-8 text-center">
-                <p className="text-white/70 text-sm">
+              <div className="mt-5 text-center">
+                <p className="text-gray-400 text-xs">
                   Already have an account?{' '}
-                  <Link href="/login" className="text-white font-semibold hover:text-white/90 transition-colors">
-                    Sign in
-                  </Link>
+                  <Link href="/login" className="text-blue-400 font-semibold hover:text-blue-300 transition-colors">Sign in</Link>
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Right side - Illustration */}
+          {/* Illustration */}
           <div className="order-1 lg:order-2 flex items-center justify-center">
-            <div className="relative w-full max-w-sm aspect-square">
-              <svg viewBox="0 0 300 400" className="w-full h-full drop-shadow-2xl">
-                <defs>
-                  <linearGradient id="shelfGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: 'rgba(168, 85, 247, 0.5)', stopOpacity: 1 }} />
-                    <stop offset="100%" style={{ stopColor: 'rgba(59, 130, 246, 0.3)', stopOpacity: 1 }} />
-                  </linearGradient>
-                  <linearGradient id="bookGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-                    <stop offset="0%" style={{ stopColor: 'rgba(236, 72, 153, 0.8)', stopOpacity: 1 }} />
-                    <stop offset="50%" style={{ stopColor: 'rgba(168, 85, 247, 0.9)', stopOpacity: 1 }} />
-                    <stop offset="100%" style={{ stopColor: 'rgba(99, 102, 241, 0.8)', stopOpacity: 1 }} />
-                  </linearGradient>
-                </defs>
-
-                {/* Bookshelf shelves */}
-                <rect x="40" y="80" width="220" height="12" fill="url(#shelfGradient)" rx="4" />
-                <rect x="40" y="160" width="220" height="12" fill="url(#shelfGradient)" rx="4" />
-                <rect x="40" y="240" width="220" height="12" fill="url(#shelfGradient)" rx="4" />
-                <rect x="40" y="320" width="220" height="12" fill="url(#shelfGradient)" rx="4" />
-
-                {/* Books on shelves - Top shelf */}
-                <rect x="50" y="50" width="22" height="35" fill="url(#bookGradient)" opacity="0.9" rx="2" />
-                <rect x="78" y="55" width="20" height="30" fill="url(#bookGradient)" opacity="0.85" rx="2" />
-                <rect x="104" y="52" width="24" height="33" fill="url(#bookGradient)" opacity="0.9" rx="2" />
-                <rect x="134" y="48" width="20" height="37" fill="url(#bookGradient)" opacity="0.88" rx="2" />
-                <rect x="160" y="53" width="22" height="32" fill="url(#bookGradient)" opacity="0.87" rx="2" />
-                <rect x="188" y="50" width="20" height="35" fill="url(#bookGradient)" opacity="0.89" rx="2" />
-                <rect x="214" y="54" width="22" height="31" fill="url(#bookGradient)" opacity="0.86" rx="2" />
-
-                {/* Books on shelves - Second shelf */}
-                <rect x="50" y="130" width="22" height="35" fill="url(#bookGradient)" opacity="0.88" rx="2" />
-                <rect x="78" y="135" width="20" height="30" fill="url(#bookGradient)" opacity="0.84" rx="2" />
-                <rect x="104" y="132" width="24" height="33" fill="url(#bookGradient)" opacity="0.89" rx="2" />
-                <rect x="134" y="128" width="20" height="37" fill="url(#bookGradient)" opacity="0.87" rx="2" />
-                <rect x="160" y="133" width="22" height="32" fill="url(#bookGradient)" opacity="0.86" rx="2" />
-                <rect x="188" y="130" width="20" height="35" fill="url(#bookGradient)" opacity="0.88" rx="2" />
-                <rect x="214" y="134" width="22" height="31" fill="url(#bookGradient)" opacity="0.85" rx="2" />
-
-                {/* Books on shelves - Third shelf */}
-                <rect x="50" y="210" width="22" height="35" fill="url(#bookGradient)" opacity="0.87" rx="2" />
-                <rect x="78" y="215" width="20" height="30" fill="url(#bookGradient)" opacity="0.83" rx="2" />
-                <rect x="104" y="212" width="24" height="33" fill="url(#bookGradient)" opacity="0.88" rx="2" />
-                <rect x="134" y="208" width="20" height="37" fill="url(#bookGradient)" opacity="0.86" rx="2" />
-                <rect x="160" y="213" width="22" height="32" fill="url(#bookGradient)" opacity="0.85" rx="2" />
-                <rect x="188" y="210" width="20" height="35" fill="url(#bookGradient)" opacity="0.87" rx="2" />
-                <rect x="214" y="214" width="22" height="31" fill="url(#bookGradient)" opacity="0.84" rx="2" />
-              </svg>
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-400/20 to-blue-400/20 rounded-full blur-3xl -z-10" />
+            <div className="relative w-full max-w-sm min-h-[400px] flex items-center justify-center">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={current}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="relative w-full h-full flex items-center justify-center"
+                >
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                    <span className="text-[clamp(3rem,10vw,5rem)] font-black text-blue-500/5 leading-none whitespace-nowrap tracking-wide">
+                      {mascots[current].bgText}
+                    </span>
+                  </div>
+                  <div className="relative z-10 flex flex-col items-center">
+                    <div className="relative mb-4">
+                      <div className="absolute inset-0 bg-blue-500/15 rounded-full blur-3xl scale-150" />
+                      <div className="w-[27rem] h-[27rem] relative flex items-center justify-center">
+                        <img src={mascots[current].img} alt="Mascot" className="w-full h-full object-contain drop-shadow-2xl" />
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-lg leading-relaxed max-w-xs mx-auto text-center font-light">
+                      {mascots[current].phrase}
+                    </p>
+                    <div className="flex gap-2 mt-5">
+                      {mascots.map((_, i) => (
+                        <button key={i} onClick={() => setCurrent(i)}
+                          className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                            i === current ? 'bg-blue-400 w-6' : 'bg-gray-600 hover:bg-gray-500'
+                          }`} />
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Mobile logo in corner */}
-      <div className="absolute top-6 left-6 md:top-10 md:left-10 z-20">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/30">
-            <span className="text-lg font-bold text-white">E</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -1,21 +1,25 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
-import { Camera, Mail, School, Award, Zap } from 'lucide-react';
+import { Camera, Mail, School, Award } from 'lucide-react';
 import { useState } from 'react';
 import { MembershipSection } from '@/components/membership-section';
-import { QRScanner } from '@/components/qr-scanner';
 
 export default function ProfilePage() {
   const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
     school: user?.school || '',
     level: user?.level || '',
   });
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
 
   const handleSave = () => {
     updateProfile({
@@ -24,6 +28,7 @@ export default function ProfilePage() {
       level: formData.level,
     });
     setIsEditing(false);
+    showToast('Profile saved successfully');
   };
 
   return (
@@ -33,11 +38,31 @@ export default function ProfilePage() {
         <div className="flex items-end gap-6">
           <div className="relative">
             <img
-              src={user?.avatar}
+              src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random`}
               alt={user?.name}
-              className="w-24 h-24 rounded-full border-4 border-primary-foreground shadow-lg"
+              className="w-24 h-24 rounded-full border-4 border-primary-foreground shadow-lg object-cover bg-white"
             />
-            <button className="absolute bottom-0 right-0 p-2 bg-primary-foreground rounded-full text-primary hover:shadow-lg transition">
+            <input 
+              type="file" 
+              id="avatarUpload" 
+              className="hidden" 
+              accept="image/*" 
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    updateProfile({ avatar: reader.result as string });
+                    showToast('Avatar updated successfully');
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
+            <button 
+              onClick={() => document.getElementById('avatarUpload')?.click()}
+              className="absolute bottom-0 right-0 p-2 bg-primary-foreground rounded-full text-primary hover:shadow-lg transition cursor-pointer"
+            >
               <Camera size={16} />
             </button>
           </div>
@@ -54,28 +79,9 @@ export default function ProfilePage() {
             >
               {isEditing ? 'Cancel' : 'Edit Profile'}
             </button>
-            {user?.role === 'admin' && (
-              <button
-                onClick={() => setShowQRScanner(true)}
-                className="px-4 py-2 bg-primary-foreground/20 text-primary-foreground rounded-lg font-semibold hover:bg-primary-foreground/30 transition flex items-center gap-2"
-              >
-                <Zap size={18} strokeWidth={2} />
-                Scan Code
-              </button>
-            )}
           </div>
         </div>
       </div>
-
-      {/* QR Scanner Modal */}
-      {showQRScanner && (
-        <QRScanner
-          onClose={() => setShowQRScanner(false)}
-          onScanned={(data) => {
-            console.log('Scanned member:', data);
-          }}
-        />
-      )}
 
       {/* Profile Info */}
       {isEditing ? (
@@ -204,6 +210,12 @@ export default function ProfilePage() {
           <p>Messages sent: 342</p>
         </div>
       </div>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold animate-in slide-in-from-right-2 fade-in duration-300">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

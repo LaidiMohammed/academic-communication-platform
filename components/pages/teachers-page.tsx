@@ -1,6 +1,7 @@
 'use client';
 
-import { Mail, Star, User, Calendar, MessageSquare } from 'lucide-react';
+import { Mail, Star, User, MessageSquare, GraduationCap, Award } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export function TeachersPage() {
   const teachers = [
@@ -81,45 +82,51 @@ export function TeachersPage() {
   return (
     <div className="space-y-6 pb-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Teachers & Instructors</h1>
-        <p className="text-gray-600 mt-1">Connect with our experienced teaching staff</p>
-      </div>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="text-3xl font-bold text-white">Teachers & Instructors</h1>
+        <p className="text-gray-400 mt-1">Connect with our experienced teaching staff</p>
+      </motion.div>
 
       {/* Teachers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {teachers.map((teacher) => (
-          <div key={teacher.id} className="bg-white rounded-xl shadow hover:shadow-lg transition-all p-6">
+        {teachers.map((teacher, idx) => (
+          <motion.div
+            key={teacher.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.05 }}
+            className="bg-[#111827] border border-blue-500/20 rounded-xl hover:border-blue-500/40 transition-all p-6"
+          >
             {/* Header */}
             <div className="flex items-start justify-between mb-4">
               <img
                 src={teacher.avatar}
                 alt={teacher.name}
-                className="w-16 h-16 rounded-full"
+                className="w-16 h-16 rounded-full ring-2 ring-blue-500/30"
               />
               <div className="flex items-center gap-1">
                 <Star size={18} className="text-yellow-400 fill-yellow-400" />
-                <span className="font-semibold text-gray-900">{teacher.rating}</span>
-                <span className="text-sm text-gray-600">({teacher.reviews})</span>
+                <span className="font-semibold text-white">{teacher.rating}</span>
+                <span className="text-sm text-gray-500">({teacher.reviews})</span>
               </div>
             </div>
 
             {/* Info */}
             <div className="mb-4">
-              <h3 className="text-lg font-bold text-gray-900">{teacher.name}</h3>
-              <p className="text-sm text-gray-600 mt-1">{teacher.bio}</p>
+              <h3 className="text-lg font-bold text-white">{teacher.name}</h3>
+              <p className="text-sm text-gray-400 mt-1">{teacher.bio}</p>
             </div>
 
             {/* Status */}
             <div className="mb-4">
               {teacher.available ? (
-                <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold">
+                  <div className="w-2 h-2 bg-green-400 rounded-full" />
                   Available
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-semibold">
-                  <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                <span className="inline-flex items-center gap-2 px-3 py-1 bg-gray-500/20 text-gray-400 rounded-full text-xs font-semibold">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full" />
                   Busy
                 </span>
               )}
@@ -127,12 +134,12 @@ export function TeachersPage() {
 
             {/* Subjects */}
             <div className="mb-4">
-              <p className="text-xs font-semibold text-gray-700 uppercase mb-2">Subjects</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Subjects</p>
               <div className="flex flex-wrap gap-2">
                 {teacher.subjects.map((subject, i) => (
                   <span
                     key={i}
-                    className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium"
+                    className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-xs font-medium"
                   >
                     {subject}
                   </span>
@@ -142,32 +149,32 @@ export function TeachersPage() {
 
             {/* Level */}
             <div className="mb-4">
-              <p className="text-xs font-semibold text-gray-700 uppercase mb-1">Teaching Level</p>
-              <p className="text-sm text-gray-600">{teacher.level}</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Teaching Level</p>
+              <p className="text-sm text-gray-400">{teacher.level}</p>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2 pt-4 border-t border-gray-100">
-              <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition font-medium text-sm">
+            <div className="flex gap-2 pt-4 border-t border-blue-500/10">
+              <button className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-400 text-white rounded-lg shadow-lg hover:shadow-blue-500/30 transition-all font-medium text-sm">
                 <MessageSquare size={16} />
                 Message
               </button>
               <a
                 href={`mailto:${teacher.email}`}
-                className="flex items-center justify-center px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+                className="flex items-center justify-center px-3 py-2 border border-blue-500/20 text-gray-400 rounded-lg hover:bg-blue-500/10 transition"
               >
                 <Mail size={16} />
               </a>
             </div>
 
             {/* Email */}
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-xs text-gray-600 mb-1">Email</p>
-              <a href={`mailto:${teacher.email}`} className="text-sm text-blue-600 hover:underline break-all">
+            <div className="mt-4 p-3 bg-[#1E293B] border border-blue-500/10 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Email</p>
+              <a href={`mailto:${teacher.email}`} className="text-sm text-blue-400 hover:underline break-all">
                 {teacher.email}
               </a>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

@@ -8,14 +8,18 @@ interface ScannedData {
   userId: string;
   name: string;
   email: string;
-  membershipStatus: 'active' | 'inactive' | 'pending';
-  monthlyAmount: number;
-  billingCycle: {
+  membershipStatus?: 'active' | 'inactive' | 'pending';
+  isActive?: boolean;
+  plan?: string;
+  price?: string;
+  monthlyAmount?: number;
+  billingCycle?: {
     startDate: string;
     endDate: string;
     daysRemaining: number;
   };
-  generatedAt: string;
+  generatedAt?: string;
+  ts?: number;
 }
 
 interface QRScannerProps {
@@ -94,17 +98,26 @@ export function QRScanner({ onClose, onScanned }: QRScannerProps) {
     scanQR();
   }, [isScanning, scannedData, onScanned]);
 
+  // Derived values for robust rendering
+  const isMemberActive = scannedData ? (scannedData.membershipStatus === 'active' || scannedData.isActive === true) : false;
+  const planName = scannedData?.plan || (isMemberActive ? 'Monthly Access' : 'Free Preview');
+  const planPrice = scannedData?.price || (scannedData?.monthlyAmount !== undefined ? `${scannedData.monthlyAmount.toFixed(2)} USD` : '3 000 DA');
+  const daysRemaining = scannedData?.billingCycle?.daysRemaining ?? (isMemberActive ? 30 : 0);
+  const billingPeriod = scannedData?.billingCycle 
+    ? `${scannedData.billingCycle.startDate} - ${scannedData.billingCycle.endDate}` 
+    : `${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })} - ${new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-card border border-border rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card">
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-xl font-bold text-foreground">Scan Member Code</h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-secondary transition text-foreground"
+            className="p-2 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground"
           >
-            <X size={24} strokeWidth={2} />
+            <X size={20} strokeWidth={2} />
           </button>
         </div>
 
@@ -113,7 +126,7 @@ export function QRScanner({ onClose, onScanned }: QRScannerProps) {
           {!scannedData && (
             <div className="space-y-4">
               {/* Video Feed */}
-              <div className="relative rounded-lg overflow-hidden bg-black aspect-square flex items-center justify-center">
+              <div className="relative rounded-lg overflow-hidden bg-black aspect-square flex items-center justify-center border border-border/40">
                 {isScanning ? (
                   <>
                     <video
@@ -124,31 +137,37 @@ export function QRScanner({ onClose, onScanned }: QRScannerProps) {
                       ref={canvasRef}
                       className="hidden"
                     />
-                    {/* Scanning Frame */}
+                    {/* Scanning HUD Frame */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-48 h-48 border-2 border-accent rounded-lg opacity-75 animate-pulse" />
+                      <div className="w-56 h-56 border-2 border-blue-500 rounded-2xl opacity-75 relative">
+                        <div className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-blue-400 rounded-tl-md" />
+                        <div className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-blue-400 rounded-tr-md" />
+                        <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-blue-400 rounded-bl-md" />
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-blue-400 rounded-br-md" />
+                        <div className="absolute top-0 inset-x-0 h-0.5 bg-blue-500/50 shadow-md animate-bounce" />
+                      </div>
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center text-white">
-                    <Loader size={32} className="animate-spin mb-2" />
-                    <p className="text-sm">Initializing camera...</p>
+                  <div className="flex flex-col items-center justify-center text-white p-6 text-center">
+                    <Loader size={32} className="animate-spin mb-3 text-blue-500" />
+                    <p className="text-sm font-medium text-muted-foreground">Initializing camera feed...</p>
                   </div>
                 )}
               </div>
 
               {/* Instructions */}
-              <div className="bg-secondary rounded-lg p-4">
-                <p className="text-sm text-muted-foreground">
-                  Position the member's QR code within the frame. The scanner will automatically detect it.
+              <div className="bg-secondary/40 rounded-xl p-4 border border-border/30">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Position the member's QR code within the highlighted camera frame. The scanner will automatically detect and verify their subscription status.
                 </p>
               </div>
 
               {/* Error Message */}
               {error && (
-                <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-start gap-3">
+                <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-start gap-3">
                   <AlertCircle size={20} className="text-destructive flex-shrink-0 mt-0.5" strokeWidth={2} />
-                  <p className="text-sm text-destructive">{error}</p>
+                  <p className="text-xs text-destructive font-medium">{error}</p>
                 </div>
               )}
             </div>
@@ -157,54 +176,60 @@ export function QRScanner({ onClose, onScanned }: QRScannerProps) {
           {/* Scanned Results */}
           {scannedData && (
             <div className="space-y-4">
-              {/* Status */}
-              <div className={`flex items-center gap-3 p-4 rounded-lg ${
-                scannedData.membershipStatus === 'active'
-                  ? 'bg-accent/10 border border-accent/30'
-                  : 'bg-yellow-500/10 border border-yellow-500/30'
+              {/* Status Banner */}
+              <div className={`flex items-center gap-3 p-4 rounded-xl border ${
+                isMemberActive
+                  ? 'bg-green-500/10 border-green-500/20'
+                  : 'bg-red-500/10 border-red-500/20'
               }`}>
                 <CheckCircle
                   size={24}
-                  className={scannedData.membershipStatus === 'active' ? 'text-accent' : 'text-yellow-500'}
+                  className={isMemberActive ? 'text-green-400' : 'text-red-400'}
                   strokeWidth={2}
                 />
                 <div>
-                  <p className="font-semibold text-foreground capitalize">
-                    {scannedData.membershipStatus} Member
+                  <p className={`font-bold text-sm ${isMemberActive ? 'text-green-400' : 'text-red-400'}`}>
+                    {isMemberActive ? '✓ Subscription Active' : '✗ Subscription Expired'}
                   </p>
-                  <p className="text-xs text-muted-foreground">Valid membership</p>
+                  <p className="text-xs text-muted-foreground">Member verified successfully</p>
                 </div>
               </div>
 
               {/* Member Info */}
-              <div className="bg-secondary rounded-lg p-4 space-y-3">
+              <div className="bg-secondary/40 border border-border/30 rounded-xl p-4 space-y-3">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Name</p>
-                  <p className="text-lg font-semibold text-foreground">{scannedData.name}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Name</p>
+                  <p className="text-base font-bold text-foreground">{scannedData.name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Email</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Email</p>
                   <p className="text-sm text-foreground break-all">{scannedData.email}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Member ID</p>
-                  <p className="text-sm font-mono text-foreground">{scannedData.userId}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Member ID</p>
+                  <p className="text-xs font-mono text-muted-foreground bg-secondary/80 px-2 py-1 rounded border border-border/20 inline-block">{scannedData.userId}</p>
                 </div>
               </div>
 
               {/* Payment Info */}
-              <div className="bg-secondary rounded-lg p-4 space-y-3">
+              <div className="bg-secondary/40 border border-border/30 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">Monthly Amount</p>
-                  <p className="text-lg font-bold text-primary">${scannedData.monthlyAmount.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Plan Selected</p>
+                  <p className="text-sm font-bold text-foreground">{planName}</p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">Days Remaining</p>
-                  <p className="text-lg font-bold text-accent">{scannedData.billingCycle.daysRemaining}</p>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Price Rate</p>
+                  <p className="text-sm font-black text-blue-400">{planPrice}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">Billing Period</p>
-                  <p className="text-sm text-foreground">{scannedData.billingCycle.startDate} - {scannedData.billingCycle.endDate}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Days Remaining</p>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    daysRemaining > 5 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                  }`}>{daysRemaining} days</span>
+                </div>
+                <div className="pt-2 border-t border-border/20">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1">Billing Validity</p>
+                  <p className="text-xs text-foreground font-medium">{billingPeriod}</p>
                 </div>
               </div>
 
@@ -212,16 +237,16 @@ export function QRScanner({ onClose, onScanned }: QRScannerProps) {
                 onClick={() => {
                   setShowDetails(!showDetails);
                 }}
-                className="w-full text-center text-sm text-primary hover:text-primary/80 transition font-medium"
+                className="w-full text-center text-xs text-blue-400 hover:text-blue-300 transition font-bold uppercase tracking-wider"
               >
-                {showDetails ? 'Hide' : 'Show'} All Details
+                {showDetails ? 'Hide' : 'Show'} raw response data
               </button>
 
               {showDetails && (
-                <div className="bg-background rounded-lg p-4 border border-border">
-                  <p className="text-xs text-muted-foreground font-mono break-all">
+                <div className="bg-secondary/80 rounded-xl p-4 border border-border/30 max-h-48 overflow-y-auto">
+                  <pre className="text-[10px] text-muted-foreground font-mono break-all whitespace-pre-wrap">
                     {JSON.stringify(scannedData, null, 2)}
-                  </p>
+                  </pre>
                 </div>
               )}
             </div>
@@ -229,7 +254,7 @@ export function QRScanner({ onClose, onScanned }: QRScannerProps) {
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t border-border p-4 flex gap-3 bg-card sticky bottom-0">
+        <div className="border-t border-border p-4 flex gap-3 bg-card sticky bottom-0 z-10">
           {scannedData ? (
             <>
               <button
@@ -237,23 +262,23 @@ export function QRScanner({ onClose, onScanned }: QRScannerProps) {
                   setScannedData(null);
                   setIsScanning(true);
                 }}
-                className="flex-1 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-secondary transition font-medium"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-foreground hover:bg-secondary transition text-sm font-semibold"
               >
-                Scan Another
+                Scan Next
               </button>
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:shadow-lg transition font-medium"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-foreground transition text-sm font-semibold shadow-lg shadow-blue-500/20"
               >
-                Close
+                Finish
               </button>
             </>
           ) : (
             <button
               onClick={onClose}
-              className="w-full px-4 py-2 rounded-lg border border-border text-foreground hover:bg-secondary transition font-medium"
+              className="w-full px-4 py-2.5 rounded-xl border border-border text-foreground hover:bg-secondary transition text-sm font-semibold"
             >
-              Cancel
+              Cancel Scan
             </button>
           )}
         </div>

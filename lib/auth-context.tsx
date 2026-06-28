@@ -40,14 +40,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const adminEmails = ['hamda.laidi.14@gmail.com', 'hamada.laidi.14@gmail.com'];
+    const isAdmin = adminEmails.includes(cleanEmail);
+    localStorage.removeItem('schoolApp_user');
     const mockUser: User = {
-      id: Math.random().toString(),
-      email,
-      name: email.split('@')[0],
+      id: isAdmin ? 'admin-001' : Math.random().toString(),
+      email: cleanEmail,
+      name: isAdmin ? 'Hamda Laidi' : email.split('@')[0],
       school: 'Central High School',
       level: 'Grade 12',
-      role: 'student',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+      role: isAdmin ? 'admin' : 'student',
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanEmail}`,
     };
     setUser(mockUser);
     setIsLoggedIn(true);
