@@ -1,6 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface User {
   id: string;
@@ -15,10 +17,11 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoggedIn: boolean;
+  loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string, school: string, level: string, role: string) => Promise<void>;
-  logout: () => void;
-  updateProfile: (updates: Partial<User>) => void;
+  logout: () => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,69 +29,104 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('schoolApp_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setIsLoggedIn(true);
-      } catch (e) {
-        console.error('Failed to parse stored user:', e);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchProfile(session.user);
+      } else {
+        setLoading(false);
       }
-    }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchProfile(session.user);
+      } else {
+        setUser(null);
+        setIsLoggedIn(false);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const cleanEmail = email.trim().toLowerCase();
-    const adminEmails = ['hamda.laidi.14@gmail.com', 'hamada.laidi.14@gmail.com'];
-    const isAdmin = adminEmails.includes(cleanEmail);
-    localStorage.removeItem('schoolApp_user');
-    const mockUser: User = {
-      id: isAdmin ? 'admin-001' : Math.random().toString(),
-      email: cleanEmail,
-      name: isAdmin ? 'Hamda Laidi' : email.split('@')[0],
-      school: 'Central High School',
-      level: 'Grade 12',
-      role: isAdmin ? 'admin' : 'student',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanEmail}`,
-    };
-    setUser(mockUser);
+  const fetchProfile = async (authUser: SupabaseUser) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    if (data) {
+      setUser({
+        id: data.id,
+        email: data.email,
+        name: data.name,
+        school: data.school || '',
+        level: data.level || '',
+        avatar: data.avatar || '',
+        role: data.role || 'student',
+      });
+    } else {
+      console.error('Profile fetch error:', error?.message);
+      setUser({
+        id: authUser.id,
+        email: authUser.email || '',
+        name: (authUser.user_metadata?.name as string) || authUser.email?.split('@')[0] || 'User',
+        school: '',
+        level: '',
+        avatar: '',
+        role: (authUser.user_metadata?.role as string) as 'student' | 'teacher' | 'admin' || 'student',
+      });
+    }
     setIsLoggedIn(true);
-    localStorage.setItem('schoolApp_user', JSON.stringify(mockUser));
+    setLoading(false);
+  };
+
+  const login = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (data.session?.user) {
+      await fetchProfile(data.session.user);
+    }
   };
 
   const signup = async (email: string, password: string, name: string, school: string, level: string, role: string) => {
-    const newUser: User = {
-      id: Math.random().toString(),
+    const { data, error } = await supabase.auth.signUp({
       email,
-      name,
-      school,
-      level,
-      role: role as 'student' | 'teacher' | 'admin',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-    };
-    setUser(newUser);
-    setIsLoggedIn(true);
-    localStorage.setItem('schoolApp_user', JSON.stringify(newUser));
-  };
-
-  const logout = () => {
-    setUser(null);
-    setIsLoggedIn(false);
-    localStorage.removeItem('schoolApp_user');
-  };
-
-  const updateProfile = (updates: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      localStorage.setItem('schoolApp_user', JSON.stringify(updatedUser));
+      password,
+      options: {
+        data: { name, school, level, role },
+      },
+    });
+    if (error) throw error;
+    if (data.session?.user) {
+      await fetchProfile(data.session.user);
     }
   };
 
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setIsLoggedIn(false);
+  };
+
+  const updateProfile = async (updates: Partial<User>) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id);
+    if (error) throw error;
+    setUser({ ...user, ...updates });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn, login, signup, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, isLoggedIn, loading, login, signup, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

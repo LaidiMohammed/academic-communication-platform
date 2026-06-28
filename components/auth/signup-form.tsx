@@ -82,7 +82,7 @@ export function SignupForm() {
       try {
         await signup(formData.email, formData.password, formData.name, formData.school, formData.level, formData.role);
         router.push('/dashboard');
-      } catch { setError('Verification failed. Please try again.'); setLoading(false); }
+      } catch (e: any) { setError(e?.message || 'Verification failed. Please try again.'); setLoading(false); }
     }
   };
 

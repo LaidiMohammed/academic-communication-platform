@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   MessageSquare, Users, Video, BookOpen, Award, Zap, Info,
   Settings, Shield, LogOut, Menu, X, ChevronLeft, ChevronRight,
-  CreditCard, QrCode,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useSidebar } from '@/lib/sidebar-context';
@@ -268,37 +268,7 @@ function SidebarInner({
         <div className={`p-3 border-t border-sidebar-border flex-shrink-0 space-y-2
           ${isMinimized ? 'flex flex-col items-center gap-2 space-y-0' : ''}`}>
 
-          {/* Membership pill */}
-          <AnimatePresence initial={false}>
-            {!isMinimized && (
-              <motion.div
-                key="qr"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.18 }}
-                className="overflow-hidden mb-2"
-              >
-                <Link href="/dashboard/membership">
-                  <motion.div
-                    className="w-full p-2.5 bg-green-500/10 border border-green-500/20
-                      rounded-xl cursor-pointer"
-                    whileHover={{ scale: 1.015 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ type: 'spring', stiffness: 340, damping: 24 }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <QrCode size={14} className="text-green-400 flex-shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold text-green-400">✓ Active Member</p>
-                        <p className="text-[10px] text-green-400/70">3 000 DA / month</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </Link>
-              </motion.div>
-            )}
-          </AnimatePresence>
+
 
           {/* Profile — same layoutId group so the pill slides here too */}
           <Link

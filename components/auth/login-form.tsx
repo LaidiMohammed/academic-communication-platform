@@ -40,7 +40,7 @@ export function LoginForm() {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Please enter a valid email'); setLoading(false); return; }
       await login(email, password);
       router.push('/dashboard');
-    } catch { setError('Login failed. Please try again.'); setLoading(false); }
+    } catch (e: any) { setError(e?.message || 'Login failed. Please try again.'); setLoading(false); }
   };
 
   return (

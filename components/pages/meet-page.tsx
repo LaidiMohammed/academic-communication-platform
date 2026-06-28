@@ -51,14 +51,31 @@ export function MeetPage() {
     },
   ]);
 
-  const calendarDays = Array.from({ length: 35 }, (_, i) => {
-    const date = new Date(2024, 0, 1 + i - 5);
-    return {
-      day: date.getDate(),
-      month: date.getMonth(),
-      hasMeeting: Math.random() > 0.7,
-    };
-  });
+  const today = new Date();
+  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  const calendarDays = (() => {
+    const firstDay = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const prevDays = new Date(calYear, calMonth, 0).getDate();
+    const cells = [];
+    for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevDays - i, month: calMonth - 1, current: false });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const hasMeet = meetings.some(m => m.date === dateStr);
+      const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+      cells.push({ day: d, month: calMonth, current: true, hasMeeting: hasMeet, isToday });
+    }
+    const remaining = 42 - cells.length;
+    for (let d = 1; d <= remaining; d++) cells.push({ day: d, month: calMonth + 1, current: false });
+    return cells;
+  })();
+
+  const prevMonth = () => { if (calMonth === 0) { setCalYear(calYear - 1); setCalMonth(11); } else { setCalMonth(calMonth - 1); } };
+  const nextMonth = () => { if (calMonth === 11) { setCalYear(calYear + 1); setCalMonth(0); } else { setCalMonth(calMonth + 1); } };
 
   const handleCreateMeeting = () => {
     if (formData.title.trim() && formData.date && formData.time) {
@@ -103,12 +120,12 @@ export function MeetPage() {
         {/* Calendar */}
         <div className="lg:col-span-1 bg-[#111827] border border-blue-500/20 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-white">January 2024</h2>
+            <h2 className="text-lg font-bold text-white">{monthNames[calMonth]} {calYear}</h2>
             <div className="flex gap-2">
-              <button className="p-1 hover:bg-blue-500/20 text-gray-400 rounded transition">
+              <button onClick={prevMonth} className="p-1 hover:bg-blue-500/20 text-gray-400 rounded transition">
                 <ChevronLeft size={20} />
               </button>
-              <button className="p-1 hover:bg-blue-500/20 text-gray-400 rounded transition">
+              <button onClick={nextMonth} className="p-1 hover:bg-blue-500/20 text-gray-400 rounded transition">
                 <ChevronRight size={20} />
               </button>
             </div>
@@ -127,13 +144,15 @@ export function MeetPage() {
               <button
                 key={i}
                 className={`aspect-square rounded-lg text-sm font-medium transition flex items-center justify-center relative ${
-                  dateObj.month === 0
-                    ? 'bg-blue-500/10 text-white hover:bg-blue-500/20'
-                    : 'text-gray-600'
+                  dateObj.isToday
+                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                    : dateObj.current
+                      ? 'bg-blue-500/10 text-white hover:bg-blue-500/20'
+                      : 'text-gray-600'
                 }`}
               >
                 {dateObj.day}
-                {dateObj.hasMeeting && dateObj.month === 0 && (
+                {dateObj.hasMeeting && dateObj.current && (
                   <div className="absolute bottom-1 w-1.5 h-1.5 bg-blue-400 rounded-full" />
                 )}
               </button>

@@ -43,7 +43,7 @@ export function DashboardContent({ children }: { children: React.ReactNode }) {
 
       {/* Main scrollable area */}
       <main
-        className={`transition-all duration-300 ease-out flex-1 flex flex-col overflow-y-auto h-screen ${
+        className={`transition-all duration-300 ease-out flex-1 flex flex-col overflow-y-auto overflow-x-hidden h-screen ${
           isMinimized ? 'md:ml-20' : 'md:ml-64'
         }`}
         onScroll={(e) => setScrolled((e.target as HTMLElement).scrollTop > 80)}

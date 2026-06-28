@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createClient } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth-context';
 import {
   Send, Heart, Search, MoreVertical, Mic, Phone, Video, Info,
   Eye, Copy, Trash2, MessageCircle, Smile, Reply, Forward,
@@ -11,6 +13,18 @@ import { ChatInputWidget } from '@/components/chat-input-widget';
 import { ChatDetailsPanel } from '@/components/chat-details-panel';
 import { motion, AnimatePresence } from 'framer-motion';
 import twemoji from 'twemoji';
+
+function formatRelativeTime(dateStr: string) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}j`;
+}
 
 interface ReplyTo {
   id: number;
@@ -129,6 +143,13 @@ export function ChatPage() {
   const [showEmoji, setShowEmoji] = useState(false);
   const [emojiTab, setEmojiTab] = useState(0);
   const [contextMenu, setContextMenu] = useState<{ chatId: string; x: number; y: number } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [addUserQuery, setAddUserQuery] = useState('');
+  const [availableUsers, setAvailableUsers] = useState<{ id: string; name: string; avatar: string }[]>([]);
+  const { user: currentUser } = useAuth();
+  const supabase = createClient();
+  const addUserRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -152,75 +173,143 @@ export function ChatPage() {
     const handleClickOutside = (e: MouseEvent) => {
       if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmoji(false);
       if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) setContextMenu(null);
+      if (addUserRef.current && !addUserRef.current.contains(e.target as Node)) { setShowAddUser(false); setAddUserQuery(''); }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    supabase.from('profiles').select('id, name, avatar').neq('id', currentUser.id).then(({ data }) => {
+      if (data) setAvailableUsers(data);
+    });
+  }, [currentUser]);
+
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
-  const [chats, setChats] = useState([
-    { id: 'chat-1', name: 'Sarah Johnson', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', lastMessage: 'See you at the meeting!', time: '2m', unread: 2, online: true, typing: false, muted: false, pinned: true, lastSeen: '', type: 'individual' },
-    { id: 'chat-2', name: 'Prof. Smith', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=smith', lastMessage: 'Check the assignment', time: '1h', unread: 0, online: false, typing: false, muted: false, pinned: false, lastSeen: 'il y a 5m', type: 'individual' },
-    { id: 'chat-3', name: 'Alex Chen', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', lastMessage: 'Thanks for helping!', time: '3h', unread: 1, online: true, typing: true, muted: false, pinned: false, lastSeen: '', type: 'individual' },
-    { id: 'chat-4', name: 'Jessica Lee', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jessica', lastMessage: "Let's grab coffee!", time: '2h', unread: 3, online: true, typing: false, muted: true, pinned: false, lastSeen: '', type: 'individual' },
-    { id: 'chat-5', name: 'Michael Brown', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael', lastMessage: 'Project deadline is tomorrow', time: '30m', unread: 0, online: false, typing: false, muted: false, pinned: false, lastSeen: 'il y a 2h', type: 'individual' },
-    { id: 'group-1', name: 'Math Study Circle', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=math', lastMessage: 'Has anyone solved problem 5?', time: '10m', unread: 5, typing: false, muted: false, pinned: true, type: 'group', members: 24 },
-    { id: 'group-2', name: 'Physics Lab Notes', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=physics', lastMessage: 'The experiment results are in', time: '1h', unread: 0, typing: false, muted: false, pinned: false, type: 'group', members: 18 },
-    { id: 'group-3', name: 'English Literature', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=english', lastMessage: 'New chapter discussion', time: '3h', unread: 2, typing: false, muted: false, pinned: false, type: 'group', members: 32 },
-  ]);
+  const [chats, setChats] = useState<any[]>([]);
+  const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>({});
 
-  const initialMessages: Record<string, Message[]> = {
-    'chat-1': [
-      { id: 1, sender: 'Sarah', text: 'Hey! How are you?', time: '10:30', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', reactions: [], readBy: 1, type: 'text' },
-      { id: 2, sender: 'You', text: 'Hi! Doing great!', time: '10:31', isOwn: true, readBy: 1, type: 'text' },
-      { id: 3, sender: 'Sarah', text: 'Want to work on the project?', time: '10:32', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', reactions: [], readBy: 0, type: 'text' },
-      { id: 4, sender: 'You', text: "Sure! Let's start tomorrow.", time: '10:33', isOwn: true, readBy: 1, type: 'text' },
-      { id: 5, sender: 'Sarah', text: 'Perfect! See you at the meeting!', time: '10:35', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', reactions: [], readBy: 2, type: 'text' },
-    ],
-    'group-1': [
-      { id: 1, sender: 'Alex', text: 'Has anyone solved problem 5?', time: '10:30', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', type: 'text' },
-      { id: 2, sender: 'Jordan', text: 'Yes! The answer is 42', time: '10:35', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jordan', type: 'text' },
-      { id: 3, sender: 'Sam', text: 'Can someone explain the steps?', time: '10:40', isOwn: false, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sam', type: 'text' },
-      { id: 4, sender: 'You', text: 'I can help with that!', time: '10:45', isOwn: true, type: 'text' },
-    ],
-  };
-
-  const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(initialMessages);
-
-  // Removed chatMode effect to prevent race condition
   useEffect(() => { scrollToBottom(); }, [messagesMap, selectedChat]);
 
+  // Fetch chats from DB
   useEffect(() => {
-    const savedGroups = localStorage.getItem('groups_page_data');
-    if (savedGroups) {
-      try {
-        const parsedGroups = JSON.parse(savedGroups);
-        setChats(prev => {
-          const individuals = prev.filter(c => c.type === 'individual');
-          const groupChats = parsedGroups.map((g: any) => {
-            const existing = prev.find(c => c.id === g.id);
-            return {
-              id: g.id,
-              name: g.name,
-              avatar: g.image,
-              lastMessage: existing ? existing.lastMessage : g.bio || 'New group chat',
-              time: existing ? existing.time : 'now',
-              unread: existing ? existing.unread : 0,
-              typing: existing ? existing.typing : false,
-              muted: existing ? existing.muted : false,
-              pinned: existing ? existing.pinned : false,
-              type: 'group',
-              members: g.members,
-            };
-          });
-          // Merge to keep the existing hardcoded groups if they are not in localStorage
-          const existingGroups = prev.filter(c => c.type === 'group' && !parsedGroups.find((pg: any) => pg.id === c.id));
-          return [...individuals, ...existingGroups, ...groupChats];
-        });
-      } catch (e) {}
-    }
+    if (!currentUser) return;
+    const fetchChats = async () => {
+      const { data: participations } = await supabase
+        .from('chat_participants')
+        .select('chat_id, last_read_at, muted, pinned, chats(*)')
+        .eq('user_id', currentUser.id);
 
+      if (!participations) return;
+
+      const chatList = await Promise.all(participations.map(async (p: any) => {
+        const chat = p.chats;
+        let avatar = chat.avatar;
+        let name = chat.name;
+        if (chat.type === 'individual') {
+          const { data: others } = await supabase
+            .from('chat_participants')
+            .select('profiles!inner(name, avatar)')
+            .eq('chat_id', chat.id)
+            .neq('user_id', currentUser.id)
+            .limit(1);
+          if (others && others[0]) {
+            const profile = (others[0] as any).profiles;
+            name = profile.name;
+            avatar = profile.avatar;
+          }
+        }
+        return {
+          id: chat.id,
+          name,
+          avatar,
+          lastMessage: chat.last_message || '',
+          time: formatRelativeTime(chat.last_message_at),
+          unread: 0,
+          online: false,
+          typing: false,
+          muted: p.muted || false,
+          pinned: p.pinned || false,
+          lastSeen: '',
+          type: chat.type,
+          members: chat.type === 'group' ? chat.members_count : undefined,
+        };
+      }));
+      setChats(chatList);
+    };
+    fetchChats();
+  }, [currentUser]);
+
+  // Fetch messages when a chat is selected
+  useEffect(() => {
+    if (!selectedChat || !currentUser) return;
+    const fetchMessages = async () => {
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('*, sender:profiles!sender_id(name, avatar)')
+        .eq('chat_id', selectedChat)
+        .order('created_at', { ascending: true });
+
+      if (!msgs) return;
+      const mapped = msgs.map((m: any) => ({
+        id: m.id,
+        sender: m.sender?.name || 'Unknown',
+        text: m.text,
+        time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isOwn: m.sender_id === currentUser.id,
+        avatar: m.sender?.avatar || '',
+        reactions: [],
+        readBy: 0,
+        type: m.type,
+      }));
+      setMessagesMap(prev => ({ ...prev, [selectedChat]: mapped }));
+    };
+    fetchMessages();
+
+    // Real-time subscription for new messages
+    const channel = supabase
+      .channel(`messages:${selectedChat}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat}` },
+        async (payload) => {
+          const newMsg = payload.new as any;
+          const { data: sender } = await supabase
+            .from('profiles')
+            .select('name, avatar')
+            .eq('id', newMsg.sender_id)
+            .single();
+          const msg: Message = {
+            id: newMsg.id,
+            sender: sender?.name || 'Unknown',
+            text: newMsg.text,
+            time: new Date(newMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isOwn: newMsg.sender_id === currentUser.id,
+            avatar: sender?.avatar || '',
+            reactions: [],
+            readBy: 0,
+            type: newMsg.type,
+          };
+          setMessagesMap(prev => {
+            const existing = prev[selectedChat] || [];
+            if (existing.some(m => m.id === newMsg.id)) return prev;
+            return { ...prev, [selectedChat]: [...existing, msg] };
+          });
+          setChats(prev => prev.map(c =>
+            c.id === selectedChat
+              ? { ...c, lastMessage: newMsg.text, time: 'now' }
+              : c
+          ));
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedChat, currentUser]);
+
+  // Handle URL group param
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const groupId = params.get('group');
     if (groupId) {
@@ -236,27 +325,35 @@ export function ChatPage() {
     setContextMenu(null);
   };
 
-  const handleMuteChat = (chatId: string) => {
-    setChats(chats.map(c => c.id === chatId ? { ...c, muted: !c.muted } : c));
+  const handleMuteChat = async (chatId: string) => {
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat) return;
+    const newMuted = !chat.muted;
+    setChats(chats.map(c => c.id === chatId ? { ...c, muted: newMuted } : c));
     setContextMenu(null);
+    await supabase.from('chat_participants').update({ muted: newMuted }).eq('chat_id', chatId).eq('user_id', currentUser?.id);
   };
 
-  const handlePinChat = (chatId: string) => {
-    setChats(chats.map(c => c.id === chatId ? { ...c, pinned: !c.pinned } : c));
+  const handlePinChat = async (chatId: string) => {
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat) return;
+    const newPinned = !chat.pinned;
+    setChats(chats.map(c => c.id === chatId ? { ...c, pinned: newPinned } : c));
     setContextMenu(null);
+    await supabase.from('chat_participants').update({ pinned: newPinned }).eq('chat_id', chatId).eq('user_id', currentUser?.id);
   };
 
-  const handleDeleteChat = (chatId: string) => {
+  const handleDeleteChat = async (chatId: string) => {
     setChats(chats.filter(c => c.id !== chatId));
     if (selectedChat === chatId) setSelectedChat(null);
     setContextMenu(null);
+    await supabase.from('chat_participants').delete().eq('chat_id', chatId).eq('user_id', currentUser?.id);
   };
 
   const handleContextMenu = (e: React.MouseEvent, chatId: string) => {
     e.preventDefault();
-    const sidebar = e.currentTarget.closest('[class*="w-full md:w-72"]');
-    const rect = sidebar?.getBoundingClientRect();
-    setContextMenu({ chatId, x: e.clientX - (rect?.left || 0), y: e.clientY - (rect?.top || 0) });
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setContextMenu({ chatId, x: rect.left + 20, y: rect.top + 6 });
   };
 
   const getNextId = (chatId: string) => {
@@ -264,13 +361,23 @@ export function ChatPage() {
     return msgs.length > 0 ? Math.max(...msgs.map(m => m.id)) + 1 : 1;
   };
 
-  const addMessage = (chatId: string, msg: Message) => {
+  const addMessage = async (chatId: string, msg: Partial<Message>) => {
+    const { data: inserted, error } = await supabase.from('messages').insert({
+      chat_id: chatId, sender_id: currentUser?.id,
+      text: msg.text || '',
+      type: msg.type || 'text',
+      file_url: (msg as any).file_url || '',
+      reply_to: (msg as any).replyTo || null,
+    }).select('id').single();
+    if (error) { console.error('Send error:', error); return; }
+    const newMsg: Message = {
+      id: inserted.id, sender: 'You', text: msg.text || '',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isOwn: true, reactions: [], readBy: 0, type: msg.type || 'text',
+    };
     const chatMessages = messagesMap[chatId] || [];
-    setMessagesMap({ ...messagesMap, [chatId]: [...chatMessages, msg] });
-    const chat = chats.find(c => c.id === chatId);
-    if (chat) {
-      setChats(chats.map(c => c.id === chatId ? { ...c, lastMessage: msg.text || (msg.type === 'image' ? '📷 Photo' : msg.type === 'file' ? '📎 File' : 'New message'), time: 'now', unread: 0 } : c));
-    }
+    setMessagesMap({ ...messagesMap, [chatId]: [...chatMessages, newMsg] });
+    setChats(prev => prev.map(c => c.id === chatId ? { ...c, lastMessage: newMsg.text || (newMsg.type === 'image' ? '📷 Photo' : newMsg.type === 'file' ? '📎 File' : 'New message'), time: 'now' } : c));
   };
 
   const emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤩','🤔','🤨','😐','😑','😶','😏','😮','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤝','🙏','✌️','🤟','🤘','👌','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💗','💖','💘','💝','✨','🔥','⭐','🌟','💫','🎉','🎊','🎈','🎁','💯','✅','❌','❓','❗','🚀','💪','👀','🙈','🙉','🙊','💀','☠️','👋','✋','👌','🤏','👆','👇','👈','👉','👊','👋','👏','🙌','👐','🤲','🙏','💅','👂','👃','🧠','👁️','👅','👄','💋','👶','👦','👧','🧑','👩','👨','👴','👵','🤶','🎅','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🐪','🐫','🦒','🐃','🐄','🐎','🐖','🐏','🐑','🐕','🐩','🐈','🐇','🐁','🐀','🐿️','🦔','🐾','🐉','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','⭐','🌟','✨','⚡','💥','🔥','🌈','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','💨','💧','💦','☔','🌊','🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌽','🥕','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🥓','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🌮','🌯','🥗','🥘','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','☕','🍵','🥤','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾','🥄','🍴','🍽️','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🏒','🏑','🥍','🏏','⛳','🏹','🎣','🥊','🥋','🎯','🎮','🎲','🧩','🎭','🎨','🎪','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🎿','🏂','🥇','🥈','🥉','🏅','🏆','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','🚏','⛽','🚢','✈️','🛩️','🛫','🛬','💺','🚁','🚀','🛸','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗾','🏔️','⛰️','🌋','🗻','🏖️','🏜️','🏝️','🏞️','🗺️','🇩🇿','🇺🇸','🇬🇧','🇫🇷','🇪🇸','🇩🇪','🇮🇹','🇯🇵','🇨🇳','🇷🇺','🇧🇷','🇮🇳','🇦🇪','🇸🇦','🇲🇦','🇹🇳','🇪🇬']; // cleaned, no ZWJ sequences
@@ -466,18 +573,21 @@ export function ChatPage() {
     e.target.value = '';
   };
 
-  const filteredChats = chats.filter(c => c.type === chatMode);
+  const filteredByMode = chats.filter(c => c.type === chatMode);
+  const filteredChats = searchQuery
+    ? filteredByMode.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : filteredByMode;
   const currentChat = chats.find(c => c.id === selectedChat);
   const messages = selectedChat ? messagesMap[selectedChat] || [] : [];
 
   const reactionEmojis = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
 
   return (
-    <div className="flex flex-1 min-h-0 bg-background overflow-hidden">
+    <div className="flex flex-1 min-h-0 bg-background overflow-hidden overflow-x-hidden">
       <style>{`.emoji-tw{display:inline;height:1.1em;width:1.1em;vertical-align:-0.15em;object-fit:contain;}.emoji-tw.inline{display:inline;height:1em;width:1em;vertical-align:0;}`}</style>
       {/* Chat List - hides on mobile when a chat is selected */}
-      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-x-hidden max-w-full`}>
-        <div className="p-3 border-b border-border">
+      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-x-hidden max-w-full relative`}>
+        <div className="p-3 border-b border-border relative">
           <h2 className="text-lg font-bold text-foreground mb-2">Messages</h2>
           <div className="flex gap-1 mb-2 bg-secondary rounded-lg p-0.5">
             <button onClick={() => { setChatMode('individual'); setSelectedChat(null); setExpandedMessage(null); }}
@@ -485,10 +595,102 @@ export function ChatPage() {
             <button onClick={() => { setChatMode('group'); setSelectedChat(null); setExpandedMessage(null); }}
               className={`flex-1 py-1 text-xs font-semibold rounded-md transition ${chatMode === 'group' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Groups</button>
           </div>
-          <div className="relative">
-            <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input type="text" placeholder="Search..." className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
+          <div className="flex items-center gap-1.5 relative">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition" />
+            </div>
+            {chatMode === 'individual' && (
+              <motion.button
+                whileTap={{ scale: 0.85 }}
+                onClick={() => { setShowAddUser(!showAddUser); if (!showAddUser) { setAddUserQuery(''); } }}
+                className={`w-8 h-8 rounded-lg border transition flex items-center justify-center text-lg font-bold ${
+                  showAddUser
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-secondary text-foreground border-border hover:bg-secondary/80'
+                }`}
+              >
+                <motion.span
+                  animate={{ rotate: showAddUser ? 45 : 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >+</motion.span>
+              </motion.button>
+            )}
           </div>
+          <AnimatePresence>
+            {showAddUser && (
+              <motion.div
+                ref={addUserRef}
+                initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-2xl p-2 max-h-64 overflow-y-auto"
+              >
+                <div className="relative mb-2">
+                  <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Nom d'utilisateur..."
+                    value={addUserQuery}
+                    onChange={e => setAddUserQuery(e.target.value)}
+                    autoFocus
+                    className="w-full pl-7 pr-2 py-1.5 text-xs rounded-lg bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition"
+                  />
+                </div>
+                {addUserQuery && availableUsers.filter(u => u.name.toLowerCase().includes(addUserQuery.toLowerCase())).length === 0 && (
+                  <button
+                    onClick={() => {
+                      const newId = `chat-new-${Date.now()}`;
+                      setChats([{
+                        id: newId, name: addUserQuery,
+                        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(addUserQuery)}`,
+                        lastMessage: '', time: 'now', unread: 0, online: true, typing: false,
+                        muted: false, pinned: false, lastSeen: '', type: 'individual' as const
+                      }, ...chats]);
+                      setSelectedChat(newId);
+                      setShowAddUser(false);
+                      setAddUserQuery('');
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg text-foreground hover:bg-secondary transition"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">+</div>
+                    <span>Ajouter « {addUserQuery} »</span>
+                  </button>
+                )}
+                {addUserQuery && availableUsers
+                  .filter(u => u.name.toLowerCase().includes(addUserQuery.toLowerCase()))
+                  .map(user => (
+                    <button
+                      key={user.id}
+                      onClick={async () => {
+                        const existing = chats.find(c => c.name === user.name && c.type === 'individual');
+                        if (existing) {
+                          setSelectedChat(existing.id);
+                        } else {
+                          const { data: chatId } = await supabase.rpc('get_or_create_individual_chat', { other_user_id: user.id });
+                          if (chatId) {
+                            const newChat = {
+                              id: chatId, name: user.name, avatar: user.avatar,
+                              lastMessage: '', time: 'now', unread: 0, online: true, typing: false,
+                              muted: false, pinned: false, lastSeen: '', type: 'individual' as const
+                            };
+                            setChats([newChat, ...chats]);
+                            setSelectedChat(chatId);
+                          }
+                        }
+                        setShowAddUser(false);
+                        setAddUserQuery('');
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg text-foreground hover:bg-secondary transition"
+                    >
+                      <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full" />
+                      <span>{user.name}</span>
+                    </button>
+                  ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         <div className="flex-1 overflow-y-auto relative">
           {filteredChats.map(chat => (
@@ -608,45 +810,46 @@ export function ChatPage() {
             </motion.div>
           ))}
 
-          {/* Context Menu */}
-          <AnimatePresence>
-            {contextMenu && (
-              <motion.div
-                ref={contextMenuRef}
-                style={{ left: contextMenu.x, top: contextMenu.y, position: 'absolute', zIndex: 100 }}
-                initial={{ opacity: 0, scale: 0.92, y: -6 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: -6 }}
-                transition={{ duration: 0.14, ease: 'easeOut' }}
-                className="bg-card border border-border rounded-xl shadow-2xl py-1 w-44 overflow-hidden"
-              >
-                {(() => {
-                  const chat = chats.find(c => c.id === contextMenu.chatId);
-                  if (!chat) return null;
-                  return (<>
-                    <button onClick={() => handleMuteChat(chat.id)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-secondary transition">
-                      <BellOff size={15} className={chat.muted ? 'text-blue-400' : 'text-muted-foreground'} />
-                      <span>{chat.muted ? 'Activer les notifs' : 'Désactiver'}</span>
-                    </button>
-                    <button onClick={() => handlePinChat(chat.id)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-secondary transition">
-                      <Pin size={15} className={chat.pinned ? 'text-blue-400' : 'text-muted-foreground'} />
-                      <span>{chat.pinned ? 'Désépingler' : 'Épingler'}</span>
-                    </button>
-                    <div className="h-px bg-border mx-2 my-0.5" />
-                    <button onClick={() => handleDeleteChat(chat.id)}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition">
-                      <Trash2 size={15} />
-                      <span>Supprimer</span>
-                    </button>
-                  </>);
-                })()}
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
+
+      {/* Context Menu - outside panels */}
+      <AnimatePresence>
+        {contextMenu && (
+          <motion.div
+            ref={contextMenuRef}
+            style={{ left: contextMenu.x, top: contextMenu.y, position: 'fixed', zIndex: 100 }}
+            initial={{ opacity: 0, scale: 0.92, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: -6 }}
+            transition={{ duration: 0.14, ease: 'easeOut' }}
+            className="bg-card border border-border rounded-xl shadow-2xl py-0.5 w-36 overflow-hidden"
+          >
+            {(() => {
+              const chat = chats.find(c => c.id === contextMenu.chatId);
+              if (!chat) return null;
+              return (<>
+                <button onClick={() => handleMuteChat(chat.id)}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition">
+                  <BellOff size={13} className={chat.muted ? 'text-blue-400' : 'text-muted-foreground'} />
+                  <span>{chat.muted ? 'Activer les notifs' : 'Désactiver'}</span>
+                </button>
+                <button onClick={() => handlePinChat(chat.id)}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition">
+                  <Pin size={13} className={chat.pinned ? 'text-blue-400' : 'text-muted-foreground'} />
+                  <span>{chat.pinned ? 'Désépingler' : 'Épingler'}</span>
+                </button>
+                <div className="h-px bg-border mx-2 my-0.5" />
+                <button onClick={() => handleDeleteChat(chat.id)}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition">
+                  <Trash2 size={13} />
+                  <span>Supprimer</span>
+                </button>
+              </>);
+            })()}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Chat Window + Details Panel (side by side) */}
       {selectedChat && currentChat ? (
@@ -731,7 +934,7 @@ export function ChatPage() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 flex flex-col">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-2 flex flex-col">
             {messages.map(msg => (
               <div key={msg.id} className={`flex gap-2 ${msg.isOwn ? 'justify-end' : 'justify-start'} group`}
                 onMouseEnter={() => setHoveredMessage(msg.id)}
