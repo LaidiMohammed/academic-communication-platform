@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { createServiceClient } from '@/lib/supabase';
 import {
   Plus, Users, Search, MessageCircle, X,
   MessageSquare, Camera, UserPlus, Pin, Settings, Shield,
@@ -55,23 +56,52 @@ const permissionLabels: Record<keyof GroupPermissions, { label: string; icon: an
 export function GroupsPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const supabase = createServiceClient();
   const canCreate = user?.role === 'teacher' || user?.role === 'admin';
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPermsModal, setShowPermsModal] = useState<Group | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('recent');
 
-  const [groups, setGroups] = useState<Group[]>(() => {
-    const saved = localStorage.getItem('groups_page_data');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: 'group-1', name: 'Math Study Circle', bio: 'Advanced mathematics discussion group', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=math', members: 24, type: 'public', permissions: { ...defaultPermissions, pinMessages: 'all' }, isMember: true, isAdmin: true, createdAt: '2024-01-15', activity: '2m ago' },
-      { id: 'group-2', name: 'Physics Lab Notes', bio: 'Share physics lab experiments and notes', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=physics', members: 18, type: 'private', permissions: { ...defaultPermissions, sendMessages: 'admins_only' }, isMember: true, isAdmin: false, createdAt: '2024-03-20', activity: '1h ago' },
-      { id: 'group-3', name: 'English Literature', bio: 'Discuss books and literature', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=english', members: 32, type: 'public', permissions: defaultPermissions, isMember: false, isAdmin: false, createdAt: '2024-06-01', activity: '3h ago' },
-      { id: 'group-4', name: 'Chemistry Lab', bio: 'Experiment results and Q&A', image: 'https://api.dicebear.com/7.x/avataaars/svg?seed=chemistry', members: 15, type: 'private', permissions: { ...defaultPermissions, addMembers: 'admins_only' }, isMember: false, isAdmin: false, createdAt: '2024-08-10', activity: '1d ago' },
-    ];
-  });
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { localStorage.setItem('groups_page_data', JSON.stringify(groups)); }, [groups]);
+  useEffect(() => {
+    if (!user) return;
+    const fetchGroups = async () => {
+      setLoading(true);
+      const { data: dbGroups } = await supabase.from('groups').select('*').order('created_at', { ascending: false });
+      const { data: myMemberships } = await supabase.from('group_members').select('group_id, role').eq('user_id', user.id);
+      const memberMap = new Map((myMemberships || []).map((m: any) => [m.group_id, m.role]));
+
+      const mapped: Group[] = (dbGroups || []).map((g: any) => ({
+        id: g.id,
+        name: g.name,
+        bio: g.description || '',
+        image: g.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(g.name)}&background=random`,
+        members: g.members_count || 0,
+        type: (g.tags?.includes('private') ? 'private' : 'public') as 'public' | 'private',
+        permissions: defaultPermissions,
+        isMember: memberMap.has(g.id),
+        isAdmin: memberMap.get(g.id) === 'admin' || memberMap.get(g.id) === 'owner',
+        createdAt: g.created_at?.slice(0, 10) || '',
+        activity: formatActivity(g.created_at),
+      }));
+      setGroups(mapped);
+      setLoading(false);
+    };
+    fetchGroups();
+  }, [user]);
+
+  const formatActivity = (dateStr: string) => {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
 
   const [formData, setFormData] = useState({
     name: '', bio: '', type: 'public' as 'public' | 'private', image: '',
@@ -87,10 +117,26 @@ export function GroupsPage() {
     return sorted;
   }, [groups, sortMode]);
 
-  const handleCreateGroup = () => {
-    if (!formData.name.trim()) return;
-    const newGroup: Group = {
-      id: `group-${Date.now()}`,
+  const handleCreateGroup = async () => {
+    if (!formData.name.trim() || !user) return;
+
+    const { data: newGroup, error } = await supabase.from('groups').insert({
+      name: formData.name,
+      description: formData.bio || 'New group',
+      image: formData.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`,
+      members_count: 1,
+      tags: formData.type === 'private' ? ['private'] : [],
+      created_by: user.id,
+    }).select('id, created_at').single();
+
+    if (error || !newGroup) { console.error('Create group error:', error?.message); return; }
+
+    await supabase.from('group_members').insert({
+      group_id: newGroup.id, user_id: user.id, role: 'owner',
+    });
+
+    const newG: Group = {
+      id: newGroup.id,
       name: formData.name,
       bio: formData.bio || 'New group',
       image: formData.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`,
@@ -99,13 +145,20 @@ export function GroupsPage() {
       permissions: { ...editPerms },
       isMember: true,
       isAdmin: true,
-      createdAt: new Date().toISOString().slice(0, 10),
+      createdAt: newGroup.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
       activity: 'just now',
     };
-    setGroups([newGroup, ...groups]);
+    setGroups([newG, ...groups]);
     setShowCreateModal(false);
     setFormData({ name: '', bio: '', type: 'public', image: '' });
     setEditPerms(defaultPermissions);
+  };
+
+  const handleJoinGroup = async (groupId: string) => {
+    if (!user) return;
+    await supabase.from('group_members').insert({ group_id: groupId, user_id: user.id, role: 'member' });
+    await supabase.from('groups').update({ members_count: (groups.find(g => g.id === groupId)?.members || 0) + 1 }).eq('id', groupId);
+    setGroups(groups.map(g => g.id === groupId ? { ...g, isMember: true, members: g.members + 1 } : g));
   };
 
   const openPermsModal = (group: Group) => {
@@ -129,6 +182,17 @@ export function GroupsPage() {
     if (p.addMembers === 'admins_only') return 'invite-only';
     return 'private';
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-full bg-background p-4 md:p-6 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+          <p className="text-yellow-400 text-sm font-semibold">Loading groups...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-background p-4 md:p-6">
@@ -185,7 +249,6 @@ export function GroupsPage() {
                   <PermissionsBadge type={permsType(group.permissions)} size="sm" />
                 </div>
 
-                {/* Permission toggles preview */}
                 <div className="flex flex-wrap gap-1 mb-3">
                   {(Object.keys(permissionLabels) as (keyof GroupPermissions)[]).map(key => {
                     const Icon = permissionLabels[key].icon;
@@ -210,7 +273,8 @@ export function GroupsPage() {
                     </button>
                   )}
                   {!group.isMember && (
-                    <button className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:shadow-md transition active:scale-95">
+                    <button onClick={() => handleJoinGroup(group.id)}
+                      className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:shadow-md transition active:scale-95">
                       Join
                     </button>
                   )}

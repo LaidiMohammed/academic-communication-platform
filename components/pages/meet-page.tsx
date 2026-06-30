@@ -1,10 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { createServiceClient } from '@/lib/supabase';
 import { Plus, Calendar, Clock, Users, Video, Link as LinkIcon, MoreVertical, X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+interface Meeting {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  duration: string;
+  members: number;
+  link: string;
+  status: 'ongoing' | 'upcoming';
+}
+
 export function MeetPage() {
+  const { user } = useAuth();
+  const supabase = createServiceClient();
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -15,41 +33,37 @@ export function MeetPage() {
     link: '',
   });
 
-  const [meetings, setMeetings] = useState([
-    {
-      id: '1',
-      title: 'Mathematics Class',
-      description: 'Weekly algebra and geometry session',
-      date: 'Today',
-      time: '10:00 AM',
-      duration: '60 min',
-      members: 24,
-      link: 'https://meet.google.com/abc-defg-hij',
-      status: 'ongoing',
-    },
-    {
-      id: '2',
-      title: 'Physics Lab Discussion',
-      description: 'Review lab results and prepare for exam',
-      date: 'Today',
-      time: '2:00 PM',
-      duration: '45 min',
-      members: 15,
-      link: 'https://meet.google.com/xyz-uvwx-yz',
-      status: 'upcoming',
-    },
-    {
-      id: '3',
-      title: 'English Literature Seminar',
-      description: 'Deep dive into 20th century poetry',
-      date: 'Tomorrow',
-      time: '9:00 AM',
-      duration: '90 min',
-      members: 32,
-      link: 'https://meet.google.com/abc-xyz-123',
-      status: 'upcoming',
-    },
-  ]);
+  useEffect(() => {
+    if (!user) return;
+    const fetchMeetings = async () => {
+      setLoading(true);
+      const { data: dbMeetings } = await supabase
+        .from('meetings')
+        .select('*, meeting_participants!inner(user_id)')
+        .order('date', { ascending: true })
+        .limit(50);
+
+      const mapped: Meeting[] = (dbMeetings || []).map((m: any) => {
+        const dateObj = new Date(m.date + 'T' + (m.time || '00:00'));
+        const isToday = new Date().toDateString() === dateObj.toDateString();
+        const isPast = dateObj < new Date();
+        return {
+          id: m.id,
+          title: m.title,
+          description: m.description || '',
+          date: isToday ? 'Today' : m.date,
+          time: m.time || '',
+          duration: m.duration || '60 min',
+          members: m.meeting_participants?.length || 1,
+          link: m.link || '',
+          status: isToday && !isPast ? 'ongoing' : 'upcoming',
+        };
+      });
+      setMeetings(mapped);
+      setLoading(false);
+    };
+    fetchMeetings();
+  }, [user]);
 
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
@@ -61,7 +75,7 @@ export function MeetPage() {
     const firstDay = new Date(calYear, calMonth, 1).getDay();
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
     const prevDays = new Date(calYear, calMonth, 0).getDate();
-    const cells = [];
+    const cells: any[] = [];
     for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevDays - i, month: calMonth - 1, current: false });
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -77,24 +91,51 @@ export function MeetPage() {
   const prevMonth = () => { if (calMonth === 0) { setCalYear(calYear - 1); setCalMonth(11); } else { setCalMonth(calMonth - 1); } };
   const nextMonth = () => { if (calMonth === 11) { setCalYear(calYear + 1); setCalMonth(0); } else { setCalMonth(calMonth + 1); } };
 
-  const handleCreateMeeting = () => {
-    if (formData.title.trim() && formData.date && formData.time) {
-      const newMeeting = {
-        id: Date.now().toString(),
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        date: formData.date,
-        time: formData.time,
-        duration: `${formData.duration} min`,
-        members: 1,
-        link: formData.link.trim() || `https://meet.google.com/new-${Date.now()}`,
-        status: 'upcoming' as const,
-      };
-      setMeetings(prev => [newMeeting, ...prev]);
-      setShowCreateModal(false);
-      setFormData({ title: '', date: '', time: '', duration: '60', description: '', link: '' });
-    }
+  const handleCreateMeeting = async () => {
+    if (!formData.title.trim() || !formData.date || !formData.time || !user) return;
+
+    const { data: newMeeting, error } = await supabase.from('meetings').insert({
+      title: formData.title.trim(),
+      description: formData.description.trim() || 'Class discussion',
+      date: formData.date,
+      time: formData.time,
+      duration: `${formData.duration} min`,
+      link: formData.link.trim() || `https://meet.google.com/new-${Date.now()}`,
+      meet_by: user.id,
+    }).select('id').single();
+
+    if (error || !newMeeting) { console.error('Create meeting error:', error?.message); return; }
+
+    await supabase.from('meeting_participants').insert({
+      meeting_id: newMeeting.id, user_id: user.id,
+    });
+
+    const newMeet: Meeting = {
+      id: newMeeting.id,
+      title: formData.title.trim(),
+      description: formData.description.trim() || 'Class discussion',
+      date: formData.date,
+      time: formData.time,
+      duration: `${formData.duration} min`,
+      members: 1,
+      link: formData.link.trim() || `https://meet.google.com/new-${Date.now()}`,
+      status: 'upcoming',
+    };
+    setMeetings(prev => [newMeet, ...prev]);
+    setShowCreateModal(false);
+    setFormData({ title: '', date: '', time: '', duration: '60', description: '', link: '' });
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+          <p className="text-yellow-400 text-sm font-semibold">Loading meetings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-8">
