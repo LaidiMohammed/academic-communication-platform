@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@/lib/supabase';
+import { createClient, createServiceClient } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import {
   Send, Heart, Search, MoreVertical, Mic, Phone, Video, Info,
@@ -148,7 +148,7 @@ export function ChatPage() {
   const [addUserQuery, setAddUserQuery] = useState('');
   const [availableUsers, setAvailableUsers] = useState<{ id: string; name: string; avatar: string }[]>([]);
   const { user: currentUser } = useAuth();
-  const supabase = createClient();
+  const supabase = createServiceClient();
   const addUserRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
