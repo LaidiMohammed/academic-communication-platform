@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase';
+import { createClient, createServiceClient } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface User {
@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+  const profileClient = createServiceClient();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchProfile = async (authUser: SupabaseUser) => {
-    const { data, error } = await supabase
+    const { data, error } = await profileClient
       .from('profiles')
       .select('*')
       .eq('id', authUser.id)
@@ -117,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (updates: Partial<User>) => {
     if (!user) return;
-    const { error } = await supabase
+    const { error } = await profileClient
       .from('profiles')
       .update(updates)
       .eq('id', user.id);
