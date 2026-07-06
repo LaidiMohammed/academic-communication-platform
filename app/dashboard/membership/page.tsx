@@ -8,8 +8,6 @@ import {
   Clock, AlertCircle, CheckCircle2, Download
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 /* ── QR Code display ── */
 function MemberQRCode({ userId, name, email, plan, isActive }: {
@@ -244,117 +242,120 @@ export default function MembershipPage() {
       return;
     }
 
+    if (!user) { alert('Please log in first'); return; }
+
     setIsProcessing(true);
-    // Simulate payment processing delay
-    await new Promise(r => setTimeout(r, 1000));
-    
-    // Create payment record
-    const payment = {
-      id: `PAY-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-      userId: user?.id || 'unknown',
-      userName: user?.name || 'Student',
-      userEmail: user?.email || '',
-      plan: plan.title,
-      amount: parseInt(plan.price.replace(/\D/g, ''), 10) || 0,
-      date: new Date().toISOString().slice(0, 10),
-    };
+    try {
+      const amountStr = plan.price.replace(/\s?DA/g, '').replace(/\s/g, '');
+      const amount = parseInt(amountStr.replace(/[^0-9]/g, ''), 10) || 0;
 
-    // Save to localStorage for admin panel
-    const existing = JSON.parse(localStorage.getItem('admin_payments') || '[]');
-    localStorage.setItem('admin_payments', JSON.stringify([payment, ...existing]));
+      const res = await fetch('/api/payments/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          planId: plan.id,
+          planTitle: plan.title,
+          amount,
+          isYearly: billing === 'yearly',
+        }),
+      });
 
-    // Generate Invoice PDF
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text('FACTURE / INVOICE', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.text(`Invoice ID: ${payment.id}`, 20, 40);
-    doc.text(`Date: ${payment.date}`, 20, 46);
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Billed To:', 20, 60);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Name: ${payment.userName}`, 20, 68);
-    doc.text(`Email: ${payment.userEmail}`, 20, 74);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Billed From:', 130, 60);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Bendella School', 130, 68);
-    doc.text('Oran, Algeria', 130, 74);
-    
-    (doc as any).autoTable({
-      startY: 90,
-      head: [['Description', 'Period', 'Amount']],
-      body: [
-        [plan.title, plan.period.replace('/', ''), `${payment.amount.toLocaleString()} DA`]
-      ],
-      theme: 'grid',
-      headStyles: { fillColor: [59, 130, 246] },
-    });
-    
-    const finalY = (doc as any).lastAutoTable.finalY || 120;
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Total Paid: ${payment.amount.toLocaleString()} DA`, 190, finalY + 15, { align: 'right' });
-    
-    // Download PDF
-    doc.save(`Facture_${payment.id}.pdf`);
-    
-    setCurrentPlan(plan.id);
-    setIsProcessing(false);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Payment failed');
+
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      }
+    } catch (err: any) {
+      alert('Payment error: ' + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const plans = [
     {
-      id: 'monthly',
-      title: 'Monthly Access',
-      price: billing === 'monthly' ? '3 000 DA' : '28 800 DA',
-      period: billing === 'monthly' ? '/month' : '/year',
-      desc: 'Full platform access, renewed each month.',
+      id: 'all_levels',
+      title: 'Tous Niveaux',
+      price: billing === 'monthly' ? '2 500 DA' : '25 000 DA',
+      period: billing === 'monthly' ? '/mois' : '/an',
+      desc: 'Accès complet à tous les niveaux et matières.',
       features: [
-        'Unlimited lessons & resources',
-        'Real-time group chat',
-        'Virtual classroom access',
-        'AI Study Assistant (50 msg/day)',
-        'Progress analytics',
-        'Teacher directory access',
+        'Tous les niveaux (1AS, 2AS, 3AS)',
+        'Cours, exercices & examens',
+        'Chat & groupes en temps réel',
+        'Assistant IA (50 msg/jour)',
+        'Réunions de classe virtuelles',
+        'Accès professeurs',
       ],
-      highlight: true,
-      badge: 'POPULAR',
+      highlight: false,
       color: 'text-blue-400',
     },
     {
-      id: 'course',
-      title: 'Particular Course',
-      price: '8 000 DA',
-      period: '/year',
-      desc: 'Deep-dive into one subject with dedicated sessions.',
+      id: '1as_2as',
+      title: '1AS & 2AS',
+      price: billing === 'monthly' ? '3 000 DA' : '30 000 DA',
+      period: billing === 'monthly' ? '/mois' : '/an',
+      desc: 'Spécial 1ère et 2ème année secondaire.',
       features: [
-        '1 Subject – full year access',
-        'Dedicated course teacher',
-        'Private group channel',
-        'Personalized exercises',
-        'Monthly progress report',
-        'Certificate of completion',
+        'Toutes les matières 1AS & 2AS',
+        'Cours & exercices ciblés',
+        'Chat & groupes',
+        'Assistant IA (100 msg/jour)',
+        'Suivi personnalisé',
+      ],
+      highlight: true,
+      badge: 'POPULAR',
+      color: 'text-emerald-400',
+    },
+    {
+      id: 'math_phys_sci',
+      title: '3AS Maths/Physique/Sciences',
+      price: '4 000 DA',
+      period: '/mois',
+      desc: 'Préparation BAC - Mathématiques, Physique & Sciences.',
+      features: [
+        'Mathématiques expert',
+        'Physique approfondie',
+        'Sciences naturelles',
+        'Annales BAC corrigées',
+        'Assistant IA illimité',
+        'Séances de révision live',
       ],
       highlight: false,
-      badge: '🎯 Best Value',
+      badge: '🎯 BAC',
       color: 'text-amber-400',
     },
     {
-      id: 'free',
-      title: 'Free Preview',
-      price: '0 DA',
-      period: '/forever',
-      desc: 'Limited access to explore the platform.',
+      id: 'particulier',
+      title: 'Particulier',
+      price: '9 000 DA',
+      period: '/an',
+      desc: 'Cours particulier avec un professeur dédié.',
       features: [
-        '5 lessons per month',
-        'View-only groups',
-        'AI Assistant (5 msg/day)',
-        'Basic profile',
+        '1 matière au choix',
+        'Professeur dédié',
+        'Groupe privé',
+        'Exercices personnalisés',
+        'Rapport mensuel',
+        'Certificat de fin',
+      ],
+      highlight: false,
+      badge: '🎯 Sur mesure',
+      color: 'text-violet-400',
+    },
+    {
+      id: 'free',
+      title: 'Gratuit',
+      price: '0 DA',
+      period: '',
+      desc: 'Accès limité pour découvrir la plateforme.',
+      features: [
+        '5 leçons par mois',
+        'Groupes consultation seule',
+        'Assistant IA (5 msg/jour)',
+        'Profil de base',
       ],
       highlight: false,
       color: 'text-muted-foreground',

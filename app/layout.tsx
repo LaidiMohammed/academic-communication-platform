@@ -1,19 +1,14 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono, Poppins } from 'next/font/google'
+import { Tajawal } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
 import { ThemeProvider } from '@/lib/theme-context'
 import './globals.css'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
-const poppins = Poppins({
-  variable: '--font-poppins',
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700', '800'],
+const tajawal = Tajawal({
+  variable: '--font-tajawal',
+  subsets: ['arabic'],
+  weight: ['300', '400', '500', '700', '800', '900'],
 })
 
 export const metadata: Metadata = {
@@ -53,7 +48,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable}`}>
+    <html lang="ar" className={`${tajawal.variable}`}>
       <body className="font-sans antialiased">
         <ThemeProvider>
           <AuthProvider>

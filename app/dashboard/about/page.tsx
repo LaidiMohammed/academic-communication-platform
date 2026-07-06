@@ -175,7 +175,7 @@ export default function AboutPage() {
           {/* Map */}
           <div className="h-[300px] lg:h-full min-h-[300px] bg-[#1E293B] relative">
             <iframe
-              src="https://www.openstreetmap.org/export/embed.html?bbox=3.058%2C36.752%2C3.088%2C36.762&amp;layer=mapnik&amp;marker=36.757%2C3.073"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=-0.652%2C35.676%2C-0.612%2C35.716&amp;layer=mapnik&amp;marker=35.696%2C-0.632"
               width="100%"
               height="100%"
               style={{ border: 0 }}
@@ -187,7 +187,7 @@ export default function AboutPage() {
             />
             <div className="absolute top-4 left-4 bg-[#111827]/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-blue-500/20 flex items-center gap-2">
               <MapPin size={14} className="text-blue-400" />
-              <span className="text-white text-sm font-medium">Algiers, Algeria</span>
+              <span className="text-white text-sm font-medium">Rue Belair, Oran, Algeria</span>
             </div>
           </div>
 
@@ -221,7 +221,7 @@ export default function AboutPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Address</p>
-                  <p className="text-white">42 Rue Didouche Mourad, Algiers 16000, Algeria</p>
+                  <p className="text-white">Rue Belair, 31000 Oran, Algeria</p>
                 </div>
               </div>
             </div>

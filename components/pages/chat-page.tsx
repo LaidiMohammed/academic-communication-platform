@@ -253,6 +253,16 @@ export function ChatPage() {
         .order('created_at', { ascending: true });
 
       if (!msgs) return;
+      const { data: reactions } = await supabase
+        .from('message_reactions')
+        .select('message_id, emoji')
+        .in('message_id', msgs.map(m => m.id));
+      const reactionMap: Record<number, string[]> = {};
+      if (reactions) reactions.forEach(r => {
+        if (!reactionMap[r.message_id]) reactionMap[r.message_id] = [];
+        if (!reactionMap[r.message_id].includes(r.emoji)) reactionMap[r.message_id].push(r.emoji);
+      });
+
       const mapped = msgs.map((m: any) => ({
         id: m.id,
         sender: m.sender?.name || 'Unknown',
@@ -260,11 +270,16 @@ export function ChatPage() {
         time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isOwn: m.sender_id === currentUser.id,
         avatar: m.sender?.avatar || '',
-        reactions: [],
+        reactions: reactionMap[m.id] || [],
         readBy: 0,
         type: m.type,
       }));
       setMessagesMap(prev => ({ ...prev, [selectedChat]: mapped }));
+
+      supabase.from('message_reads').insert(
+        msgs.filter(m => m.sender_id !== currentUser.id).map(m => ({ message_id: m.id, user_id: currentUser.id }))
+      ).then(() => {});
+      supabase.from('chat_participants').update({ last_read_at: new Date().toISOString() }).eq('chat_id', selectedChat).eq('user_id', currentUser.id).then(() => {});
     };
     fetchMessages();
 
@@ -305,7 +320,38 @@ export function ChatPage() {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Real-time subscription for reactions
+    const reactionChannel = supabase
+      .channel(`reactions:${selectedChat}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'message_reactions' },
+        async () => {
+          const { data: msgs } = await supabase
+            .from('messages')
+            .select('id')
+            .eq('chat_id', selectedChat);
+          if (!msgs) return;
+          const { data: reactions } = await supabase
+            .from('message_reactions')
+            .select('message_id, emoji')
+            .in('message_id', msgs.map(m => m.id));
+          const reactionMap: Record<number, string[]> = {};
+          if (reactions) reactions.forEach(r => {
+            if (!reactionMap[r.message_id]) reactionMap[r.message_id] = [];
+            if (!reactionMap[r.message_id].includes(r.emoji)) reactionMap[r.message_id].push(r.emoji);
+          });
+          setMessagesMap(prev => ({
+            ...prev,
+            [selectedChat]: (prev[selectedChat] || []).map(m => ({ ...m, reactions: reactionMap[m.id] || [] }))
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(reactionChannel);
+    };
   }, [selectedChat, currentUser]);
 
   // Handle URL group param
@@ -362,11 +408,12 @@ export function ChatPage() {
   };
 
   const addMessage = async (chatId: string, msg: Partial<Message>) => {
+    const fileUrl = (msg as any).image || (msg as any).file?.url || (msg as any).voice || '';
     const { data: inserted, error } = await supabase.from('messages').insert({
       chat_id: chatId, sender_id: currentUser?.id,
       text: msg.text || '',
       type: msg.type || 'text',
-      file_url: (msg as any).file_url || '',
+      file_url: fileUrl,
       reply_to: (msg as any).replyTo || null,
     }).select('id').single();
     if (error) { console.error('Send error:', error); return; }
@@ -374,6 +421,12 @@ export function ChatPage() {
       id: inserted.id, sender: 'You', text: msg.text || '',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true, reactions: [], readBy: 0, type: msg.type || 'text',
+      image: (msg as any).image,
+      file: (msg as any).file,
+      voice: (msg as any).voice,
+      duration: (msg as any).duration,
+      lat: (msg as any).lat,
+      lng: (msg as any).lng,
     };
     const chatMessages = messagesMap[chatId] || [];
     setMessagesMap({ ...messagesMap, [chatId]: [...chatMessages, newMsg] });
@@ -408,17 +461,24 @@ export function ChatPage() {
     try { await navigator.clipboard.writeText(text); } catch {}
   };
 
-  const handleReact = (chatId: string, msgId: number, emoji: string) => {
+  const handleReact = async (chatId: string, msgId: number, emoji: string) => {
     const msgs = messagesMap[chatId]?.map(m =>
       m.id === msgId ? { ...m, reactions: (m.reactions || []).includes(emoji) ? (m.reactions || []).filter(e => e !== emoji) : [...(m.reactions || []), emoji] } : m
     );
     setMessagesMap({ ...messagesMap, [chatId]: msgs });
+    const hasEmoji = messagesMap[chatId]?.find(m => m.id === msgId)?.reactions?.includes(emoji);
+    if (hasEmoji) {
+      await supabase.from('message_reactions').delete().eq('message_id', msgId).eq('emoji', emoji).eq('user_id', currentUser?.id);
+    } else {
+      await supabase.from('message_reactions').insert({ message_id: msgId, user_id: currentUser?.id, emoji });
+    }
   };
 
-  const handleDelete = (chatId: string, msgId: number) => {
+  const handleDelete = async (chatId: string, msgId: number) => {
     const msgs = messagesMap[chatId]?.filter(m => m.id !== msgId);
     setMessagesMap({ ...messagesMap, [chatId]: msgs });
     setExpandedMessage(null);
+    await supabase.from('messages').delete().eq('id', msgId);
   };
 
   const handleForward = (msg: Message) => setShowForward(msg);
@@ -499,14 +559,17 @@ export function ChatPage() {
       mediaRecorderRef.current = mr;
       audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = () => {
+      mr.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         if (!selectedChat) return;
         if (audioChunksRef.current.length === 0) return;
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
-        const url = URL.createObjectURL(blob);
         const dur = recordingTimeRef.current;
         const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+        const fileName = `${selectedChat}/voice_${Date.now()}.${ext}`;
+        const file = new File([blob], fileName, { type: mimeType });
+        const publicUrl = await uploadFile(file, fileName);
+        const url = publicUrl || URL.createObjectURL(blob);
         const newMsg: Message = {
           id: getNextId(selectedChat),
           sender: 'You',
@@ -539,10 +602,30 @@ export function ChatPage() {
     setIsRecording(false);
   };
 
-  const handleFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadFile = async (file: File, path: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.storage.from('chat-files').upload(path, file, { upsert: true });
+      if (error) {
+        if (error.message?.includes('bucket') || error.message?.includes('not found')) {
+          await supabase.storage.createBucket('chat-files', { public: true });
+          const { data: d2, error: e2 } = await supabase.storage.from('chat-files').upload(path, file, { upsert: true });
+          if (e2) return null;
+          const { data: url } = supabase.storage.from('chat-files').getPublicUrl(d2!.path);
+          return url.publicUrl;
+        }
+        return null;
+      }
+      const { data: url } = supabase.storage.from('chat-files').getPublicUrl(data!.path);
+      return url.publicUrl;
+    } catch { return null; }
+  };
+
+  const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedChat || !e.target.files?.[0]) return;
     const f = e.target.files[0];
     const size = f.size > 1024 * 1024 ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : `${(f.size / 1024).toFixed(0)} KB`;
+    const path = `${selectedChat}/${Date.now()}_${f.name}`;
+    const publicUrl = await uploadFile(f, path);
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',
@@ -550,16 +633,18 @@ export function ChatPage() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'file',
-      file: { name: f.name, size, url: URL.createObjectURL(f) },
+      file: { name: f.name, size, url: publicUrl || URL.createObjectURL(f) },
     };
     addMessage(selectedChat, newMsg);
     e.target.value = '';
   };
 
-  const handleImagePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImagePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedChat || !e.target.files?.[0]) return;
     const f = e.target.files[0];
-    const url = URL.createObjectURL(f);
+    const path = `${selectedChat}/${Date.now()}_${f.name}`;
+    const publicUrl = await uploadFile(f, path);
+    const url = publicUrl || URL.createObjectURL(f);
     const newMsg: Message = {
       id: getNextId(selectedChat),
       sender: 'You',

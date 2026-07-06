@@ -54,7 +54,7 @@ export function LoginForm() {
           <div className="order-2 lg:order-1">
             <div className="bg-[#111827] border border-blue-500/20 rounded-3xl p-8 md:p-10 shadow-2xl">
               <div className="mb-8 flex items-center gap-4">
-                <img src="/logo.png" alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-blue-500/30 shadow-lg shadow-blue-500/20" />
+                <img src="/logo1 (2).png" alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-blue-500/30 shadow-lg shadow-blue-500/20" />
                 <div>
                   <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">Welcome Back</h1>
                   <p className="text-gray-400">Sign in to continue your journey</p>
