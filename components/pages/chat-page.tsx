@@ -327,8 +327,7 @@ export function ChatPage() {
 
   // Handle URL group param — ensure a valid chat exists
   const searchParams = useSearchParams();
-  const groupParam = searchParams.get('group');
-  const prevGroupRef = useRef(groupParam);
+  const prevGroupRef = useRef<string | null>(null);
   useEffect(() => {
     const param = searchParams.get('group');
     if (!param) return;
