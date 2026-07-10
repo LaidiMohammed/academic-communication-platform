@@ -330,75 +330,84 @@ export function ChatPage() {
     };
     fetchMessages();
 
-    // Real-time subscription for new messages
+    // Real-time subscription for ALL new messages the user can see
     const channel = supabase
-      .channel(`messages:${selectedChat}`)
+      .channel(`msgs:${currentUser.id}`)
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat}` },
+        { event: 'INSERT', schema: 'public', table: 'messages' },
         async (payload) => {
           const newMsg = payload.new as any;
+          if (newMsg.sender_id === currentUser.id) return;
+          const { data: part } = await supabase.from('chat_participants')
+            .select('id').eq('chat_id', newMsg.chat_id).eq('user_id', currentUser.id).maybeSingle();
+          if (!part) return;
+
           const { data: sender } = await supabase
-            .from('profiles')
-            .select('name, avatar')
-            .eq('id', newMsg.sender_id)
-            .single();
+            .from('profiles').select('name, avatar').eq('id', newMsg.sender_id).single();
           const { data: readData } = await supabase.from('message_reads').select('id').eq('message_id', newMsg.id);
-          const msg: Message = {
-            id: newMsg.id,
-            sender: sender?.name || 'Unknown',
-            text: newMsg.text,
-            time: new Date(newMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isOwn: newMsg.sender_id === currentUser.id,
-            avatar: sender?.avatar || '',
-            reactions: [],
-            readBy: readData?.length || 0,
-            type: newMsg.type,
-          };
-          setMessagesMap(prev => {
-            const existing = prev[selectedChat] || [];
-            if (existing.some(m => m.id === newMsg.id)) return prev;
-            return { ...prev, [selectedChat]: [...existing, msg] };
-          });
+
+          if (newMsg.chat_id === selectedChat) {
+            const msg: Message = {
+              id: newMsg.id,
+              sender: sender?.name || 'Unknown',
+              text: newMsg.text,
+              time: new Date(newMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              isOwn: false,
+              avatar: sender?.avatar || '',
+              reactions: [],
+              readBy: readData?.length || 0,
+              type: newMsg.type,
+            };
+            setMessagesMap(prev => {
+              const existing = prev[selectedChat] || [];
+              if (existing.some(m => m.id === newMsg.id)) return prev;
+              return { ...prev, [selectedChat]: [...existing, msg] };
+            });
+          }
           setChats(prev => prev.map(c =>
-            c.id === selectedChat
-              ? { ...c, lastMessage: newMsg.text, time: 'now' }
+            c.id === newMsg.chat_id
+              ? { ...c, lastMessage: newMsg.text || (newMsg.type === 'image' ? '📷' : newMsg.type === 'file' ? '📎' : ''), time: 'now', unread: c.unread + 1 }
               : c
           ));
         }
       )
       .subscribe();
 
-    // Real-time subscription for reactions
-    const reactionChannel = supabase
-      .channel(`reactions:${selectedChat}`)
+    // Real-time subscription for new chat_participants (new chats created by others)
+    const partChannel = supabase
+      .channel(`parts:${currentUser.id}`)
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'message_reactions' },
+        { event: 'INSERT', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}` },
         async () => {
-          const { data: msgs } = await supabase
-            .from('messages')
-            .select('id')
-            .eq('chat_id', selectedChat);
-          if (!msgs) return;
-          const { data: reactions } = await supabase
-            .from('message_reactions')
-            .select('message_id, emoji')
-            .in('message_id', msgs.map(m => m.id));
-          const reactionMap: Record<number, string[]> = {};
-          if (reactions) reactions.forEach(r => {
-            if (!reactionMap[r.message_id]) reactionMap[r.message_id] = [];
-            if (!reactionMap[r.message_id].includes(r.emoji)) reactionMap[r.message_id].push(r.emoji);
-          });
-          setMessagesMap(prev => ({
-            ...prev,
-            [selectedChat]: (prev[selectedChat] || []).map(m => ({ ...m, reactions: reactionMap[m.id] || [] }))
+          const { data: participations } = await supabase
+            .from('chat_participants')
+            .select('chat_id, last_read_at, muted, pinned, chats(*)')
+            .eq('user_id', currentUser.id);
+          if (!participations) return;
+          const newChats = participations.filter((p: any) => !chats.find(c => c.id === p.chat_id));
+          if (newChats.length === 0) return;
+          const fresh = await Promise.all(newChats.map(async (p: any) => {
+            const chat = p.chats;
+            let avatar = chat.avatar;
+            let name = chat.name;
+            if (chat.type === 'individual') {
+              const { data: others } = await supabase.from('chat_participants')
+                .select('profiles!inner(name, avatar)').eq('chat_id', chat.id).neq('user_id', currentUser.id).limit(1);
+              if (others?.[0]) { const pr = (others[0] as any).profiles; name = pr.name; avatar = pr.avatar; }
+            }
+            const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true })
+              .eq('chat_id', chat.id).gt('created_at', p.last_read_at || '1970-01-01')
+              .neq('sender_id', currentUser.id);
+            return { id: chat.id, name, avatar, lastMessage: chat.last_message || '', time: '', unread: count || 0, online: false, typing: false, muted: p.muted || false, pinned: p.pinned || false, lastSeen: '', type: chat.type, members: chat.type === 'group' ? chat.members_count : undefined };
           }));
+          setChats(prev => [...fresh, ...prev]);
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
-      supabase.removeChannel(reactionChannel);
+      supabase.removeChannel(partChannel);
     };
   }, [selectedChat, currentUser]);
 
