@@ -141,7 +141,8 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
         onError={() => setPlaybackError(true)}
       />
       <button
-        onClick={(e) => { e.stopPropagation(); void toggle(); }}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggle(); }}
         disabled={playbackError}
         className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
       >
@@ -859,7 +860,7 @@ export function ChatPage() {
 
   return (
     <div className="flex flex-1 min-h-0 bg-background overflow-hidden overflow-x-hidden">
-      <style>{`.emoji-tw{display:inline;height:1.1em;width:1.1em;vertical-align:-0.15em;object-fit:contain;}.emoji-tw.inline{display:inline;height:1em;width:1em;vertical-align:0;}`}</style>
+      <style>{`.emoji-tw{display:inline;height:1em;width:1em;vertical-align:-0.15em;object-fit:contain;}`}</style>
       {/* Chat List - hides on mobile when a chat is selected */}
       <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-x-hidden max-w-full relative`}>
         <div className="p-3 border-b border-border relative">
