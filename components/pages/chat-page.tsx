@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -402,26 +403,37 @@ export function ChatPage() {
   }, [selectedChat, currentUser]);
 
   // Handle URL group param — ensure a valid chat exists
+  const searchParams = useSearchParams();
+  const groupParam = searchParams.get('group');
+  const prevGroupRef = useRef(groupParam);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const groupParam = params.get('group');
-    if (!groupParam) return;
+    const param = searchParams.get('group');
+    if (!param) return;
+    if (param === prevGroupRef.current) return;
+    prevGroupRef.current = param;
     setChatMode('group');
+    setMessagesMap({});
+    setSelectedChat(null);
+    let cancelled = false;
     const initChat = async () => {
-      const { data: chat } = await supabase.from('chats').select('id').eq('id', groupParam).maybeSingle();
+      const { data: chat } = await supabase.from('chats').select('id').eq('id', param).maybeSingle();
+      if (cancelled) return;
       if (chat) {
         setSelectedChat(chat.id);
       } else {
-        const { data: grp } = await supabase.from('groups').select('chat_id, name, created_by').eq('id', groupParam).single();
+        const { data: grp } = await supabase.from('groups').select('chat_id, name, created_by').eq('id', param).single();
+        if (cancelled) return;
         if (grp?.chat_id) {
           setSelectedChat(grp.chat_id);
         } else if (grp && currentUser) {
           const { data: newChat } = await supabase.from('chats').insert({
             type: 'group', name: grp.name || 'Group', created_by: grp.created_by,
           }).select('id').single();
+          if (cancelled) return;
           if (newChat) {
-            await supabase.from('groups').update({ chat_id: newChat.id }).eq('id', groupParam);
-            const { data: members } = await supabase.from('group_members').select('user_id').eq('group_id', groupParam);
+            await supabase.from('groups').update({ chat_id: newChat.id }).eq('id', param);
+            const { data: members } = await supabase.from('group_members').select('user_id').eq('group_id', param);
+            if (cancelled) return;
             if (members) {
               await supabase.from('chat_participants').insert(
                 members.map((m: any) => ({ chat_id: newChat.id, user_id: m.user_id, last_read_at: new Date().toISOString() }))
@@ -433,7 +445,8 @@ export function ChatPage() {
       }
     };
     initChat();
-  }, [currentUser]);
+    return () => { cancelled = true; };
+  }, [searchParams, currentUser]);
 
   const handleChatSelect = (chatId: string) => {
     setSelectedChat(chatId);
