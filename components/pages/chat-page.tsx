@@ -79,17 +79,43 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const toggle = () => {
+  
+  const toggle = async () => {
     if (!audioRef.current) {
-      const a = new Audio(src);
-      a.onended = () => setPlaying(false);
-      a.ontimeupdate = () => setProgress(a.currentTime / (a.duration || 1));
-      a.play(); audioRef.current = a; setPlaying(true);
-    } else if (audioRef.current.paused) { audioRef.current.play(); setPlaying(true); }
-    else { audioRef.current.pause(); setPlaying(false); }
+      try {
+        const a = new Audio(src);
+        a.crossOrigin = 'anonymous';
+        a.onerror = () => {
+          alert('Failed to load audio');
+        };
+        a.onended = () => {
+          setPlaying(false);
+        };
+        a.ontimeupdate = () => {
+          setProgress(a.currentTime / (a.duration || 1));
+        };
+        audioRef.current = a;
+        await a.play();
+        setPlaying(true);
+      } catch (e) {
+        alert('Failed to play audio');
+      }
+    } else if (audioRef.current.paused) {
+      try {
+        await audioRef.current.play();
+        setPlaying(true);
+      } catch (e) {
+        // Silent fail on pause/resume
+      }
+    } else {
+      audioRef.current.pause();
+      setPlaying(false);
+    }
   };
+  
   const mins = Math.floor(duration / 60);
   const secs = duration % 60;
+  
   return (
     <div className="flex items-center gap-2 mb-1 min-w-40">
       <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0">
@@ -662,6 +688,11 @@ export function ChatPage() {
   const messages = selectedChat ? messagesMap[selectedChat] || [] : [];
 
   const reactionEmojis = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
+  
+  // Helper to render emoji with Apple style
+  const renderAppleEmoji = (emoji: string, className = '') => (
+    <span className={className} dangerouslySetInnerHTML={{ __html: parseEmoji(emoji) }} />
+  );
 
   return (
     <div className="flex flex-1 min-h-0 bg-background overflow-hidden overflow-x-hidden">
@@ -1208,11 +1239,12 @@ export function ChatPage() {
                             sel.addRange(range);
                           }
                           const range = sel.getRangeAt(0);
-                          const img = parseEmoji(emoji);
-                          const frag = range.createContextualFragment(img);
+                          // Insert the plain emoji text to ensure consistency
+                          const textNode = document.createTextNode(emoji);
                           range.deleteContents();
-                          range.insertNode(frag);
-                          range.collapse(false);
+                          range.insertNode(textNode);
+                          range.setStartAfter(textNode);
+                          range.collapse(true);
                           sel.removeAllRanges();
                           sel.addRange(range);
                         }}
