@@ -156,6 +156,22 @@ export function ChatPage() {
   const [sendError, setSendError] = useState('');
   const { user: currentUser } = useAuth();
   const supabase = createClient();
+  useEffect(() => {
+    if (!showAddUser || !currentUser) return;
+    const fetchUsers = async () => {
+      const s = await supabase.auth.getSession();
+      const token = s.data.session?.access_token;
+      if (!token) return;
+      const res = await fetch(`/api/users/search?q=`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const { users } = await res.json();
+        setAvailableUsers(users || []);
+      }
+    };
+    fetchUsers();
+  }, [showAddUser, currentUser]);
   const addUserRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
