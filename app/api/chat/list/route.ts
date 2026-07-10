@@ -16,15 +16,56 @@ export async function GET(req: NextRequest) {
   if (authErr || !user)
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // Fetch existing chat participations
   const { data: participations } = await supabase
     .from('chat_participants')
     .select('chat_id, last_read_at, chats(*)')
     .eq('user_id', user.id);
 
-  if (!participations) return NextResponse.json({ chats: [] });
+  const seenChatIds = new Set((participations || []).map((p: any) => p.chat_id));
 
-  const chats = await Promise.all(participations.map(async (p: any) => {
+  // Fetch group memberships for groups where user has no chat_participants entry
+  const { data: memberships } = await supabase
+    .from('group_members')
+    .select('group_id')
+    .eq('user_id', user.id);
+
+  for (const m of (memberships || []) as any[]) {
+    const { data: grp } = await supabase.from('groups').select('id, chat_id, name, members_count').eq('id', m.group_id).single();
+    if (!grp) continue;
+    if (grp.chat_id && !seenChatIds.has(grp.chat_id)) {
+      const { error: insErr } = await supabase.from('chat_participants').insert({
+        chat_id: grp.chat_id, user_id: user.id, last_read_at: new Date().toISOString(),
+      });
+      if (!insErr) seenChatIds.add(grp.chat_id);
+    } else if (!grp.chat_id) {
+      const { data: newChat } = await supabase.from('chats').insert({
+        type: 'group', name: grp.name || 'Group', created_by: user.id,
+      }).select('id').single();
+      if (newChat) {
+        await supabase.from('groups').update({ chat_id: newChat.id }).eq('id', m.group_id);
+        const { data: allMembers } = await supabase.from('group_members').select('user_id').eq('group_id', m.group_id);
+        if (allMembers?.length) {
+          await supabase.from('chat_participants').insert(
+            allMembers.map((x: any) => ({ chat_id: newChat.id, user_id: x.user_id, last_read_at: new Date().toISOString() }))
+          );
+        }
+        seenChatIds.add(newChat.id);
+      }
+    }
+  }
+
+  // Re-fetch after potential inserts
+  const { data: finalParticipations } = await supabase
+    .from('chat_participants')
+    .select('chat_id, last_read_at, chats(*)')
+    .eq('user_id', user.id);
+
+  if (!finalParticipations) return NextResponse.json({ chats: [] });
+
+  const chats = await Promise.all(finalParticipations.map(async (p: any) => {
     const chat = p.chats;
+    if (!chat) return null;
     let name = chat.name;
     let avatar = chat.avatar;
     if (chat.type === 'individual') {
@@ -63,5 +104,5 @@ export async function GET(req: NextRequest) {
     };
   }));
 
-  return NextResponse.json({ chats });
+  return NextResponse.json({ chats: chats.filter(Boolean) });
 }
