@@ -156,15 +156,15 @@ export function ChatPage() {
   const [sendError, setSendError] = useState('');
   const { user: currentUser } = useAuth();
   const supabase = createClient();
+  const getToken = async () => {
+    const s = await supabase.auth.getSession();
+    return s.data.session?.access_token || '';
+  };
+  const authHeaders = async () => ({ Authorization: `Bearer ${await getToken()}` });
   useEffect(() => {
     if (!showAddUser || !currentUser) return;
     const fetchUsers = async () => {
-      const s = await supabase.auth.getSession();
-      const token = s.data.session?.access_token;
-      if (!token) return;
-      const res = await fetch(`/api/users/search?q=`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`/api/users/search?q=`, { headers: await authHeaders() });
       if (res.ok) {
         const { users } = await res.json();
         setAvailableUsers(users || []);
@@ -226,127 +226,40 @@ export function ChatPage() {
 
   useEffect(() => { scrollToBottom(); }, [messagesMap, selectedChat]);
 
-  // Fetch chats from DB
+  // Fetch chats from API
   useEffect(() => {
     if (!currentUser) return;
     const fetchChats = async () => {
-      const { data: participations } = await supabase
-        .from('chat_participants')
-        .select('chat_id, last_read_at, muted, pinned, chats(*)')
-        .eq('user_id', currentUser.id);
-
-      if (!participations) return;
-
-      const chatList = await Promise.all(participations.map(async (p: any) => {
-        const chat = p.chats;
-        let avatar = chat.avatar;
-        let name = chat.name;
-        if (chat.type === 'individual') {
-          const { data: others } = await supabase
-            .from('chat_participants')
-            .select('profiles!inner(name, avatar)')
-            .eq('chat_id', chat.id)
-            .neq('user_id', currentUser.id)
-            .limit(1);
-          if (others && others[0]) {
-            const profile = (others[0] as any).profiles;
-            name = profile.name;
-            avatar = profile.avatar;
-          }
-        }
-        const { count } = await supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('chat_id', chat.id)
-          .gt('created_at', p.last_read_at || '1970-01-01')
-          .neq('sender_id', currentUser.id);
-        return {
-          id: chat.id,
-          name,
-          avatar,
-          lastMessage: chat.last_message || '',
-          time: formatRelativeTime(chat.last_message_at),
-          unread: count || 0,
-          online: false,
-          typing: false,
-          muted: p.muted || false,
-          pinned: p.pinned || false,
-          lastSeen: '',
-          type: chat.type,
-          members: chat.type === 'group' ? chat.members_count : undefined,
-        };
-      }));
-      setChats(chatList);
+      const res = await fetch('/api/chat/list', { headers: await authHeaders() });
+      if (!res.ok) return;
+      const { chats: list } = await res.json();
+      setChats(list.map((c: any) => ({ ...c, time: formatRelativeTime(c.time) })));
     };
     fetchChats();
   }, [currentUser]);
 
-  // Fetch messages when a chat is selected
+  // Fetch messages + mark read via API
   useEffect(() => {
     if (!selectedChat || !currentUser) return;
     const fetchMessages = async () => {
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('*, sender:profiles!sender_id(name, avatar)')
-        .eq('chat_id', selectedChat)
-        .order('created_at', { ascending: true });
+      const res = await fetch(`/api/chat/messages?chatId=${selectedChat}`, { headers: await authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      setMessagesMap(prev => ({ ...prev, [selectedChat]: data.messages }));
+      setChatMembers(data.participants || []);
 
-      if (!msgs) return;
-      const { data: reactions } = await supabase
-        .from('message_reactions')
-        .select('message_id, emoji')
-        .in('message_id', msgs.map(m => m.id));
-      const reactionMap: Record<number, string[]> = {};
-      if (reactions) reactions.forEach(r => {
-        if (!reactionMap[r.message_id]) reactionMap[r.message_id] = [];
-        if (!reactionMap[r.message_id].includes(r.emoji)) reactionMap[r.message_id].push(r.emoji);
-      });
-
-      const { data: reads } = await supabase
-        .from('message_reads')
-        .select('message_id')
-        .in('message_id', msgs.map(m => m.id));
-      const readCounts: Record<number, number> = {};
-      if (reads) reads.forEach(r => { readCounts[r.message_id] = (readCounts[r.message_id] || 0) + 1; });
-
-      const mapped = msgs.map((m: any) => ({
-        id: m.id,
-        sender: m.sender?.name || 'Unknown',
-        text: m.text,
-        time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isOwn: m.sender_id === currentUser.id,
-        avatar: m.sender?.avatar || '',
-        reactions: reactionMap[m.id] || [],
-        readBy: readCounts[m.id] || 0,
-        type: m.type,
-      }));
-      setMessagesMap(prev => ({ ...prev, [selectedChat]: mapped }));
-
-      supabase.from('message_reads').insert(
-        msgs.filter(m => m.sender_id !== currentUser.id).map(m => ({ message_id: m.id, user_id: currentUser.id }))
-      ).then(() => {});
-      supabase.from('chat_participants').update({ last_read_at: new Date().toISOString() }).eq('chat_id', selectedChat).eq('user_id', currentUser.id).then(() => {});
-
-      const { data: participants } = await supabase.from('chat_participants')
-        .select('user_id').eq('chat_id', selectedChat);
-      if (participants?.length) {
-        const { data: profiles } = await supabase.from('profiles')
-          .select('id, name, avatar').in('id', participants.map(p => p.user_id));
-        const otherIds = participants.filter(p => p.user_id !== currentUser.id).map(p => p.user_id);
-        const { data: groupRanks } = await supabase.from('group_members')
-          .select('user_id, role').in('user_id', otherIds);
-        const roleMap = new Map((groupRanks || []).map((r: any) => [r.user_id, r.role]));
-        setChatMembers((profiles || []).map((p: any) => ({
-          name: p.name || 'Unknown',
-          avatar: p.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`,
-          role: roleMap.get(p.id) || 'member',
-          online: false,
-        })));
-      }
+      fetch('/api/chat/read', {
+        method: 'POST', headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: selectedChat, messageIds: data.messages.filter((m: any) => !m.isOwn).map((m: any) => m.id) }),
+      }).then(() => {});
     };
     fetchMessages();
 
-    // Real-time subscription for ALL new messages the user can see
+    // Track chats via ref to avoid stale closure
+    const chatsRef = { current: chats };
+    chatsRef.current = chats;
+
+    // Real-time subscription for ALL new messages
     const channel = supabase
       .channel(`msgs:${currentUser.id}`)
       .on('postgres_changes',
@@ -354,9 +267,8 @@ export function ChatPage() {
         async (payload) => {
           const newMsg = payload.new as any;
           if (newMsg.sender_id === currentUser.id) return;
-          const { data: part } = await supabase.from('chat_participants')
-            .select('id').eq('chat_id', newMsg.chat_id).eq('user_id', currentUser.id).maybeSingle();
-          if (!part) return;
+          const isMyChat = chatsRef.current.some((c: any) => c.id === newMsg.chat_id);
+          if (!isMyChat) return;
 
           const { data: sender } = await supabase
             .from('profiles').select('name, avatar').eq('id', newMsg.sender_id).single();
@@ -389,34 +301,20 @@ export function ChatPage() {
       )
       .subscribe();
 
-    // Real-time subscription for new chat_participants (new chats created by others)
+    // Real-time subscription for new chat_participants — refresh via API
     const partChannel = supabase
       .channel(`parts:${currentUser.id}`)
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}` },
         async () => {
-          const { data: participations } = await supabase
-            .from('chat_participants')
-            .select('chat_id, last_read_at, muted, pinned, chats(*)')
-            .eq('user_id', currentUser.id);
-          if (!participations) return;
-          const newChats = participations.filter((p: any) => !chats.find(c => c.id === p.chat_id));
-          if (newChats.length === 0) return;
-          const fresh = await Promise.all(newChats.map(async (p: any) => {
-            const chat = p.chats;
-            let avatar = chat.avatar;
-            let name = chat.name;
-            if (chat.type === 'individual') {
-              const { data: others } = await supabase.from('chat_participants')
-                .select('profiles!inner(name, avatar)').eq('chat_id', chat.id).neq('user_id', currentUser.id).limit(1);
-              if (others?.[0]) { const pr = (others[0] as any).profiles; name = pr.name; avatar = pr.avatar; }
-            }
-            const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true })
-              .eq('chat_id', chat.id).gt('created_at', p.last_read_at || '1970-01-01')
-              .neq('sender_id', currentUser.id);
-            return { id: chat.id, name, avatar, lastMessage: chat.last_message || '', time: '', unread: count || 0, online: false, typing: false, muted: p.muted || false, pinned: p.pinned || false, lastSeen: '', type: chat.type, members: chat.type === 'group' ? chat.members_count : undefined };
-          }));
-          setChats(prev => [...fresh, ...prev]);
+          const res = await fetch('/api/chat/list', { headers: await authHeaders() });
+          if (!res.ok) return;
+          const { chats: freshList } = await res.json();
+          const existingIds = new Set(chatsRef.current.map((c: any) => c.id));
+          const newChats = freshList.filter((c: any) => !existingIds.has(c.id));
+          if (newChats.length) {
+            setChats(prev => [...newChats.map((c: any) => ({ ...c, time: formatRelativeTime(c.time) })), ...prev]);
+          }
         }
       )
       .subscribe();
@@ -441,32 +339,11 @@ export function ChatPage() {
     setSelectedChat(null);
     let cancelled = false;
     const initChat = async () => {
-      const { data: chat } = await supabase.from('chats').select('id').eq('id', param).maybeSingle();
+      const res = await fetch(`/api/chat/resolve?id=${param}`, { headers: await authHeaders() });
       if (cancelled) return;
-      if (chat) {
-        setSelectedChat(chat.id);
-      } else {
-        const { data: grp } = await supabase.from('groups').select('chat_id, name, created_by').eq('id', param).single();
-        if (cancelled) return;
-        if (grp?.chat_id) {
-          setSelectedChat(grp.chat_id);
-        } else if (grp && currentUser) {
-          const { data: newChat } = await supabase.from('chats').insert({
-            type: 'group', name: grp.name || 'Group', created_by: grp.created_by,
-          }).select('id').single();
-          if (cancelled) return;
-          if (newChat) {
-            await supabase.from('groups').update({ chat_id: newChat.id }).eq('id', param);
-            const { data: members } = await supabase.from('group_members').select('user_id').eq('group_id', param);
-            if (cancelled) return;
-            if (members) {
-              await supabase.from('chat_participants').insert(
-                members.map((m: any) => ({ chat_id: newChat.id, user_id: m.user_id, last_read_at: new Date().toISOString() }))
-              );
-            }
-            setSelectedChat(newChat.id);
-          }
-        }
+      if (res.ok) {
+        const { chatId } = await res.json();
+        if (chatId) setSelectedChat(chatId);
       }
     };
     initChat();
@@ -486,7 +363,10 @@ export function ChatPage() {
     const newMuted = !chat.muted;
     setChats(chats.map(c => c.id === chatId ? { ...c, muted: newMuted } : c));
     setContextMenu(null);
-    await supabase.from('chat_participants').update({ muted: newMuted }).eq('chat_id', chatId).eq('user_id', currentUser?.id);
+    await fetch('/api/chat/participant', {
+      method: 'PATCH', headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, muted: newMuted }),
+    });
   };
 
   const handlePinChat = async (chatId: string) => {
@@ -495,14 +375,20 @@ export function ChatPage() {
     const newPinned = !chat.pinned;
     setChats(chats.map(c => c.id === chatId ? { ...c, pinned: newPinned } : c));
     setContextMenu(null);
-    await supabase.from('chat_participants').update({ pinned: newPinned }).eq('chat_id', chatId).eq('user_id', currentUser?.id);
+    await fetch('/api/chat/participant', {
+      method: 'PATCH', headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, pinned: newPinned }),
+    });
   };
 
   const handleDeleteChat = async (chatId: string) => {
     setChats(chats.filter(c => c.id !== chatId));
     if (selectedChat === chatId) setSelectedChat(null);
     setContextMenu(null);
-    await supabase.from('chat_participants').delete().eq('chat_id', chatId).eq('user_id', currentUser?.id);
+    await fetch('/api/chat/participant', {
+      method: 'DELETE', headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId }),
+    });
   };
 
   const handleContextMenu = (e: React.MouseEvent, chatId: string) => {
@@ -520,16 +406,15 @@ export function ChatPage() {
   const addMessage = async (chatId: string, msg: Partial<Message>) => {
     setSendError('');
     const fileUrl = (msg as any).image || (msg as any).file?.url || (msg as any).voice || '';
-    const { data: inserted, error } = await supabase.from('messages').insert({
-      chat_id: chatId, sender_id: currentUser?.id,
-      text: msg.text || '',
-      type: msg.type || 'text',
-      file_url: fileUrl,
-      reply_to: (msg as any).replyTo || null,
-    }).select('id').single();
-    if (error) { setSendError('Failed to send message. Check your connection.'); console.error('Send error:', error); return; }
+    const res = await fetch('/api/chat/messages', {
+      method: 'POST', headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId, text: msg.text || '', type: msg.type || 'text', fileUrl, fileName: (msg as any).file?.name || '', fileSize: (msg as any).file?.size || '' }),
+    });
+    if (!res.ok) { setSendError('Failed to send message.'); console.error('Send error:', await res.text()); return; }
+    const { message } = await res.json();
+    if (!message?.id) { setSendError('Failed to send message.'); return; }
     const newMsg: Message = {
-      id: inserted.id, sender: 'You', text: msg.text || '',
+      id: message.id, sender: 'You', text: msg.text || '',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true, reactions: [], readBy: 0, type: msg.type || 'text',
       image: (msg as any).image,
