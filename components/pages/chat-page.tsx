@@ -58,6 +58,23 @@ interface Message {
   lng?: number;
 }
 
+interface RealtimeMessage {
+  id: number;
+  chat_id: string;
+  sender_id: string;
+  text: string;
+  type: Message['type'];
+  file_url?: string;
+  file_name?: string;
+  file_size?: string;
+  created_at: string;
+}
+
+function parseVoiceDuration(text: string) {
+  const match = text.match(/(\d+):(\d{2})$/);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : 0;
+}
+
 function MapPreview({ lat, lng, onZoom }: { lat: number; lng: number; onZoom: () => void }) {
   const bbox = `${lng-0.01}%2C${lat-0.01}%2C${lng+0.01}%2C${lat+0.01}`;
   const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
@@ -78,47 +95,56 @@ function MapFull({ lat, lng }: { lat: number; lng: number }) {
 function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [resolvedDuration, setResolvedDuration] = useState(duration);
+  const [playbackError, setPlaybackError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
+
+  useEffect(() => {
+    setResolvedDuration(duration);
+    setProgress(0);
+    setPlaybackError(false);
+  }, [duration, src]);
+
   const toggle = async () => {
-    if (!audioRef.current) {
+    const audio = audioRef.current;
+    if (!audio || playbackError) return;
+    if (audio.paused) {
       try {
-        const a = new Audio(src);
-        a.crossOrigin = 'anonymous';
-        a.onerror = () => {
-          alert('Failed to load audio');
-        };
-        a.onended = () => {
-          setPlaying(false);
-        };
-        a.ontimeupdate = () => {
-          setProgress(a.currentTime / (a.duration || 1));
-        };
-        audioRef.current = a;
-        await a.play();
-        setPlaying(true);
-      } catch (e) {
-        alert('Failed to play audio');
-      }
-    } else if (audioRef.current.paused) {
-      try {
-        await audioRef.current.play();
-        setPlaying(true);
-      } catch (e) {
-        // Silent fail on pause/resume
+        await audio.play();
+      } catch {
+        setPlaybackError(true);
       }
     } else {
-      audioRef.current.pause();
-      setPlaying(false);
+      audio.pause();
     }
   };
-  
-  const mins = Math.floor(duration / 60);
-  const secs = duration % 60;
-  
+
+  const mins = Math.floor(resolvedDuration / 60);
+  const secs = Math.floor(resolvedDuration % 60);
   return (
     <div className="flex items-center gap-2 mb-1 min-w-40">
-      <button onClick={(e) => { e.stopPropagation(); toggle(); }} className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0">
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setProgress(0); }}
+        onTimeUpdate={(event) => {
+          const audio = event.currentTarget;
+          setProgress(audio.currentTime / (audio.duration || resolvedDuration || 1));
+        }}
+        onLoadedMetadata={(event) => {
+          const audioDuration = event.currentTarget.duration;
+          if (Number.isFinite(audioDuration)) setResolvedDuration(Math.ceil(audioDuration));
+        }}
+        onError={() => setPlaybackError(true)}
+      />
+      <button
+        onClick={(e) => { e.stopPropagation(); void toggle(); }}
+        disabled={playbackError}
+        className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
+      >
         {playing
           ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
           : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg>}
@@ -128,7 +154,7 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
       </div>
       <div className="flex flex-col items-end leading-tight">
         <span className="text-[10px] opacity-80 font-mono">{mins}:{secs.toString().padStart(2, '0')}</span>
-        <span className="text-[8px] opacity-50">{playing ? 'Playing' : ''}</span>
+        <span className="text-[8px] opacity-50">{playbackError ? 'Unavailable' : playing ? 'Playing' : ''}</span>
       </div>
     </div>
   );
@@ -154,7 +180,6 @@ function EmojiText({ text, className }: { text: string; className?: string }) {
 
 export function ChatPage() {
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
-  const [messageText, setMessageText] = useState('');
   const [hoveredMessage, setHoveredMessage] = useState<number | null>(null);
   const [expandedMessage, setExpandedMessage] = useState<number | null>(null);
   const [showDetailsPanel, setShowDetailsPanel] = useState(false);
@@ -201,11 +226,14 @@ export function ChatPage() {
   const addUserRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const recordingCancelledRef = useRef(false);
+  const recordingChatIdRef = useRef<string | null>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingTimeRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
 
@@ -226,6 +254,19 @@ export function ChatPage() {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => () => {
+    recordingCancelledRef.current = true;
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.onerror = null;
+      if (recorder.state !== 'inactive') recorder.stop();
+    }
+    mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -291,7 +332,7 @@ export function ChatPage() {
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         async (payload) => {
-          const newMsg = payload.new as any;
+          const newMsg = payload.new as RealtimeMessage;
           if (newMsg.sender_id === currentUser.id) return;
           const isMyChat = chatsRef.current.some((c: any) => c.id === newMsg.chat_id);
           if (!isMyChat) return;
@@ -311,6 +352,12 @@ export function ChatPage() {
               reactions: [],
               readBy: readData?.length || 0,
               type: newMsg.type,
+              image: newMsg.type === 'image' ? newMsg.file_url : undefined,
+              file: newMsg.type === 'file'
+                ? { name: newMsg.file_name || 'File', size: newMsg.file_size || '', url: newMsg.file_url }
+                : undefined,
+              voice: newMsg.type === 'voice' ? newMsg.file_url : undefined,
+              duration: newMsg.type === 'voice' ? parseVoiceDuration(newMsg.text) : undefined,
             };
             setMessagesMap(prev => {
               const existing = prev[selectedChat] || [];
@@ -320,7 +367,17 @@ export function ChatPage() {
           }
           setChats(prev => prev.map(c =>
             c.id === newMsg.chat_id
-              ? { ...c, lastMessage: newMsg.text || (newMsg.type === 'image' ? '📷' : newMsg.type === 'file' ? '📎' : ''), time: 'now', unread: c.unread + 1 }
+              ? {
+                  ...c,
+                  lastMessage: newMsg.text || (
+                    newMsg.type === 'image' ? '📷 Photo'
+                      : newMsg.type === 'file' ? '📎 File'
+                        : newMsg.type === 'voice' ? '🎤 Voice message'
+                          : ''
+                  ),
+                  time: 'now',
+                  unread: c.unread + 1,
+                }
               : c
           ));
         }
@@ -428,37 +485,59 @@ export function ChatPage() {
     return localIdCounter.current;
   };
 
-  const addMessage = async (chatId: string, msg: Partial<Message>) => {
+  const addMessage = async (chatId: string, msg: Partial<Message>): Promise<boolean> => {
     setSendError('');
-    const fileUrl = (msg as any).image || (msg as any).file?.url || (msg as any).voice || '';
+    const fileUrl = msg.image || msg.file?.url || msg.voice || '';
     const res = await fetch('/api/chat/messages', {
       method: 'POST', headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId, text: msg.text || '', type: msg.type || 'text', fileUrl, fileName: (msg as any).file?.name || '', fileSize: (msg as any).file?.size || '' }),
+      body: JSON.stringify({
+        chatId,
+        text: msg.text || '',
+        type: msg.type || 'text',
+        fileUrl,
+        fileName: msg.file?.name || '',
+        fileSize: msg.file?.size || '',
+      }),
     });
-    if (!res.ok) { setSendError('Failed to send message.'); console.error('Send error:', await res.text()); return; }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setSendError(body.error || 'Failed to send message.');
+      return false;
+    }
     const { message } = await res.json();
-    if (!message?.id) { setSendError('Failed to send message.'); return; }
+    if (!message?.id) {
+      setSendError('Failed to send message.');
+      return false;
+    }
     const newMsg: Message = {
       id: message.id, sender: 'You', text: msg.text || '',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true, reactions: [], readBy: 0, type: msg.type || 'text',
-      image: (msg as any).image,
-      file: (msg as any).file,
-      voice: (msg as any).voice,
-      duration: (msg as any).duration,
-      lat: (msg as any).lat,
-      lng: (msg as any).lng,
+      image: msg.image,
+      file: msg.file,
+      voice: msg.voice,
+      duration: msg.duration,
+      lat: msg.lat,
+      lng: msg.lng,
     };
-    const chatMessages = messagesMap[chatId] || [];
-    setMessagesMap({ ...messagesMap, [chatId]: [...chatMessages, newMsg] });
-    setChats(prev => prev.map(c => c.id === chatId ? { ...c, lastMessage: newMsg.text || (newMsg.type === 'image' ? '📷 Photo' : newMsg.type === 'file' ? '📎 File' : 'New message'), time: 'now' } : c));
+    setMessagesMap(prev => ({ ...prev, [chatId]: [...(prev[chatId] || []), newMsg] }));
+    setChats(prev => prev.map(c => c.id === chatId ? {
+      ...c,
+      lastMessage: newMsg.text || (
+        newMsg.type === 'image' ? '📷 Photo'
+          : newMsg.type === 'file' ? '📎 File'
+            : newMsg.type === 'voice' ? '🎤 Voice message'
+              : 'New message'
+      ),
+      time: 'now',
+    } : c));
+    return true;
   };
 
   const emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤩','🤔','🤨','😐','😑','😶','😏','😮','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤝','🙏','✌️','🤟','🤘','👌','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💗','💖','💘','💝','✨','🔥','⭐','🌟','💫','🎉','🎊','🎈','🎁','💯','✅','❌','❓','❗','🚀','💪','👀','🙈','🙉','🙊','💀','☠️','👋','✋','👌','🤏','👆','👇','👈','👉','👊','👋','👏','🙌','👐','🤲','🙏','💅','👂','👃','🧠','👁️','👅','👄','💋','👶','👦','👧','🧑','👩','👨','👴','👵','🤶','🎅','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🐪','🐫','🦒','🐃','🐄','🐎','🐖','🐏','🐑','🐕','🐩','🐈','🐇','🐁','🐀','🐿️','🦔','🐾','🐉','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','⭐','🌟','✨','⚡','💥','🔥','🌈','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','💨','💧','💦','☔','🌊','🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌽','🥕','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🥓','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🌮','🌯','🥗','🥘','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','☕','🍵','🥤','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾','🥄','🍴','🍽️','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🏒','🏑','🥍','🏏','⛳','🏹','🎣','🥊','🥋','🎯','🎮','🎲','🧩','🎭','🎨','🎪','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🎿','🏂','🥇','🥈','🥉','🏅','🏆','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','🚏','⛽','🚢','✈️','🛩️','🛫','🛬','💺','🚁','🚀','🛸','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗾','🏔️','⛰️','🌋','🗻','🏖️','🏜️','🏝️','🏞️','🗺️','🇩🇿','🇺🇸','🇬🇧','🇫🇷','🇪🇸','🇩🇪','🇮🇹','🇯🇵','🇨🇳','🇷🇺','🇧🇷','🇮🇳','🇦🇪','🇸🇦','🇲🇦','🇹🇳','🇪🇬']; // cleaned, no ZWJ sequences
 
   const handleSendMessage = async () => {
-    const div = inputRef.current as HTMLElement | null;
-    const text = div ? div.innerText.trim() : '';
+    const text = inputRef.current?.innerText.trim() || '';
     if (!text || !selectedChat) return;
     if (!currentUser) { console.error('Not logged in'); return; }
     const newMsg: Message = {
@@ -472,11 +551,33 @@ export function ChatPage() {
       replyTo: replyTo || undefined,
     };
     setSending(true);
-    await addMessage(selectedChat, newMsg);
-    if (inputRef.current) (inputRef.current as HTMLElement).innerHTML = '';
-    setReplyTo(null);
+    const sent = await addMessage(selectedChat, newMsg);
+    if (sent) {
+      if (inputRef.current) inputRef.current.innerHTML = '';
+      setReplyTo(null);
+    }
     setTimeout(() => setSending(false), 300);
     inputRef.current?.focus();
+  };
+
+  const insertEmoji = (emoji: string) => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    input.focus();
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : document.createRange();
+
+    if (!input.contains(range.commonAncestorContainer)) {
+      range.selectNodeContents(input);
+      range.collapse(false);
+    }
+
+    range.deleteContents();
+    range.insertNode(document.createTextNode(emoji));
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
   };
 
   const handleCopy = async (text: string) => {
@@ -573,81 +674,146 @@ export function ChatPage() {
 
   const startRecording = async () => {
     try {
-      if (!navigator.mediaDevices?.getUserMedia) { alert('Voice recording not supported in this browser'); return; }
+      if (!selectedChat || isRecording) return;
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+        setSendError('Voice recording is not supported in this browser.');
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4', ''];
+      mediaStreamRef.current = stream;
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const types = isSafari
+        ? ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']
+        : ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
       const mimeType = types.find(t => !t || MediaRecorder.isTypeSupported(t)) || '';
       const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
       mediaRecorderRef.current = mr;
       audioChunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recordingCancelledRef.current = false;
+      recordingChatIdRef.current = selectedChat;
+      setSendError('');
+
+      mr.ondataavailable = (e) => {
+        if (!recordingCancelledRef.current && e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
       mr.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        if (!selectedChat) return;
-        if (audioChunksRef.current.length === 0) return;
-        const blob = new Blob(audioChunksRef.current, { type: mimeType });
-        const dur = recordingTimeRef.current;
-        const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
-        const fileName = `${selectedChat}/voice_${Date.now()}.${ext}`;
-        const file = new File([blob], fileName, { type: mimeType });
-        const publicUrl = await uploadFile(file, fileName);
-        const url = publicUrl || URL.createObjectURL(blob);
-        const newMsg: Message = {
-          id: getNextId(),
-          sender: 'You',
-          text: `🎤 ${Math.floor(dur / 60)}:${(dur % 60).toString().padStart(2, '0')}`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isOwn: true,
-          type: 'voice',
-          voice: url,
-          duration: dur,
-        };
-        addMessage(selectedChat, newMsg);
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
         if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+
+        const cancelled = recordingCancelledRef.current;
+        const chatId = recordingChatIdRef.current;
+        const chunks = audioChunksRef.current;
+        const dur = Math.max(1, recordingTimeRef.current);
+        const recordedMimeType = mr.mimeType || chunks[0]?.type || mimeType || 'audio/webm';
+
+        audioChunksRef.current = [];
+        recordingChatIdRef.current = null;
         recordingTimeRef.current = 0;
         setRecordingTime(0);
         setIsRecording(false);
+
+        if (cancelled || !chatId || chunks.length === 0) return;
+
+        const blob = new Blob(chunks, { type: recordedMimeType });
+        const ext = recordedMimeType.includes('mp4') ? 'm4a' : recordedMimeType.includes('ogg') ? 'ogg' : 'webm';
+        const file = new File([blob], `voice_${Date.now()}.${ext}`, { type: recordedMimeType });
+        const publicUrl = await uploadFile(file, chatId, 'voice');
+        if (!publicUrl) return;
+
+        await addMessage(chatId, {
+          text: `🎤 ${Math.floor(dur / 60)}:${(dur % 60).toString().padStart(2, '0')}`,
+          type: 'voice',
+          voice: publicUrl,
+          duration: dur,
+        });
+      };
+      mr.onerror = () => {
+        recordingCancelledRef.current = true;
+        setSendError('The voice recording could not be completed.');
+        if (mr.state !== 'inactive') mr.stop();
       };
       mr.start(250);
       setIsRecording(true);
       recordingTimeRef.current = 0;
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => { recordingTimeRef.current += 1; setRecordingTime(recordingTimeRef.current); }, 1000);
-    } catch { alert('Microphone access denied. Allow microphone to record voice.'); }
+    } catch {
+      mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
+      mediaRecorderRef.current = null;
+      recordingChatIdRef.current = null;
+      audioChunksRef.current = [];
+      setIsRecording(false);
+      setSendError('Microphone access was denied. Allow microphone access and try again.');
+    }
   };
 
   const stopRecording = (cancelled = false) => {
+    recordingCancelledRef.current = cancelled;
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    recordingTimerRef.current = null;
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      if (cancelled) audioChunksRef.current = [];
       mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
   };
 
-  const uploadFile = async (file: File, path: string): Promise<string | null> => {
+  const uploadFile = async (
+    file: File,
+    chatId: string,
+    kind: 'voice' | 'image' | 'file',
+  ): Promise<string | null> => {
     try {
-      const { data, error } = await supabase.storage.from('chat-files').upload(path, file, { upsert: true });
-      if (error) {
-        if (error.message?.includes('bucket') || error.message?.includes('not found')) {
-          await supabase.storage.createBucket('chat-files', { public: true });
-          const { data: d2, error: e2 } = await supabase.storage.from('chat-files').upload(path, file, { upsert: true });
-          if (e2) return null;
-          const { data: url } = supabase.storage.from('chat-files').getPublicUrl(d2!.path);
-          return url.publicUrl;
-        }
+      const res = await fetch('/api/chat/upload', {
+        method: 'POST',
+        headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId,
+          kind,
+          fileName: file.name,
+          contentType: file.type,
+          fileSize: file.size,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.path || !data.token) {
+        setSendError(data.error || 'File upload failed.');
         return null;
       }
-      const { data: url } = supabase.storage.from('chat-files').getPublicUrl(data!.path);
-      return url.publicUrl;
-    } catch { return null; }
+
+      const { error } = await supabase.storage
+        .from('chat-files')
+        .uploadToSignedUrl(data.path, data.token, file, {
+          cacheControl: '3600',
+          contentType: file.type || 'application/octet-stream',
+        });
+      if (error) {
+        setSendError(error.message || 'File upload failed.');
+        return null;
+      }
+
+      const { data: publicUrl } = supabase.storage.from('chat-files').getPublicUrl(data.path);
+      return publicUrl.publicUrl;
+    } catch {
+      setSendError('File upload failed.');
+      return null;
+    }
   };
 
   const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedChat || !e.target.files?.[0]) return;
     const f = e.target.files[0];
     const size = f.size > 1024 * 1024 ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : `${(f.size / 1024).toFixed(0)} KB`;
-    const path = `${selectedChat}/${Date.now()}_${f.name}`;
-    const publicUrl = await uploadFile(f, path);
+    const publicUrl = await uploadFile(f, selectedChat, 'file');
+    if (!publicUrl) {
+      e.target.value = '';
+      return;
+    }
     const newMsg: Message = {
       id: getNextId(),
       sender: 'You',
@@ -655,18 +821,20 @@ export function ChatPage() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'file',
-      file: { name: f.name, size, url: publicUrl || URL.createObjectURL(f) },
+      file: { name: f.name, size, url: publicUrl },
     };
-    addMessage(selectedChat, newMsg);
+    await addMessage(selectedChat, newMsg);
     e.target.value = '';
   };
 
   const handleImagePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedChat || !e.target.files?.[0]) return;
     const f = e.target.files[0];
-    const path = `${selectedChat}/${Date.now()}_${f.name}`;
-    const publicUrl = await uploadFile(f, path);
-    const url = publicUrl || URL.createObjectURL(f);
+    const publicUrl = await uploadFile(f, selectedChat, 'image');
+    if (!publicUrl) {
+      e.target.value = '';
+      return;
+    }
     const newMsg: Message = {
       id: getNextId(),
       sender: 'You',
@@ -674,9 +842,9 @@ export function ChatPage() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
       type: 'image',
-      image: url,
+      image: publicUrl,
     };
-    addMessage(selectedChat, newMsg);
+    await addMessage(selectedChat, newMsg);
     e.target.value = '';
   };
 
@@ -688,11 +856,6 @@ export function ChatPage() {
   const messages = selectedChat ? messagesMap[selectedChat] || [] : [];
 
   const reactionEmojis = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
-  
-  // Helper to render emoji with Apple style
-  const renderAppleEmoji = (emoji: string, className = '') => (
-    <span className={className} dangerouslySetInnerHTML={{ __html: parseEmoji(emoji) }} />
-  );
 
   return (
     <div className="flex flex-1 min-h-0 bg-background overflow-hidden overflow-x-hidden">
@@ -1155,7 +1318,7 @@ export function ChatPage() {
                       <button onClick={() => handleForward(msg)} className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground">
                         <Forward size={12} /> Forward
                       </button>
-                      {msg.isOwn && (
+                      {(msg.isOwn || currentUser?.role === 'admin') && (
                         <button onClick={() => handleDelete(selectedChat!, msg.id)}
                           className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-destructive/10 transition text-destructive">
                           <Trash2 size={12} /> Delete
@@ -1216,39 +1379,30 @@ export function ChatPage() {
                   <Smile size={20} />
                 </button>
                 {showEmoji && (
-                  <div className="absolute bottom-10 left-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-2 w-72 max-h-72 overflow-hidden">
-                    <div className="flex gap-0.5 mb-1 pb-1 border-b border-border">
+                  <div className="absolute bottom-10 left-0 z-50 bg-card/95 backdrop-blur-xl border border-border rounded-[22px] shadow-2xl p-2.5 w-72 max-h-80 overflow-hidden">
+                    <div className="flex items-center justify-between px-1 pb-2">
+                      <p className="text-xs font-semibold text-foreground">iOS Emoji</p>
+                      <span className="text-[10px] text-muted-foreground">Tap to insert</span>
+                    </div>
+                    <div className="flex gap-0.5 mb-1.5 pb-1.5 border-b border-border">
                       {emojiTabs.map((t, i) => (
-                        <button key={i} onClick={() => setEmojiTab(i)}
-                          className={`flex-1 text-center py-1 text-sm rounded-lg transition ${emojiTab === i ? 'bg-primary/10 scale-110' : 'hover:bg-secondary'}`}
+                        <button
+                          key={i}
+                          aria-label={`Emoji category ${i + 1}`}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => setEmojiTab(i)}
+                          className={`flex-1 text-center py-1.5 text-sm rounded-xl transition ${emojiTab === i ? 'bg-primary/15 scale-105 shadow-sm' : 'hover:bg-secondary'}`}
                           dangerouslySetInnerHTML={{ __html: parseEmoji(t.id) }} />
                       ))}
                     </div>
-                    <div className="flex flex-wrap gap-0.5 max-h-52 overflow-y-auto">
+                    <div className="grid grid-cols-8 gap-0.5 max-h-56 overflow-y-auto overscroll-contain pr-0.5">
                       {emojiTabs[emojiTab].emojis.map((emoji, i) => (
-                        <button key={i} onClick={() => {
-                          const div = inputRef.current;
-                          if (!div) return;
-                          div.focus();
-                          const sel = window.getSelection();
-                          if (!sel) return;
-                          if (!sel.rangeCount) {
-                            const range = document.createRange();
-                            range.selectNodeContents(div);
-                            range.collapse(false);
-                            sel.addRange(range);
-                          }
-                          const range = sel.getRangeAt(0);
-                          // Insert the plain emoji text to ensure consistency
-                          const textNode = document.createTextNode(emoji);
-                          range.deleteContents();
-                          range.insertNode(textNode);
-                          range.setStartAfter(textNode);
-                          range.collapse(true);
-                          sel.removeAllRanges();
-                          sel.addRange(range);
-                        }}
-                          className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-lg transition"
+                        <button
+                          key={`${emoji}-${i}`}
+                          aria-label={`Insert ${emoji}`}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => insertEmoji(emoji)}
+                          className="w-8 h-8 flex items-center justify-center text-lg hover:bg-secondary rounded-xl transition active:scale-90"
                           dangerouslySetInnerHTML={{ __html: parseEmoji(emoji) }} />
                       ))}
                     </div>
@@ -1261,9 +1415,11 @@ export function ChatPage() {
                 </div>
               )}
               <div className="flex-1 relative">
-                <div ref={inputRef as any} contentEditable
+                <div ref={inputRef} contentEditable
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
                   data-placeholder="Message..."
+                  role="textbox"
+                  aria-label="Message"
                   className="w-full px-3 py-2.5 text-sm rounded-xl bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 whitespace-pre-wrap break-words max-h-32 overflow-y-auto"
                 />
               </div>

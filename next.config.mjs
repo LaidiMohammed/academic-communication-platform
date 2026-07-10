@@ -3,7 +3,7 @@ const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel.live",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' blob: data: https://api.dicebear.com https://*.supabase.co",
+  "img-src 'self' blob: data: https://api.dicebear.com https://cdn.jsdelivr.net https://*.supabase.co",
   "font-src 'self' data: https://fonts.gstatic.com",
   "connect-src 'self' https://*.supabase.co https://pay.chargily.net https://api.groq.com wss://*.supabase.co",
   "frame-src 'self' https://pay.chargily.dz https://pay.chargily.net",
