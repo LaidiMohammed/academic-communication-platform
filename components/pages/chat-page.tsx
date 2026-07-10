@@ -862,8 +862,8 @@ export function ChatPage() {
     <div className="flex flex-1 min-h-0 bg-background overflow-hidden overflow-x-hidden">
       <style>{`.emoji-tw{display:inline;height:1em;width:1em;vertical-align:-0.15em;object-fit:contain;}`}</style>
       {/* Chat List - hides on mobile when a chat is selected */}
-      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-x-hidden max-w-full relative`}>
-        <div className="p-3 border-b border-border relative">
+      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-y-auto overflow-x-hidden max-w-full relative`}>
+        <div className="p-3 border-b border-border relative sticky top-0 z-10 bg-card">
           <h2 className="text-lg font-bold text-foreground mb-2">Messages</h2>
           <div className="flex gap-1 mb-2 bg-secondary rounded-lg p-0.5">
             <button onClick={() => { setChatMode('individual'); setSelectedChat(null); setExpandedMessage(null); }}
@@ -990,7 +990,7 @@ export function ChatPage() {
             )}
           </AnimatePresence>
         </div>
-        <div className="flex-1 overflow-y-auto relative">
+        <div className="flex-1 relative">
           {filteredChats.map(chat => (
             <motion.div
               key={chat.id}
@@ -1154,7 +1154,7 @@ export function ChatPage() {
         <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col bg-card overflow-hidden relative min-w-0">
           {/* Header */}
-          <div className="border-b border-border px-3 py-2.5 flex items-center justify-between shrink-0 bg-card/80 backdrop-blur-sm">
+          <div className="border-b border-border px-3 py-2.5 flex items-center justify-between shrink-0 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
             <div className="flex items-center gap-3">
               <button onClick={() => setSelectedChat(null)} className="md:hidden p-1 -ml-1 rounded-lg hover:bg-secondary transition text-foreground">
                 <ChevronDown size={18} className="rotate-90" />
