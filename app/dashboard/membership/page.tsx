@@ -3,42 +3,39 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  CreditCard, Check, QrCode, Shield, Zap, BookOpen, Star,
+  CreditCard, Check, QrCode, Shield, BookOpen, Star,
   ChevronRight, Calendar, Users, RefreshCw, Crown, Sparkles,
-  Clock, AlertCircle, CheckCircle2, Download
+  Clock, AlertCircle, CheckCircle2, Download, Plus, X,
+  GraduationCap, Filter,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { createClient } from '@/lib/supabase';
 
 /* ── QR Code display ── */
-function MemberQRCode({ userId, name, email, plan, isActive }: {
-  userId: string; name: string; email: string; plan: string; isActive: boolean;
+function MemberQRCode({ userId, name, email, level, subjects, sessionsLeft }: {
+  userId: string; name: string; email: string; level: string; subjects: string[]; sessionsLeft: number;
 }) {
-  const qrData = JSON.stringify({ userId, name, email, plan, isActive, ts: Date.now() });
+  const qrData = JSON.stringify({ userId, name, email, level, subjects, sessionsLeft, ts: Date.now() });
   const canvasRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative">
-        <div className={`p-4 rounded-2xl border-2 ${isActive ? 'border-green-500/40 bg-green-500/5' : 'border-red-500/40 bg-red-500/5'}`}>
-          {/* QR using CSS art since qrcode.react may not be configured */}
+        <div className="p-4 rounded-2xl border-2 border-green-500/40 bg-green-500/5">
           <div className="relative w-48 h-48 bg-white rounded-xl overflow-hidden flex items-center justify-center shadow-xl">
-            {/* We render a simple data-encoded pattern using canvas-like approach */}
             <QRCodeCanvas value={qrData} size={176} />
           </div>
         </div>
-        {/* Status badge */}
-        <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg ${
-          isActive ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        }`}>
-          {isActive ? <CheckCircle2 size={11} /> : <AlertCircle size={11} />}
-          {isActive ? 'ACTIVE' : 'INACTIVE'}
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg bg-green-500 text-white">
+          <CheckCircle2 size={11} /> ACTIVE
         </div>
       </div>
 
       <div className="text-center">
         <p className="text-sm font-bold text-foreground">{name}</p>
         <p className="text-xs text-muted-foreground">{email}</p>
-        <p className="text-xs text-blue-400 font-semibold mt-1">Plan: {plan}</p>
+        <p className="text-xs text-blue-400 font-semibold mt-1">Niveau: {level}</p>
+        <p className="text-xs text-emerald-400 font-semibold">Séances restantes: {sessionsLeft}/4</p>
       </div>
 
       <button
@@ -65,19 +62,13 @@ function QRCodeCanvas({ value, size }: { value: string; size: number }) {
 
   useEffect(() => {
     if (!ref.current) return;
-    // Dynamically import qrcode.react canvas
     import('qrcode.react').then(({ QRCodeCanvas: QRC }) => {
-      // Already rendered via JSX below
     }).catch(() => {});
   }, [value]);
 
   return (
     <div ref={ref} className="flex items-center justify-center w-full h-full">
-      <div
-        className="flex items-center justify-center"
-        style={{ width: size, height: size }}
-      >
-        {/* Inline QR generation using canvas API */}
+      <div className="flex items-center justify-center" style={{ width: size, height: size }}>
         <QRCanvasDirect value={value} size={size} />
       </div>
     </div>
@@ -90,8 +81,6 @@ function QRCanvasDirect({ value, size }: { value: string; size: number }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    // Simple QR-like pattern using hash of value
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -101,7 +90,6 @@ function QRCanvasDirect({ value, size }: { value: string; size: number }) {
     const cellSize = Math.floor(size / 25);
     const cells = 25;
 
-    // Generate pseudo-random pattern based on string hash
     let hash = 0;
     for (let i = 0; i < value.length; i++) {
       hash = ((hash << 5) - hash) + value.charCodeAt(i);
@@ -110,10 +98,8 @@ function QRCanvasDirect({ value, size }: { value: string; size: number }) {
 
     ctx.fillStyle = '#000000';
 
-    // Draw cells
     for (let r = 0; r < cells; r++) {
       for (let c = 0; c < cells; c++) {
-        // Corner finder patterns
         const inTL = r < 7 && c < 7;
         const inTR = r < 7 && c >= cells - 7;
         const inBL = r >= cells - 7 && c < 7;
@@ -121,16 +107,13 @@ function QRCanvasDirect({ value, size }: { value: string; size: number }) {
         if (inTL || inTR || inBL) {
           const lr = inTL ? r : inTR ? r : r - (cells - 7);
           const lc = inTL ? c : inTR ? c - (cells - 7) : c;
-          // Outer border
           if (lr === 0 || lr === 6 || lc === 0 || lc === 6) {
             ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
           }
-          // Inner square
           if (lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4) {
             ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
           }
         } else {
-          // Data area - use hash to determine filled/empty
           const seed = (r * cells + c + Math.abs(hash)) % 31;
           const bitVal = (Math.abs(hash) >> (seed % 30)) & 1;
           const extra = ((r + c + Math.abs(hash >> 8)) % 3) === 0 ? 1 : 0;
@@ -141,8 +124,8 @@ function QRCanvasDirect({ value, size }: { value: string; size: number }) {
       }
     }
 
-    // Draw alignment pattern (center)
     const cp = Math.floor(cells / 2);
+    ctx.fillStyle = '#000000';
     for (let r = cp - 2; r <= cp + 2; r++) {
       for (let c = cp - 2; c <= cp + 2; c++) {
         if (r === cp - 2 || r === cp + 2 || c === cp - 2 || c === cp + 2 || (r === cp && c === cp)) {
@@ -159,105 +142,120 @@ function QRCanvasDirect({ value, size }: { value: string; size: number }) {
   return <canvas ref={canvasRef} width={size} height={size} style={{ imageRendering: 'pixelated' }} />;
 }
 
-/* ── Plan card ── */
-function PlanCard({
-  title, price, period, desc, features, highlight, current, badge, onSelect, color,
-}: {
-  title: string; price: string; period: string; desc: string; features: string[];
-  highlight: boolean; current: boolean; badge?: string; onSelect: () => void; color: string;
-}) {
+/* ── Subject tag ── */
+function SubjectTag({ label, onRemove }: { label: string; onRemove?: () => void }) {
   return (
-    <motion.div
-      whileHover={{ y: -4, scale: 1.01 }}
-      className={`relative rounded-2xl border p-6 flex flex-col gap-4 transition-all duration-300 ${
-        highlight
-          ? `border-2 ${color.replace('text-', 'border-').replace('400', '500/50')} bg-gradient-to-br from-blue-500/10 to-cyan-500/5`
-          : 'border-border/50 bg-card/40 hover:border-border'
-      }`}
-    >
-      {badge && (
-        <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-bold text-white shadow-lg ${
-          badge === 'POPULAR' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'
-        }`}>
-          {badge === 'POPULAR' ? '⭐ Most Popular' : badge}
-        </div>
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-full text-xs font-semibold">
+      {label}
+      {onRemove && (
+        <button onClick={onRemove} className="hover:text-red-400 transition">
+          <X size={12} />
+        </button>
       )}
-
-      {current && (
-        <div className="absolute -top-3 right-4 px-3 py-1 bg-green-500 text-white text-[10px] font-bold rounded-full">
-          ✓ Current Plan
-        </div>
-      )}
-
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Crown size={16} className={color} />
-          <h3 className="font-bold text-foreground">{title}</h3>
-        </div>
-        <p className="text-xs text-muted-foreground">{desc}</p>
-      </div>
-
-      <div className="flex items-baseline gap-1">
-        <span className={`text-3xl font-black ${color}`}>{price}</span>
-        <span className="text-sm text-muted-foreground">{period}</span>
-      </div>
-
-      <ul className="space-y-2 flex-1">
-        {features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-sm">
-            <Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
-            <span className="text-foreground/80">{f}</span>
-          </li>
-        ))}
-      </ul>
-
-      <button
-        onClick={onSelect}
-        className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
-          current
-            ? 'bg-green-500/10 border border-green-500/30 text-green-400 cursor-default'
-            : highlight
-            ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40'
-            : 'bg-secondary border border-border hover:bg-blue-500/10 hover:border-blue-500/30 hover:text-blue-400 text-foreground'
-        }`}
-      >
-        {current ? '✓ Active Plan' : 'Choose Plan'}
-      </button>
-    </motion.div>
+    </span>
   );
 }
+
+/* ── Pricing ── */
+function getSubjectPrice(levelId: string, subjectId: string): number {
+  if (levelId === 'particulier') return 9000;
+  if (['1am', '2am', '3am'].includes(levelId)) return 2500;
+  if (levelId === '3as' && ['mathematics', 'physics', 'biology'].includes(subjectId)) return 4000;
+  if (levelId === 'test') return 100;
+  return 3000;
+}
+function getLevelBasePrice(levelId: string): number {
+  if (levelId === 'particulier') return 9000;
+  if (['1am', '2am', '3am'].includes(levelId)) return 2500;
+  if (levelId === 'test') return 100;
+  return 3000;
+}
+
+const LEVELS = [
+  { id: '1am', label: '1AM', ar: 'السنة الأولى متوسط', color: 'from-green-500 to-teal-500', icon: '📚' },
+  { id: '2am', label: '2AM', ar: 'السنة الثانية متوسط', color: 'from-emerald-500 to-cyan-500', icon: '📖' },
+  { id: '3am', label: '3AM', ar: 'السنة الثالثة متوسط', color: 'from-teal-500 to-blue-500', icon: '📝' },
+  { id: 'bem', label: 'BEM', ar: 'الرابعة متوسط', color: 'from-emerald-500 to-teal-500', icon: '🎓' },
+  { id: '1as', label: '1AS', ar: 'السنة الأولى ثانوي', color: 'from-blue-500 to-cyan-500', icon: '📚' },
+  { id: '2as', label: '2AS', ar: 'السنة الثانية ثانوي', color: 'from-violet-500 to-purple-500', icon: '📖' },
+  { id: '3as', label: '3AS', ar: 'السنة الثالثة ثانوي', color: 'from-amber-500 to-orange-500', icon: '📝' },
+  { id: 'bac', label: 'BAC', ar: 'شهادة البكالوريا', color: 'from-rose-500 to-red-500', icon: '🏆' },
+  { id: 'particulier', label: 'خاص', ar: 'دروس خصوصية فردية', color: 'from-purple-500 to-pink-500', icon: '👤' },
+  { id: 'test', label: 'Test', ar: 'دفع تجريبي', color: 'from-gray-500 to-slate-500', icon: '🧪' },
+];
+
+const ALL_SUBJECTS = [
+  { id: 'mathematics', label: 'Mathematics', ar: 'الرياضيات', icon: '📐' },
+  { id: 'physics', label: 'Physics', ar: 'العلوم الفيزيائية', icon: '⚡' },
+  { id: 'chemistry', label: 'Chemistry', ar: 'الكيمياء', icon: '🧪' },
+  { id: 'biology', label: 'Biology', ar: 'علوم الطبيعة والحياة', icon: '🧬' },
+  { id: 'english', label: 'English', ar: 'الإنجليزية', icon: '📝' },
+  { id: 'french', label: 'French', ar: 'اللغة الفرنسية', icon: '📖' },
+  { id: 'arabic', label: 'Arabic', ar: 'اللغة العربية', icon: '📗' },
+  { id: 'history', label: 'History', ar: 'التاريخ والجغرافيا', icon: '🏛️' },
+  { id: 'islamic', label: 'Islamic Education', ar: 'التربية الإسلامية', icon: '☪️' },
+  { id: 'civic', label: 'Civic Education', ar: 'التربية المدنية', icon: '🤝' },
+];
 
 /* ── Main Page ── */
 export default function MembershipPage() {
   const { user } = useAuth();
-  const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
-  const [currentPlan, setCurrentPlan] = useState('monthly');
-  const [showQR, setShowQR] = useState(false);
+  const [step, setStep] = useState<'plans' | 'subjects' | 'exists'>('plans');
+  const [selectedLevel, setSelectedLevel] = useState<any>(null);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const isActive = true;
+  const [membership, setMembership] = useState<any>(null);
+  const [loadingMembership, setLoadingMembership] = useState(true);
 
-  const handlePayment = async (plan: any) => {
-    if (plan.id === 'free') {
-      setCurrentPlan('free');
+  useEffect(() => {
+    if (!user) return;
+    setLoadingMembership(true);
+    const supabase = createClient();
+    supabase.from('memberships').select('*').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+      if (data) {
+        setMembership(data);
+        setStep('exists');
+      }
+      setLoadingMembership(false);
+    });
+  }, [user]);
+
+  const handleSelectLevel = (level: any) => {
+    setSelectedLevel(level);
+    setSelectedSubjects([]);
+    setStep('subjects');
+  };
+
+  const toggleSubject = (subjectId: string) => {
+    setSelectedSubjects(prev =>
+      prev.includes(subjectId)
+        ? prev.filter(s => s !== subjectId)
+        : [...prev, subjectId]
+    );
+  };
+
+  const handlePayment = async () => {
+    if (selectedSubjects.length === 0) {
+      alert('الرجاء اختيار مادة واحدة على الأقل');
       return;
     }
-
-    if (!user) { alert('Please log in first'); return; }
+    if (!user) { alert('الرجاء تسجيل الدخول أولاً'); return; }
 
     setIsProcessing(true);
     try {
-      const amountStr = plan.price.replace(/\s?DA/g, '').replace(/\s/g, '');
-      const amount = parseInt(amountStr.replace(/[^0-9]/g, ''), 10) || 0;
-
+      const totalAmount = selectedSubjects.reduce((sum, s) => sum + getSubjectPrice(selectedLevel.id, s), 0);
       const res = await fetch('/api/payments/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          planId: plan.id,
-          planTitle: plan.title,
-          amount,
-          isYearly: billing === 'yearly',
+          planId: selectedLevel.id,
+          planTitle: `${selectedLevel.label} - ${selectedSubjects.length} matière(s)`,
+          amount: totalAmount,
+          isYearly: false,
+          level: selectedLevel.label,
+          subjects: selectedSubjects,
+          subjectCount: selectedSubjects.length,
         }),
       });
 
@@ -268,99 +266,11 @@ export default function MembershipPage() {
         window.location.href = data.checkout_url;
       }
     } catch (err: any) {
-      alert('Payment error: ' + err.message);
+      alert('خطأ في الدفع: ' + err.message);
     } finally {
       setIsProcessing(false);
     }
   };
-
-  const plans = [
-    {
-      id: 'all_levels',
-      title: 'Tous Niveaux',
-      price: billing === 'monthly' ? '2 500 DA' : '25 000 DA',
-      period: billing === 'monthly' ? '/mois' : '/an',
-      desc: 'Accès complet à tous les niveaux et matières.',
-      features: [
-        'Tous les niveaux (1AS, 2AS, 3AS)',
-        'Cours, exercices & examens',
-        'Chat & groupes en temps réel',
-        'Assistant IA (50 msg/jour)',
-        'Réunions de classe virtuelles',
-        'Accès professeurs',
-      ],
-      highlight: false,
-      color: 'text-blue-400',
-    },
-    {
-      id: '1as_2as',
-      title: '1AS & 2AS',
-      price: billing === 'monthly' ? '3 000 DA' : '30 000 DA',
-      period: billing === 'monthly' ? '/mois' : '/an',
-      desc: 'Spécial 1ère et 2ème année secondaire.',
-      features: [
-        'Toutes les matières 1AS & 2AS',
-        'Cours & exercices ciblés',
-        'Chat & groupes',
-        'Assistant IA (100 msg/jour)',
-        'Suivi personnalisé',
-      ],
-      highlight: true,
-      badge: 'POPULAR',
-      color: 'text-emerald-400',
-    },
-    {
-      id: 'math_phys_sci',
-      title: '3AS Maths/Physique/Sciences',
-      price: '4 000 DA',
-      period: '/mois',
-      desc: 'Préparation BAC - Mathématiques, Physique & Sciences.',
-      features: [
-        'Mathématiques expert',
-        'Physique approfondie',
-        'Sciences naturelles',
-        'Annales BAC corrigées',
-        'Assistant IA illimité',
-        'Séances de révision live',
-      ],
-      highlight: false,
-      badge: '🎯 BAC',
-      color: 'text-amber-400',
-    },
-    {
-      id: 'particulier',
-      title: 'Particulier',
-      price: '9 000 DA',
-      period: '/an',
-      desc: 'Cours particulier avec un professeur dédié.',
-      features: [
-        '1 matière au choix',
-        'Professeur dédié',
-        'Groupe privé',
-        'Exercices personnalisés',
-        'Rapport mensuel',
-        'Certificat de fin',
-      ],
-      highlight: false,
-      badge: '🎯 Sur mesure',
-      color: 'text-violet-400',
-    },
-    {
-      id: 'free',
-      title: 'Gratuit',
-      price: '0 DA',
-      period: '',
-      desc: 'Accès limité pour découvrir la plateforme.',
-      features: [
-        '5 leçons par mois',
-        'Groupes consultation seule',
-        'Assistant IA (5 msg/jour)',
-        'Profil de base',
-      ],
-      highlight: false,
-      color: 'text-muted-foreground',
-    },
-  ];
 
   const stagger = (i: number) => ({
     initial: { opacity: 0, y: 20 },
@@ -368,162 +278,415 @@ export default function MembershipPage() {
     transition: { delay: i * 0.07, duration: 0.5, ease: [0.16, 1, 0.3, 1] as any },
   });
 
-  return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+  if (loadingMembership) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
 
-      {/* ── Header ── */}
-      <motion.div {...stagger(0)} className="text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-xs font-bold mb-4">
-          <CreditCard size={13} /> Membership & Billing
-        </div>
-        <h1 className="text-3xl font-black text-foreground mb-2">Choose Your Plan</h1>
-        <p className="text-muted-foreground text-sm max-w-lg mx-auto">
-          Unlock the full Bendella School experience. Cancel anytime.
-        </p>
+  /* ── Already has membership ── */
+  if (step === 'exists' && membership) {
+    const subjects: string[] = membership.subjects || [];
+    const sessionsLeft = (membership.sessions_total || 4) - (membership.sessions_used || 0);
+    const expiresAt = membership.expires_at ? new Date(membership.expires_at) : null;
+    const daysLeft = expiresAt ? Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
 
-        {/* Billing toggle */}
-        <div className="inline-flex items-center gap-3 mt-5 p-1 bg-secondary rounded-xl border border-border">
-          <button
-            onClick={() => setBilling('monthly')}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
-              billing === 'monthly' ? 'bg-blue-500 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setBilling('yearly')}
-            className={`px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
-              billing === 'yearly' ? 'bg-blue-500 text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Yearly
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-green-500/20 text-green-400">-20%</span>
-          </button>
-        </div>
-      </motion.div>
-
-      {/* ── Plans Grid ── */}
-      <motion.div {...stagger(1)} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {plans.map((plan, i) => (
-          <PlanCard
-            key={plan.id}
-            {...plan}
-            current={currentPlan === plan.id}
-            onSelect={() => !isProcessing && handlePayment(plan)}
-          />
-        ))}
-      </motion.div>
-
-      {/* ── Current status + QR ── */}
-      <motion.div {...stagger(2)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Billing status */}
-        <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-6 rounded-full bg-gradient-to-b from-green-400 to-emerald-400" />
-            <h3 className="font-bold text-foreground">Current Subscription</h3>
+    return (
+      <div className="max-w-4xl mx-auto space-y-8 pb-16">
+        <motion.div {...stagger(0)} className="text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full text-green-400 text-xs font-bold mb-4">
+            <CheckCircle2 size={13} /> اشتراك نشط
           </div>
+          <h1 className="text-3xl font-black text-foreground mb-2">اشتراكي</h1>
+          <p className="text-muted-foreground text-sm max-w-lg mx-auto">
+            تفاصيل اشتراكك في مدرسة بن دلة.
+          </p>
+        </motion.div>
 
-          <div className={`flex items-center gap-3 p-3 rounded-xl ${
-            isActive ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'
-          }`}>
-            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isActive ? 'bg-green-400' : 'bg-red-400'} shadow-lg`} />
+        <motion.div {...stagger(1)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-6 rounded-full bg-gradient-to-b from-green-400 to-emerald-400" />
+              <h3 className="font-bold text-foreground">تفاصيل الاشتراك</h3>
+            </div>
+
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+              <div className="w-3 h-3 rounded-full bg-green-400 shadow-lg flex-shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-green-400">نشط</p>
+                <p className="text-xs text-muted-foreground">ينتهي: {expiresAt?.toLocaleDateString('ar-DZ') || '—'}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <GraduationCap size={13} /> المستوى
+                </div>
+                <span className="font-semibold text-foreground">{membership.level || '—'}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <BookOpen size={13} /> المواد
+                </div>
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {subjects.map((s: string) => {
+                    const subj = ALL_SUBJECTS.find(x => x.id === s);
+                    return <SubjectTag key={s} label={subj?.ar || s} />;
+                  })}
+                  {subjects.length === 0 && <span className="text-muted-foreground">—</span>}
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar size={13} /> الحصص
+                </div>
+                <span className="font-semibold text-foreground">{sessionsLeft}/4 متبقية</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock size={13} /> الأيام المتبقية
+                </div>
+                <span className="font-semibold text-foreground">{daysLeft} يوم</span>
+              </div>
+            </div>
+
             <div>
-              <p className={`text-sm font-bold ${isActive ? 'text-green-400' : 'text-red-400'}`}>
-                {isActive ? 'Active — Monthly Access' : 'Inactive — Payment Required'}
-              </p>
-              <p className="text-xs text-muted-foreground">Renews: 26 July 2026</p>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>استخدام الحصص هذا الشهر</span>
+                <span>{membership.sessions_used || 0} / {membership.sessions_total || 4}</span>
+              </div>
+              <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-green-400 to-emerald-400 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, ((membership.sessions_used || 0) / (membership.sessions_total || 4)) * 100)}%` }}
+                />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 flex flex-col items-center gap-4">
+            <div className="flex items-center gap-2 w-full">
+              <div className="w-2 h-6 rounded-full bg-gradient-to-b from-blue-400 to-violet-400" />
+              <h3 className="font-bold text-foreground">رمز العضوية QR</h3>
+            </div>
+            <p className="text-xs text-muted-foreground text-center w-full">
+              أظهر هذا الرمز للمشرف للتحقق من عضويتك وتسجيل الحصة.
+            </p>
+            <MemberQRCode
+              userId={user?.id || 'unknown'}
+              name={user?.name || 'Student'}
+              email={user?.email || ''}
+              level={membership.level || ''}
+              subjects={subjects}
+              sessionsLeft={sessionsLeft}
+            />
+          </div>
+        </motion.div>
+
+        <motion.div {...stagger(2)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6">
+          <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+            <Shield size={16} className="text-blue-400" /> معلومات الحصص
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
-              { label: 'Plan', value: 'Monthly Access', icon: Crown },
-              { label: 'Amount', value: '3 000 DA / month', icon: CreditCard },
-              { label: 'Start Date', value: '26 June 2026', icon: Calendar },
-              { label: 'Next Billing', value: '26 July 2026', icon: RefreshCw },
-              { label: 'Days Remaining', value: '30 days', icon: Clock },
-            ].map(({ label, value, icon: Icon }) => (
-              <div key={label} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Icon size={13} />
-                  {label}
-                </div>
-                <span className="font-semibold text-foreground">{value}</span>
+              { q: 'كم حصة شهرياً؟', a: 'تحصل على 4 حصص شهرياً. كل حصة مدتها ساعة مع أستاذ.' },
+              { q: 'كيف يتم خصم الحصص؟', a: 'المشرف يمسح رمز QR الخاص بك في بداية كل حصة.' },
+              { q: 'ماذا لو نفدت الحصص؟', a: 'يمكنك شراء حصص إضافية أو انتظار تجديد الشهر القادم.' },
+              { q: 'متى تتجدد الحصص؟', a: 'الحصص تتجدد كل شهر في تاريخ اشتراكك.' },
+            ].map((item) => (
+              <div key={item.q} className="p-4 bg-secondary/50 rounded-xl">
+                <p className="text-sm font-semibold text-foreground mb-1">{item.q}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{item.a}</p>
               </div>
             ))}
           </div>
+        </motion.div>
+      </div>
+    );
+  }
 
-          <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition">
-            <RefreshCw size={14} /> Manage Subscription
-          </button>
-        </div>
-
-        {/* QR Code */}
-        <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 flex flex-col items-center gap-4">
-          <div className="flex items-center gap-2 w-full">
-            <div className="w-2 h-6 rounded-full bg-gradient-to-b from-blue-400 to-violet-400" />
-            <h3 className="font-bold text-foreground">Your Member QR Code</h3>
+  /* ── Level Selection ── */
+  if (step === 'plans') {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8 pb-16">
+        <motion.div {...stagger(0)} className="text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-xs font-bold mb-4">
+            <CreditCard size={13} /> الاشتراك والدفع
           </div>
-
-          <p className="text-xs text-muted-foreground text-center w-full">
-            Show this to an admin to verify your membership status instantly.
+          <h1 className="text-3xl font-black text-foreground mb-2">اختر مستواك الدراسي</h1>
+          <p className="text-muted-foreground text-sm max-w-lg mx-auto">
+            اختر مستواك ثم اختر المواد التي تريدها. كل شهر يتضمن <strong>4 حصص</strong>.
           </p>
+        </motion.div>
 
-          <MemberQRCode
-            userId={user?.id || 'unknown'}
-            name={user?.name || 'Student'}
-            email={user?.email || ''}
-            plan={currentPlan === 'monthly' ? 'Monthly 3 000 DA' : currentPlan === 'course' ? 'Course 8 000 DA' : 'Free'}
-            isActive={isActive}
-          />
-        </div>
-      </motion.div>
-
-      {/* ── Yearly offer banner ── */}
-      <motion.div {...stagger(3)}>
-        <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-amber-500/10 p-6">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.08),transparent_70%)]" />
-          <div className="relative flex flex-col md:flex-row items-center gap-4">
-            <div className="flex-shrink-0">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center">
-                <Sparkles size={28} className="text-amber-400" />
-              </div>
-            </div>
-            <div className="flex-1 text-center md:text-left">
-              <h3 className="font-black text-foreground text-lg">🎉 Annual Offer — Save 20%!</h3>
-              <p className="text-sm text-muted-foreground">
-                Pay once for the full year and save <strong className="text-amber-400">7 200 DA</strong>.
-                That's <strong className="text-amber-400">28 800 DA</strong> instead of 36 000 DA.
-              </p>
-            </div>
-            <button
-              onClick={() => { setBilling('yearly'); setCurrentPlan('monthly'); }}
-              className="flex-shrink-0 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all text-sm"
+        <motion.div {...stagger(1)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {LEVELS.map((level, i) => (
+            <motion.div
+              key={level.id}
+              whileHover={{ y: -4, scale: 1.01 }}
+              className="relative rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 flex flex-col gap-4 cursor-pointer hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300"
+              onClick={() => handleSelectLevel(level)}
             >
-              Activate Yearly <ChevronRight size={14} />
-            </button>
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${level.color} flex items-center justify-center text-2xl shadow-lg`}>
+                  {level.icon}
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground text-lg">{level.label}</h3>
+                  <p className="text-xs text-muted-foreground">{level.ar}</p>
+                </div>
+              </div>
+              <div className="flex items-baseline gap-1 mt-2">
+                <span className="text-3xl font-black text-foreground">{getLevelBasePrice(level.id).toLocaleString()} <span className="text-sm font-normal text-muted-foreground">د.ج</span></span>
+                <span className="text-sm text-muted-foreground">/مادة</span>
+              </div>
+              <ul className="space-y-1.5 flex-1">
+                <li className="flex items-start gap-2 text-sm">
+                  <Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground/80">4 حصص شهرياً</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground/80">اختر أي مادة تريد</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm">
+                  <Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
+                  <span className="text-foreground/80">الدعم والمرافق مجاناً</span>
+                </li>
+              </ul>
+              <button className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all">
+                اختر {level.label}
+              </button>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        <motion.div {...stagger(2)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6">
+          <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+            <Shield size={16} className="text-blue-400" /> الدفع والأمان
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[
+              { q: 'كيف أدفع؟', a: 'ادفع عبر الإنترنت بـ Chargily Pay (EDAHABIA · CIB) أو في مكتب المدرسة (روي بيلير، وهران).' },
+              { q: 'هل يمكنني الإلغاء؟', a: 'نعم — اتصل بالإدارة على 0661 45 77 97 قبل تاريخ الفاتورة القادم.' },
+              { q: 'ماذا لو فاتني الدفع؟', a: 'سيتم تحويل حسابك إلى وضع المعاينة المجانية حتى تأكيد الدفع.' },
+              { q: 'هل رمز QR آمن؟', a: 'نعم — كل رمز مرتبط بمعرف المستخدم الفريد وتاريخ انتهاء الصلاحية.' },
+            ].map((item) => (
+              <div key={item.q} className="p-4 bg-secondary/50 rounded-xl">
+                <p className="text-sm font-semibold text-foreground mb-1">{item.q}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{item.a}</p>
+              </div>
+            ))}
           </div>
-        </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  /* ── Subject Selection + Payment ── */
+  return (
+    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+      <motion.div {...stagger(0)} className="text-center">
+        <button
+          onClick={() => setStep('plans')}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition mb-3"
+        >
+          <ChevronRight size={14} className="rotate-180" /> العودة إلى المستويات
+        </button>
+        <h1 className="text-3xl font-black text-foreground mb-2">اختر موادك الدراسية</h1>
+        <p className="text-muted-foreground text-sm max-w-lg mx-auto">
+          المستوى: <strong>{selectedLevel?.label}</strong> — {getLevelBasePrice(selectedLevel.id).toLocaleString()} د.ج لكل مادة · 4 حصص شهرياً
+        </p>
       </motion.div>
 
-      {/* ── FAQ ── */}
-      <motion.div {...stagger(4)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6">
+      <motion.div {...stagger(1)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 space-y-6">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-6 rounded-full bg-gradient-to-b from-blue-400 to-cyan-400" />
+          <h3 className="font-bold text-foreground">المواد الدراسية</h3>
+          <span className="text-xs text-muted-foreground">({selectedSubjects.length} مختارة)</span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {ALL_SUBJECTS.map((subject, i) => {
+            const isSelected = selectedSubjects.includes(subject.id);
+            return (
+              <motion.button
+                key={subject.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04, duration: 0.3 }}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => toggleSubject(subject.id)}
+                className={`relative flex flex-col items-center justify-center gap-2 px-3 py-5 rounded-2xl text-sm font-bold border-2 transition-all duration-200 ${
+                  isSelected
+                    ? 'bg-blue-500/15 border-blue-500 text-blue-400 shadow-lg shadow-blue-500/15'
+                    : 'bg-card/60 border-border/40 text-muted-foreground hover:border-blue-500/30 hover:text-foreground hover:bg-blue-500/5 hover:shadow-md'
+                }`}
+              >
+                {isSelected && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30"
+                  >
+                    <Check size={12} className="text-white" />
+                  </motion.div>
+                )}
+                <span className="text-2xl">{subject.icon}</span>
+                <span className="text-center leading-tight text-xs sm:text-sm">{subject.ar}</span>
+                {isSelected && (
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: '100%' }}
+                    className="absolute bottom-0 left-0 h-1 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
+                  />
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <AnimatePresence>
+          {selectedSubjects.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex flex-wrap items-center gap-2 p-4 bg-gradient-to-r from-blue-500/5 to-cyan-500/5 border border-blue-500/10 rounded-2xl"
+            >
+              <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                <CheckCircle2 size={13} className="text-blue-400" />
+                المواد المختارة:
+              </span>
+              {selectedSubjects.map((id, i) => {
+                const subj = ALL_SUBJECTS.find(s => s.id === id);
+                return (
+                  <motion.span
+                    key={id}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <SubjectTag
+                      label={`${subj?.icon || ''} ${subj?.ar || id}`}
+                      onRemove={() => toggleSubject(id)}
+                    />
+                  </motion.span>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          layout
+          className="rounded-2xl bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/10 p-6 space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">المستوى</span>
+            <span className="font-bold text-foreground">{selectedLevel?.label}</span>
+          </div>
+          <div className="space-y-2">
+            <span className="text-sm text-muted-foreground">تفاصيل المواد</span>
+            {selectedSubjects.map((sid) => {
+              const subj = ALL_SUBJECTS.find(s => s.id === sid);
+              const sp = getSubjectPrice(selectedLevel.id, sid);
+              return (
+                <div key={sid} className="flex items-center justify-between text-sm">
+                  <span className="text-foreground/80">{subj?.icon} {subj?.ar || sid}</span>
+                  <span className="font-semibold text-foreground">{sp.toLocaleString()} د.ج</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">عدد المواد</span>
+            <span className="font-bold text-foreground">{selectedSubjects.length}</span>
+          </div>
+          <div className="relative h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
+          <div className="flex items-center justify-between">
+            <span className="text-base font-bold text-foreground">الإجمالي</span>
+            <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+              {selectedSubjects.reduce((s, id) => s + getSubjectPrice(selectedLevel.id, id), 0).toLocaleString()} <span className="text-base font-normal">د.ج</span>
+            </span>
+          </div>
+        </motion.div>
+
+        <motion.div layout className="flex flex-wrap items-center justify-center gap-3 p-4 bg-card/30 rounded-2xl border border-border/30">
+          <span className="text-xs text-muted-foreground font-semibold">طرق الدفع:</span>
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-border/30 rounded-lg text-xs font-bold text-foreground">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+            EDAHABIA
+          </span>
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-border/30 rounded-lg text-xs font-bold text-foreground">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+            CIB
+          </span>
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-lg text-xs font-bold text-purple-400">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            Chargily Secure
+          </span>
+        </motion.div>
+
+        <motion.div layout className="relative">
+          <button
+            onClick={handlePayment}
+            disabled={isProcessing || selectedSubjects.length === 0}
+            className="relative w-full py-4 rounded-2xl font-bold text-base bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-3 overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -skew-x-12 translate-x-[-120%] group-hover:translate-x-[120%] transition-transform duration-1000" />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-400/10 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            {isProcessing ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                <span>جاري المعالجة...</span>
+              </>
+            ) : (
+              <>
+                <CreditCard size={20} />
+                <span>ادفع {selectedSubjects.reduce((s, id) => s + getSubjectPrice(selectedLevel.id, id), 0).toLocaleString()} د.ج</span>
+                <span className="px-2 py-0.5 bg-white/15 rounded-lg text-xs">{selectedSubjects.length} مادة</span>
+              </>
+            )}
+          </button>
+        </motion.div>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1"
+        >
+          <Shield size={12} className="text-green-400" />
+          الدفع آمن ومشفر عبر Chargily Pay — EDAHABIA · CIB
+        </motion.p>
+      </motion.div>
+
+      <motion.div {...stagger(2)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6">
         <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
-          <Shield size={16} className="text-blue-400" /> Payment & Security
+          <Star size={16} className="text-amber-400" /> ماذا يشمل الاشتراك؟
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
-            { q: 'How do I pay?', a: 'Pay at the school front desk (Rue Belair, Oran) or via CCP transfer.' },
-            { q: 'Can I cancel?', a: 'Yes — contact admin at 0661 45 77 97 before your next billing date.' },
-            { q: 'What if I miss a payment?', a: 'Your account switches to Free Preview until payment is confirmed.' },
-            { q: 'Is my QR code secure?', a: 'Yes — each code is linked to your unique user ID and expiry date.' },
-          ].map((item) => (
-            <div key={item.q} className="p-4 bg-secondary/50 rounded-xl">
-              <p className="text-sm font-semibold text-foreground mb-1">{item.q}</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">{item.a}</p>
-            </div>
+            { icon: '📅', q: '4 حصص شهرياً', a: 'كل حصة مدتها ساعة مع أستاذ مختص في المواد التي اخترتها.' },
+            { icon: '📚', q: 'اختر موادك', a: 'اختر أي مادة أو جميع المواد المتاحة لمستوياتك. يمكنك الإضافة لاحقاً.' },
+            { icon: '📱', q: 'تسجيل الدخول بـ QR', a: 'يقوم المشرف بمسح رمز QR الخاص بك عند كل حصة لتتبع الحضور.' },
+            { icon: '📄', q: 'المواد مجاناً', a: 'احصل على دروس، تمارين، ومواضيع امتحانات سابقة لموادك.' },
+          ].map((item, i) => (
+            <motion.div
+              key={item.q}
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="p-4 bg-secondary/50 rounded-xl hover:bg-secondary/80 transition-all duration-200 cursor-default border border-transparent hover:border-blue-500/10"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">{item.icon}</span>
+                <p className="text-sm font-bold text-foreground">{item.q}</p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed mr-7">{item.a}</p>
+            </motion.div>
           ))}
         </div>
       </motion.div>

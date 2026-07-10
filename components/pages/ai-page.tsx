@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Plus, Zap, MessageCircle, History, PanelRightClose, Star, ImagePlus, X, Trash2, Edit3, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { createClient } from '@/lib/supabase';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
@@ -26,6 +27,23 @@ interface ConversationFull extends Conversation {
   messages: ChatMessage[];
 }
 
+let cachedToken: string | null = null;
+
+async function getToken(): Promise<string | null> {
+  if (cachedToken) return cachedToken;
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  cachedToken = session?.access_token || null;
+  return cachedToken;
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
 export function AIPage() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -42,6 +60,11 @@ export function AIPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    cachedToken = null;
+    getToken();
+  }, [user]);
+
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   useEffect(() => {
@@ -52,11 +75,12 @@ export function AIPage() {
   const loadConversations = async () => {
     setLoadingConvs(true);
     try {
-      const res = await fetch(`/api/ai/conversations?userId=${user!.id}`);
+      const headers = await authHeaders();
+      const res = await fetch('/api/ai/conversations', { headers });
       const data = await res.json();
       if (data.data) setConversations(data.data);
-    } catch (e) {
-      console.error('Failed to load conversations');
+    } catch {
+      // Silent
     } finally {
       setLoadingConvs(false);
     }
@@ -64,14 +88,15 @@ export function AIPage() {
 
   const loadMessages = async (convId: string) => {
     try {
-      const res = await fetch(`/api/ai/conversations/${convId}`);
+      const headers = await authHeaders();
+      const res = await fetch(`/api/ai/conversations/${convId}`, { headers });
       const data = await res.json();
       if (data.data) {
         setMessages(data.data.messages || []);
         setActiveConversationId(data.data.id);
       }
-    } catch (e) {
-      console.error('Failed to load messages');
+    } catch {
+      // Silent
     }
   };
 
@@ -84,10 +109,11 @@ export function AIPage() {
   const startNewChat = async () => {
     if (!user) return;
     try {
+      const headers = await authHeaders();
       const res = await fetch('/api/ai/conversations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, title: 'New Chat' }),
+        headers,
+        body: JSON.stringify({ title: 'New Chat' }),
       });
       const data = await res.json();
       if (data.data) {
@@ -95,36 +121,38 @@ export function AIPage() {
         setActiveConversationId(data.data.id);
         setMessages([]);
       }
-    } catch (e) {
-      console.error('Failed to create conversation');
+    } catch {
+      // Silent
     }
   };
 
   const deleteConversation = async (id: string) => {
     try {
-      await fetch(`/api/ai/conversations/${id}`, { method: 'DELETE' });
+      const headers = await authHeaders();
+      await fetch(`/api/ai/conversations/${id}`, { method: 'DELETE', headers });
       setConversations(prev => prev.filter(c => c.id !== id));
       if (activeConversationId === id) {
         setActiveConversationId(null);
         setMessages([]);
       }
-    } catch (e) {
-      console.error('Failed to delete conversation');
+    } catch {
+      // Silent
     }
   };
 
   const renameConversation = async (id: string) => {
     if (!editValue.trim()) { setEditingTitle(null); return; }
     try {
+      const headers = await authHeaders();
       await fetch(`/api/ai/conversations/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ title: editValue.trim() }),
       });
       setConversations(prev => prev.map(c => c.id === id ? { ...c, title: editValue.trim() } : c));
       setEditingTitle(null);
-    } catch (e) {
-      console.error('Failed to rename conversation');
+    } catch {
+      // Silent
     }
   };
 
@@ -148,10 +176,11 @@ export function AIPage() {
   const ensureConversation = async (): Promise<string | null> => {
     if (!user) return null;
     if (activeConversationId) return activeConversationId;
+    const headers = await authHeaders();
     const res = await fetch('/api/ai/conversations', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, title: 'New Chat' }),
+      headers,
+      body: JSON.stringify({ title: 'New Chat' }),
     });
     const data = await res.json();
     if (data.data) {
@@ -193,9 +222,10 @@ export function AIPage() {
         images: userMsg.images,
       });
 
+      const headers = await authHeaders();
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           messages: history,
           conversationId: convId,

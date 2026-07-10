@@ -140,7 +140,7 @@ function SidebarInner({
               transition={{ type: 'spring', stiffness: 380, damping: 24 }}
             >
               <img
-                src="/logo1 (2).png"
+                src="/logo-school.png"
                 alt="Bendella School"
                 className="w-10 h-10 object-contain drop-shadow-sm"
               />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { createClient, createServiceClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import {
   Send, Heart, Search, MoreVertical, Mic, Phone, Video, Info,
@@ -111,8 +111,12 @@ const CDN = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.0.1/img/appl
 const appleEmoji = (icon: string) => `${CDN}${icon}.png`;
 const onerrorAttr = 'onerror="this.onerror=null;var s=this.src;this.src=s.includes(\'fe0f\')?s.replace(\'fe0f\',\'\'):s.replace(\'.png\',\'-fe0f.png\')"';
 
+function escapeHtml(str: string) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
 function parseEmoji(text: string, className = 'emoji-tw') {
-  const html = twemoji.parse(text, { callback: (i) => appleEmoji(i), className });
+  const html = twemoji.parse(escapeHtml(text), { callback: (i) => appleEmoji(i), className });
   return html.replace(/<img /g, `<img ${onerrorAttr} `);
 }
 
@@ -148,7 +152,7 @@ export function ChatPage() {
   const [addUserQuery, setAddUserQuery] = useState('');
   const [availableUsers, setAvailableUsers] = useState<{ id: string; name: string; avatar: string }[]>([]);
   const { user: currentUser } = useAuth();
-  const supabase = createServiceClient();
+  const supabase = createClient();
   const addUserRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -181,9 +185,19 @@ export function ChatPage() {
 
   useEffect(() => {
     if (!currentUser) return;
-    supabase.from('profiles').select('id, name, avatar').neq('id', currentUser.id).then(({ data }) => {
-      if (data) setAvailableUsers(data);
-    });
+    const fetchUsers = async () => {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) return;
+      const res = await fetch(`/api/users/search?q=`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const { users } = await res.json();
+        setAvailableUsers(users || []);
+      }
+    };
+    fetchUsers();
   }, [currentUser]);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -221,13 +235,19 @@ export function ChatPage() {
             avatar = profile.avatar;
           }
         }
+        const { count } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('chat_id', chat.id)
+          .gt('created_at', p.last_read_at || '1970-01-01')
+          .neq('sender_id', currentUser.id);
         return {
           id: chat.id,
           name,
           avatar,
           lastMessage: chat.last_message || '',
           time: formatRelativeTime(chat.last_message_at),
-          unread: 0,
+          unread: count || 0,
           online: false,
           typing: false,
           muted: p.muted || false,
@@ -263,6 +283,13 @@ export function ChatPage() {
         if (!reactionMap[r.message_id].includes(r.emoji)) reactionMap[r.message_id].push(r.emoji);
       });
 
+      const { data: reads } = await supabase
+        .from('message_reads')
+        .select('message_id')
+        .in('message_id', msgs.map(m => m.id));
+      const readCounts: Record<number, number> = {};
+      if (reads) reads.forEach(r => { readCounts[r.message_id] = (readCounts[r.message_id] || 0) + 1; });
+
       const mapped = msgs.map((m: any) => ({
         id: m.id,
         sender: m.sender?.name || 'Unknown',
@@ -271,7 +298,7 @@ export function ChatPage() {
         isOwn: m.sender_id === currentUser.id,
         avatar: m.sender?.avatar || '',
         reactions: reactionMap[m.id] || [],
-        readBy: 0,
+        readBy: readCounts[m.id] || 0,
         type: m.type,
       }));
       setMessagesMap(prev => ({ ...prev, [selectedChat]: mapped }));
@@ -295,6 +322,7 @@ export function ChatPage() {
             .select('name, avatar')
             .eq('id', newMsg.sender_id)
             .single();
+          const { data: readData } = await supabase.from('message_reads').select('id').eq('message_id', newMsg.id);
           const msg: Message = {
             id: newMsg.id,
             sender: sender?.name || 'Unknown',
@@ -303,7 +331,7 @@ export function ChatPage() {
             isOwn: newMsg.sender_id === currentUser.id,
             avatar: sender?.avatar || '',
             reactions: [],
-            readBy: 0,
+            readBy: readData?.length || 0,
             type: newMsg.type,
           };
           setMessagesMap(prev => {
@@ -712,7 +740,7 @@ export function ChatPage() {
                 transition={{ duration: 0.15, ease: 'easeOut' }}
                 className="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-2xl p-2 max-h-64 overflow-y-auto"
               >
-                <div className="relative mb-2">
+                <div className="relative mb-1">
                   <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
@@ -723,7 +751,28 @@ export function ChatPage() {
                     className="w-full pl-7 pr-2 py-1.5 text-xs rounded-lg bg-secondary border border-border focus:outline-none focus:ring-1 focus:ring-primary transition"
                   />
                 </div>
-                {addUserQuery && availableUsers.filter(u => u.name.toLowerCase().includes(addUserQuery.toLowerCase())).length === 0 && (
+                <div className="flex flex-wrap gap-1 mb-1.5">
+                  {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(ch => (
+                    <button
+                      key={ch}
+                      onClick={() => setAddUserQuery(prev => prev === ch.toLowerCase() ? '' : ch.toLowerCase())}
+                      className={`w-6 h-5 rounded text-[10px] font-bold transition ${
+                        addUserQuery === ch.toLowerCase()
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                      }`}
+                    >{ch}</button>
+                  ))}
+                </div>
+                {(() => {
+                  const q = addUserQuery.toLowerCase();
+                  const matched = availableUsers.filter(u => {
+                    const name = u.name.toLowerCase();
+                    return q.length === 1 ? name.startsWith(q) : name.includes(q);
+                  });
+                  return (
+                    <>
+                {addUserQuery && matched.length === 0 && (
                   <button
                     onClick={() => {
                       const newId = `chat-new-${Date.now()}`;
@@ -743,9 +792,7 @@ export function ChatPage() {
                     <span>Ajouter « {addUserQuery} »</span>
                   </button>
                 )}
-                {addUserQuery && availableUsers
-                  .filter(u => u.name.toLowerCase().includes(addUserQuery.toLowerCase()))
-                  .map(user => (
+                {addUserQuery && matched.map(user => (
                     <button
                       key={user.id}
                       onClick={async () => {
@@ -773,6 +820,9 @@ export function ChatPage() {
                       <span>{user.name}</span>
                     </button>
                   ))}
+                    </>
+                  );
+                })()}
               </motion.div>
             )}
           </AnimatePresence>

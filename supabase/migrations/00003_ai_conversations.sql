@@ -31,28 +31,23 @@ ALTER TABLE ai_messages ENABLE ROW LEVEL SECURITY;
 
 -- ==================== POLICIES ====================
 
-DROP POLICY IF EXISTS "Users can view their own conversations" ON ai_conversations;
-CREATE POLICY "Users can view their own conversations"
+CREATE POLICY IF NOT EXISTS "Users can view their own conversations"
   ON ai_conversations FOR SELECT
   USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Users can create their own conversations" ON ai_conversations;
-CREATE POLICY "Users can create their own conversations"
+CREATE POLICY IF NOT EXISTS "Users can create their own conversations"
   ON ai_conversations FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Users can update their own conversations" ON ai_conversations;
-CREATE POLICY "Users can update their own conversations"
+CREATE POLICY IF NOT EXISTS "Users can update their own conversations"
   ON ai_conversations FOR UPDATE
   USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Users can delete their own conversations" ON ai_conversations;
-CREATE POLICY "Users can delete their own conversations"
+CREATE POLICY IF NOT EXISTS "Users can delete their own conversations"
   ON ai_conversations FOR DELETE
   USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Users can view messages in their conversations" ON ai_messages;
-CREATE POLICY "Users can view messages in their conversations"
+CREATE POLICY IF NOT EXISTS "Users can view messages in their conversations"
   ON ai_messages FOR SELECT
   USING (
     EXISTS (
@@ -62,8 +57,7 @@ CREATE POLICY "Users can view messages in their conversations"
     )
   );
 
-DROP POLICY IF EXISTS "Users can insert messages in their conversations" ON ai_messages;
-CREATE POLICY "Users can insert messages in their conversations"
+CREATE POLICY IF NOT EXISTS "Users can insert messages in their conversations"
   ON ai_messages FOR INSERT
   WITH CHECK (
     EXISTS (
@@ -73,8 +67,7 @@ CREATE POLICY "Users can insert messages in their conversations"
     )
   );
 
-DROP POLICY IF EXISTS "Users can delete messages in their conversations" ON ai_messages;
-CREATE POLICY "Users can delete messages in their conversations"
+CREATE POLICY IF NOT EXISTS "Users can delete messages in their conversations"
   ON ai_messages FOR DELETE
   USING (
     EXISTS (

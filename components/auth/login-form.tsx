@@ -31,16 +31,27 @@ export function LoginForm() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const fd = new FormData(e.currentTarget);
+    const formEmail = (fd.get('email') as string) || '';
+    const formPassword = (fd.get('password') as string) || '';
+    if (!formEmail || !formPassword) { setError('Please fill in all fields'); setLoading(false); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) { setError('Please enter a valid email'); setLoading(false); return; }
     try {
-      if (!email || !password) { setError('Please fill in all fields'); setLoading(false); return; }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Please enter a valid email'); setLoading(false); return; }
-      await login(email, password);
+      await login(formEmail, formPassword);
       router.push('/dashboard');
-    } catch (e: any) { setError(e?.message || 'Login failed. Please try again.'); setLoading(false); }
+    } catch (e: any) {
+      const msg = e?.message || '';
+      if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) {
+        setError('Please confirm your email first. Check your inbox for the verification link.');
+      } else {
+        setError(msg || 'Login failed. Please try again.');
+      }
+      setLoading(false);
+    }
   };
 
   return (
@@ -54,9 +65,9 @@ export function LoginForm() {
           <div className="order-2 lg:order-1">
             <div className="bg-[#111827] border border-blue-500/20 rounded-3xl p-8 md:p-10 shadow-2xl">
               <div className="mb-8 flex items-center gap-4">
-                <img src="/logo1 (2).png" alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-blue-500/30 shadow-lg shadow-blue-500/20" />
+                <img src="/logo-school.png" alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-blue-500/30 shadow-lg shadow-blue-500/20" />
                 <div>
-                  <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">Welcome Back</h1>
+                  <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">Bendella School</h1>
                   <p className="text-gray-400">Sign in to continue your journey</p>
                 </div>
               </div>
@@ -72,7 +83,7 @@ export function LoginForm() {
                   <label className="block text-sm font-semibold text-gray-300 mb-3">Email</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                    <input type="email" name="email" value={email} onChange={(e) => setEmail(e.target.value)}
                       placeholder="student@school.edu" disabled={loading}
                       className="w-full pl-12 pr-4 py-3 bg-[#1E293B] border border-blue-500/20 text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400 transition-all rounded-xl" />
                   </div>
@@ -82,7 +93,7 @@ export function LoginForm() {
                   <label className="block text-sm font-semibold text-gray-300 mb-3">Password</label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
-                    <input type={showPassword ? 'text' : 'password'} value={password}
+                    <input type={showPassword ? 'text' : 'password'} name="password" value={password}
                       onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" disabled={loading}
                       className="w-full pl-12 pr-12 py-3 bg-[#1E293B] border border-blue-500/20 text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-400 transition-all rounded-xl" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -109,13 +120,13 @@ export function LoginForm() {
                   <Link href="/signup" className="text-blue-400 font-semibold hover:text-blue-300 transition-colors">Sign up</Link>
                 </p>
                 <p className="text-gray-600 text-[11px]">
-                  Admin demo: <span className="text-blue-400">hamda.laidi.14@gmail.com</span> — any password
+                  Contact the school to get admin access
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="order-1 lg:order-2 flex items-center justify-center">
+          <div className="hidden lg:flex order-1 lg:order-2 items-center justify-center">
             <div className="relative w-full max-w-sm min-h-[400px] flex items-center justify-center">
               <AnimatePresence mode="wait">
                 <motion.div

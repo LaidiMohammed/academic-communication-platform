@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, User, School, BookOpen, UserCheck, Eye, EyeOff, AlertCircle, ChevronLeft, ChevronRight, Calendar, Hash } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createClient } from '@/lib/supabase';
 
 export function SignupForm() {
+  const supabase = createClient();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '', age: '', sex: '', email: '', password: '',
@@ -17,16 +18,15 @@ export function SignupForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [verified, setVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const { signup } = useAuth();
   const router = useRouter();
 
   const mascots = [
     { img: '/bendellamas-removebg-preview.png', bgText: 'LEARNING', phrase: 'Create your account and unlock a world of collaborative learning.' },
     { img: '/bendellamas2-removebg-preview.png', bgText: 'CONNECTION', phrase: 'Real-time chat, study groups, and shared resources at your fingertips.' },
     { img: '/bendellamas3-removebg-preview.png', bgText: 'SUCCESS', phrase: 'Smart scheduling, group projects, and tools built for student success.' },
-    { img: '/bendellamas4-removebg-preview.png', bgText: 'COMMUNITY', phrase: 'Free to join. Connect, learn, and grow with EduConnect.' },
+    { img: '/bendellamas4-removebg-preview.png', bgText: 'COMMUNITY', phrase: 'Free to join. Connect, learn, and grow with Bendella School.' },
   ];
   const [current, setCurrent] = useState(0);
 
@@ -55,9 +55,38 @@ export function SignupForm() {
   };
 
   const handleNext = () => {
-    if (validateStep(step)) setStep(step + 1);
+    if (validateStep(1)) setStep(step + 1);
   };
   const handleBack = () => { setStep(step - 1); setError(''); };
+
+  const submitSignup = async () => {
+    if (!validateStep(2)) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          data: { name: formData.name, school: formData.school, level: formData.level, role: formData.role },
+        }),
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      setStep(3);
+    } catch (err: any) {
+      setError(err?.message || 'Signup failed');
+    }
+    setLoading(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (step === 1) { handleNext(); return; }
+    if (step === 3) return;
+    await submitSignup();
+  };
 
   const handleCodeChange = (i: number, val: string) => {
     if (val.length > 1) return;
@@ -72,18 +101,47 @@ export function SignupForm() {
     if (e.key === 'Backspace' && !code[i] && i > 0) codeRefs.current[i - 1]?.focus();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (step === 3) {
-      const fullCode = code.join('');
-      if (fullCode.length !== 6) { setError('Please enter the 6-digit code'); return; }
-      setVerified(true);
-      setLoading(true);
-      try {
-        await signup(formData.email, formData.password, formData.name, formData.school, formData.level, formData.role);
-        router.push('/dashboard');
-      } catch (e: any) { setError(e?.message || 'Verification failed. Please try again.'); setLoading(false); }
+  const handleVerifyCode = async () => {
+    const fullCode = code.join('');
+    if (fullCode.length !== 6) { setError('Please enter the 6-digit code'); return; }
+    setVerifying(true);
+    try {
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, code: fullCode }),
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+      if (signInError) throw signInError;
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err?.message || 'Verification failed. Please try again.');
     }
+    setVerifying(false);
+  };
+
+  const handleResend = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          data: { name: formData.name, school: formData.school, level: formData.level, role: formData.role },
+        }),
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      setError('');
+    } catch (e: any) { setError(e?.message || 'Failed to resend verification email'); }
+    setLoading(false);
   };
 
   return (
@@ -109,12 +167,10 @@ export function SignupForm() {
               </div>
 
               <div className="mb-5 flex items-center gap-3">
-                <img src="/logo.png" alt="Logo" className="w-14 h-14 rounded-full object-cover border-2 border-blue-500/30 shadow-lg shadow-blue-500/20" />
+                <img src="/logo-school.png" alt="Logo" className="w-14 h-14 rounded-full object-cover border-2 border-blue-500/30 shadow-lg shadow-blue-500/20" />
                 <div>
                   <h1 className="text-2xl md:text-3xl font-bold text-white mb-0.5">
-                    {step === 1 && 'Personal Info'}
-                    {step === 2 && 'School Details'}
-                    {step === 3 && 'Email Verification'}
+                    Bendella School
                   </h1>
                   <p className="text-gray-400 text-sm">
                     {step === 1 && 'Tell us about yourself'}
@@ -244,12 +300,13 @@ export function SignupForm() {
                     </motion.div>
                   )}
 
-                  {step === 3 && (
+                    {step === 3 && (
                     <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
                       <div className="text-center">
-                        <Mail className="w-10 h-10 text-blue-400 mx-auto mb-2" />
-                        <p className="text-gray-400 text-xs mb-1">Verification code sent to</p>
-                        <p className="text-blue-400 font-semibold text-sm">{formData.email}</p>
+                        <Mail className="w-12 h-12 text-blue-400 mx-auto mb-3" />
+                        <h3 className="text-white font-bold text-lg mb-1">Check Your Email</h3>
+                        <p className="text-gray-400 text-sm mb-1">We sent a verification code to</p>
+                        <p className="text-blue-400 font-semibold text-base">{formData.email}</p>
                       </div>
                       <div className="flex justify-center gap-2">
                         {code.map((digit, i) => (
@@ -260,34 +317,53 @@ export function SignupForm() {
                           />
                         ))}
                       </div>
-                      <p className="text-center text-gray-500 text-[10px]">Didn't receive the code? <button type="button" className="text-blue-400 hover:text-blue-300">Resend</button></p>
+                      <button type="button" onClick={handleVerifyCode} disabled={verifying || code.join('').length !== 6}
+                        className="w-full py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-60">
+                        {verifying ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Verifying...
+                          </span>
+                        ) : 'Verify & Sign In'}
+                      </button>
+                      <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 text-center">
+                        <p className="text-gray-400 text-xs mb-2">Didn't receive the code?</p>
+                        <button type="button" onClick={handleResend} disabled={loading}
+                          className="text-blue-400 hover:text-blue-300 text-sm font-semibold transition disabled:opacity-60">
+                          {loading ? 'Sending...' : 'Resend code'}
+                        </button>
+                      </div>
+                      <p className="text-center text-gray-500 text-xs">
+                        Already verified?{' '}
+                        <Link href="/login" className="text-blue-400 hover:text-blue-300 font-semibold">Sign in</Link>
+                      </p>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
                 <div className="flex gap-3 mt-5 pt-4 border-t border-blue-500/20">
-                  {step > 1 && (
+                  {step < 3 && step > 1 && (
                     <button type="button" onClick={handleBack} disabled={loading}
                       className="flex-1 py-2.5 bg-[#1E293B] hover:bg-[#243447] text-white font-semibold text-sm rounded-xl transition disabled:opacity-60 flex items-center justify-center gap-1.5">
                       <ChevronLeft size={16} /> Back
                     </button>
                   )}
                   {step < 3 && (
-                    <button type="button" onClick={handleNext} disabled={loading}
+                    <button type="button" onClick={step === 1 ? handleNext : submitSignup} disabled={loading}
                       className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-60 flex items-center justify-center gap-1.5">
-                      Next <ChevronRight size={16} />
-                    </button>
-                  )}
-                  {step === 3 && (
-                    <button type="submit" disabled={loading || code.join('').length !== 6}
-                      className="w-full py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/30 transition disabled:opacity-60">
                       {loading ? (
                         <span className="flex items-center justify-center gap-2">
                           <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Verifying...
+                          Creating account...
                         </span>
-                      ) : 'Verify & Create Account'}
+                      ) : step === 1 ? <>Next <ChevronRight size={16} /></> : 'Create Account'}
                     </button>
+                  )}
+                  {step === 3 && (
+                    <Link href="/login"
+                      className="w-full py-2.5 bg-blue-500 hover:bg-blue-400 text-white font-semibold text-sm rounded-xl shadow-lg hover:shadow-blue-500/30 transition flex items-center justify-center gap-1.5">
+                      Go to Sign In
+                    </Link>
                   )}
                 </div>
               </form>
@@ -301,8 +377,8 @@ export function SignupForm() {
             </div>
           </div>
 
-          {/* Illustration */}
-          <div className="order-1 lg:order-2 flex items-center justify-center">
+          {/* Illustration - hidden on mobile */}
+          <div className="hidden lg:flex order-1 lg:order-2 items-center justify-center">
             <div className="relative w-full max-w-sm min-h-[400px] flex items-center justify-center">
               <AnimatePresence mode="wait">
                 <motion.div

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { DashboardContent } from '@/components/dashboard-content';
+import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, loading } = useAuth();
@@ -37,6 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="h-screen bg-background flex flex-col">
         <Sidebar />
         <DashboardContent>{children}</DashboardContent>
+        <MobileBottomNav />
       </div>
     </SidebarProvider>
   );

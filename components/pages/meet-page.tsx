@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { createServiceClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { Plus, Calendar, Clock, Users, Video, Link as LinkIcon, MoreVertical, X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -20,7 +20,7 @@ interface Meeting {
 
 export function MeetPage() {
   const { user } = useAuth();
-  const supabase = createServiceClient();
+  const supabase = createClient();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -37,11 +37,14 @@ export function MeetPage() {
     if (!user) return;
     const fetchMeetings = async () => {
       setLoading(true);
-      const { data: dbMeetings } = await supabase
-        .from('meetings')
-        .select('*, meeting_participants!inner(user_id)')
-        .order('date', { ascending: true })
-        .limit(50);
+      const s = await supabase.auth.getSession();
+      const token = s.data.session?.access_token;
+      if (!token) { setLoading(false); return; }
+      const res = await fetch('/api/meetings/list', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { setLoading(false); return; }
+      const { meetings: dbMeetings } = await res.json();
 
       const mapped: Meeting[] = (dbMeetings || []).map((m: any) => {
         const dateObj = new Date(m.date + 'T' + (m.time || '00:00'));
@@ -94,24 +97,27 @@ export function MeetPage() {
   const handleCreateMeeting = async () => {
     if (!formData.title.trim() || !formData.date || !formData.time || !user) return;
 
-    const { data: newMeeting, error } = await supabase.from('meetings').insert({
-      title: formData.title.trim(),
-      description: formData.description.trim() || 'Class discussion',
-      date: formData.date,
-      time: formData.time,
-      duration: `${formData.duration} min`,
-      link: formData.link.trim() || `https://meet.google.com/new-${Date.now()}`,
-      meet_by: user.id,
-    }).select('id').single();
-
-    if (error || !newMeeting) { console.error('Create meeting error:', error?.message); return; }
-
-    await supabase.from('meeting_participants').insert({
-      meeting_id: newMeeting.id, user_id: user.id,
+    const s = await supabase.auth.getSession();
+    const token = s.data.session?.access_token;
+    if (!token) return;
+    const res = await fetch('/api/meetings/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        date: formData.date,
+        time: formData.time,
+        duration: `${formData.duration} min`,
+        link: formData.link.trim() || `https://meet.google.com/new-${Date.now()}`,
+      }),
     });
+    const data = await res.json();
+    if (!res.ok || !data.meeting) { console.error('Create meeting error:', data.error); return; }
 
+    const nm = data.meeting;
     const newMeet: Meeting = {
-      id: newMeeting.id,
+      id: nm.id,
       title: formData.title.trim(),
       description: formData.description.trim() || 'Class discussion',
       date: formData.date,

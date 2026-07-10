@@ -19,7 +19,7 @@ const features = [
 ];
 
 const timeline = [
-  { year: '2020', event: 'EduConnect founded by educators and engineers' },
+  { year: '2020', event: 'Bendella School founded by educators and engineers' },
   { year: '2021', event: 'Launched real-time chat and group collaboration' },
   { year: '2022', event: 'Integrated AI tutoring assistant' },
   { year: '2023', event: 'Reached 10,000 active students milestone' },
@@ -46,7 +46,7 @@ export default function AboutPage() {
         </div>
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
           About{' '}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">EduConnect</span>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">Bendella School</span>
         </h1>
         <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
           A modern school collaboration platform designed to revolutionize how students and teachers connect, learn, and grow together in the digital age.
@@ -90,7 +90,7 @@ export default function AboutPage() {
             <motion.div key="mission" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-3xl">
               <h2 className="text-3xl font-bold text-white mb-6">Our Mission</h2>
               <p className="text-gray-300 leading-relaxed text-lg mb-6">
-                We believe education should be accessible, engaging, and collaborative. EduConnect brings together all the tools you need to succeed in school — from real-time messaging and group collaboration to virtual meetings and personalized AI tutoring.
+                We believe education should be accessible, engaging, and collaborative. Bendella School brings together all the tools you need to succeed in school — from real-time messaging and group collaboration to virtual meetings and personalized AI tutoring.
               </p>
               <p className="text-gray-400 leading-relaxed">
                 We&apos;re committed to creating a platform that empowers students to learn better and teachers to teach more effectively, breaking down barriers to quality education for every student, regardless of their background.
@@ -119,7 +119,7 @@ export default function AboutPage() {
 
       {/* Features */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-        <h2 className="text-3xl font-bold text-white mb-8 text-center">Why Choose EduConnect?</h2>
+        <h2 className="text-3xl font-bold text-white mb-8 text-center">Why Choose Bendella School?</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {features.map((feature, index) => {
             const Icon = feature.icon;
@@ -182,7 +182,7 @@ export default function AboutPage() {
               allowFullScreen
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              title="EduConnect Location"
+              title="Bendella School Location"
               className="grayscale opacity-80 hover:opacity-100 transition-opacity"
             />
             <div className="absolute top-4 left-4 bg-[#111827]/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-blue-500/20 flex items-center gap-2">
@@ -242,7 +242,7 @@ export default function AboutPage() {
             </div>
 
             <div className="mt-8 pt-6 border-t border-blue-500/10 text-center text-gray-500 text-sm">
-              &copy; {new Date().getFullYear()} EduConnect. All rights reserved.
+              &copy; {new Date().getFullYear()} Bendella School. All rights reserved.
             </div>
           </div>
         </div>

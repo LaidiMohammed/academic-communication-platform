@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
 import { QRCodeCanvas } from 'qrcode.react';
 import jsQR from 'jsqr';
 import {
@@ -295,6 +296,86 @@ export default function AdminPage() {
     const saved = localStorage.getItem('admin_payments');
     return saved ? JSON.parse(saved) : [];
   });
+
+  // Fetch real data from API on mount
+  useEffect(() => {
+    const fetchAll = async () => {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+
+      const now = new Date().toISOString().slice(0, 10);
+
+      // Students
+      const stuRes = await fetch('/api/admin/students', { headers: { Authorization: `Bearer ${token}` } });
+      if (stuRes.ok) {
+        const { students: stuData } = await stuRes.json();
+        if (stuData) {
+          const realStudents = stuData.map((p: any) => ({
+            id: p.id, name: p.name || p.email?.split('@')[0] || 'Unknown', email: p.email || '',
+            level: p.level || '—', phone: '', monthSessions: p.active ? 4 : 0, totalSessions: p.active ? 4 : 0,
+            status: (p.active ? 'active' : 'inactive') as 'active' | 'inactive' | 'suspended', lastScan: now, enrolledDate: p.created_at?.slice(0, 10) || now,
+          }));
+          setStudents(prev => {
+            const existingIds = new Set(prev.map(s => s.id));
+            const merged = [...prev];
+            for (const rs of realStudents) { if (!existingIds.has(rs.id)) merged.unshift(rs); }
+            return merged;
+          });
+        }
+      }
+
+      // Groups
+      const grpRes = await fetch('/api/admin/groups', { headers: { Authorization: `Bearer ${token}` } });
+      if (grpRes.ok) {
+        const { groups: grpData } = await grpRes.json();
+        if (grpData) {
+          setGroups(prev => {
+            const existingIds = new Set(prev.map((g: any) => g.id));
+            const merged = [...prev];
+            for (const g of grpData) {
+              if (!existingIds.has(g.id)) merged.unshift({
+                id: g.id, name: g.name, members: g.members_count || 0,
+                type: (g.tags?.includes('private') ? 'private' : 'public') as 'public' | 'private',
+                createdBy: g.created_by || '', createdAt: g.created_at?.slice(0, 10) || '',
+                status: 'active' as const,
+              });
+            }
+            return merged;
+          });
+        }
+      }
+
+      // Meetings
+      const meetRes = await fetch('/api/admin/meetings', { headers: { Authorization: `Bearer ${token}` } });
+      if (meetRes.ok) {
+        const { meetings: meetData } = await meetRes.json();
+        if (meetData) {
+          setLessons(prev => {
+            const existingIds = new Set(prev.map((l: any) => l.id));
+            const merged = [...prev];
+            for (const m of meetData) {
+              if (!existingIds.has(m.id)) merged.unshift({
+                id: m.id, title: m.title, subject: m.description || 'Meeting',
+                level: '—', type: 'course' as const, teacher: '', date: m.date || '',
+                status: 'published' as const,
+              });
+            }
+            return merged;
+          });
+        }
+      }
+
+      // Payments from DB
+      const payRes = await fetch('/api/admin/payments', { headers: { Authorization: `Bearer ${token}` } });
+      if (payRes.ok) {
+        const { payments: payData } = await payRes.json();
+        if (payData) setPayments(payData);
+      }
+    };
+    fetchAll();
+  }, []);
 
   // Persist every state change
   useEffect(() => { localStorage.setItem('admin_students', JSON.stringify(students)); }, [students]);

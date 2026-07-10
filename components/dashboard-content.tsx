@@ -56,7 +56,7 @@ export function DashboardContent({ children }: { children: React.ReactNode }) {
             exit={{ opacity: 0, y: -16, scale: 0.985, filter: 'blur(4px)' }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             className={`w-full origin-top flex-1 flex flex-col ${
-              pathname.includes('/chat') || pathname.includes('/ai') ? 'p-0' : 'p-4 sm:p-6 pb-12'
+              pathname.includes('/chat') || pathname.includes('/ai') ? 'p-0 pb-20 md:pb-0' : 'p-4 sm:p-6 pb-20 md:pb-12'
             }`}
           >
             {children}

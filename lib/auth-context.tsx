@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { createClient, createServiceClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export interface User {
@@ -19,19 +19,64 @@ interface AuthContextType {
   isLoggedIn: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string, school: string, level: string, role: string) => Promise<void>;
+  signup: (email: string, password: string, name: string, school: string, level: string, role: string) => Promise<{ needsEmailConfirmation: boolean }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function getAccessToken(): string | null {
+  const params = new URLSearchParams(window.location.hash.replace('#', ''));
+  const hashToken = params.get('access_token');
+  if (hashToken) return hashToken;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith('sb-') && key.endsWith('-auth-token')) {
+      try {
+        const item = JSON.parse(localStorage.getItem(key) || '{}');
+        return item.access_token || null;
+      } catch {}
+    }
+  }
+  return null;
+}
+
+async function fetchProfileApi(): Promise<any> {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token');
+  const res = await fetch('/api/profile', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    try { const j = JSON.parse(text); throw new Error(j.error || 'Profile fetch failed'); }
+    catch { throw new Error(text); }
+  }
+  return res.json();
+}
+
+async function updateProfileApi(updates: any): Promise<any> {
+  const token = getAccessToken();
+  if (!token) throw new Error('No access token');
+  const res = await fetch('/api/profile', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    try { const j = JSON.parse(text); throw new Error(j.error || 'Profile update failed'); }
+    catch { throw new Error(text); }
+  }
+  return res.json();
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
-  const profileClient = createServiceClient();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -56,13 +101,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchProfile = async (authUser: SupabaseUser) => {
-    const { data, error } = await profileClient
-      .from('profiles')
-      .select('*')
-      .eq('id', authUser.id)
-      .single();
-
-    if (data) {
+    try {
+      const data = await fetchProfileApi();
       setUser({
         id: data.id,
         email: data.email,
@@ -72,8 +112,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         avatar: data.avatar || '',
         role: data.role || 'student',
       });
-    } else {
-      console.error('Profile fetch error:', error?.message);
+    } catch (err) {
+      console.error('Profile fetch error via API, falling back to metadata:', err);
       setUser({
         id: authUser.id,
         email: authUser.email || '',
@@ -102,12 +142,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         data: { name, school, level, role },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
     if (error) throw error;
     if (data.session?.user) {
       await fetchProfile(data.session.user);
+      return { needsEmailConfirmation: false };
     }
+    return { needsEmailConfirmation: true };
   };
 
   const logout = async () => {
@@ -118,12 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (updates: Partial<User>) => {
     if (!user) return;
-    const { error } = await profileClient
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
-    if (error) throw error;
-    setUser({ ...user, ...updates });
+    const data = await updateProfileApi(updates);
+    setUser({ ...user, ...data });
   };
 
   return (

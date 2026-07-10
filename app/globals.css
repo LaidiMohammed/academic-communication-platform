@@ -396,3 +396,38 @@ main.is-scrolled h1:first-of-type::after {
   content: '';
   display: none;
 }
+
+/* ===== PWA & mobile safe areas ===== */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* PWA splash screen bg */
+@media all and (display-mode: standalone) {
+  html {
+    background-color: #0F172A;
+  }
+  body {
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Prevent text size adjustment on orientation change */
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Better touch targets */
+@media (max-width: 767px) {
+  button, a, select, input[type="submit"], input[type="button"] {
+    min-height: 44px;
+  }
+  input, select, textarea {
+    font-size: 16px !important; /* prevent iOS zoom on focus */
+  }
+}

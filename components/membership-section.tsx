@@ -148,8 +148,8 @@ export function MembershipSection({
               <CreditCard size={20} className="text-primary" strokeWidth={2} />
             </div>
             <div>
-              <p className="font-medium text-foreground">Visa ending in 4242</p>
-              <p className="text-xs text-muted-foreground">Expires 12/26</p>
+              <p className="font-medium text-foreground">Chargily Pay</p>
+              <p className="text-xs text-muted-foreground">Secure online payment</p>
             </div>
           </div>
           <button className="text-sm text-primary hover:text-primary/80 font-medium transition">

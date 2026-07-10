@@ -3,11 +3,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { createServiceClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import {
   Plus, Users, Search, MessageCircle, X,
   MessageSquare, Camera, UserPlus, Pin, Settings, Shield,
-  Clock, TrendingUp, UserCheck,
+  Clock, TrendingUp, UserCheck, ChevronRight,
 } from 'lucide-react';
 import { PermissionsBadge } from '@/components/permissions-badge';
 
@@ -33,6 +33,7 @@ interface Group {
   isAdmin: boolean;
   createdAt: string;
   activity: string;
+  unread?: number;
 }
 
 type SortMode = 'recent' | 'popular' | 'my';
@@ -56,7 +57,7 @@ const permissionLabels: Record<keyof GroupPermissions, { label: string; icon: an
 export function GroupsPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const supabase = createServiceClient();
+  const supabase = createClient();
   const canCreate = user?.role === 'teacher' || user?.role === 'admin';
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPermsModal, setShowPermsModal] = useState<Group | null>(null);
@@ -73,18 +74,30 @@ export function GroupsPage() {
       const { data: myMemberships } = await supabase.from('group_members').select('group_id, role').eq('user_id', user.id);
       const memberMap = new Map((myMemberships || []).map((m: any) => [m.group_id, m.role]));
 
-      const mapped: Group[] = (dbGroups || []).map((g: any) => ({
-        id: g.id,
-        name: g.name,
-        bio: g.description || '',
-        image: g.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(g.name)}&background=random`,
-        members: g.members_count || 0,
-        type: (g.tags?.includes('private') ? 'private' : 'public') as 'public' | 'private',
-        permissions: defaultPermissions,
-        isMember: memberMap.has(g.id),
-        isAdmin: memberMap.get(g.id) === 'admin' || memberMap.get(g.id) === 'owner',
-        createdAt: g.created_at?.slice(0, 10) || '',
-        activity: formatActivity(g.created_at),
+      const mapped: Group[] = await Promise.all((dbGroups || []).map(async (g: any) => {
+        let unread = 0;
+        if (memberMap.has(g.id)) {
+          const { data: chat } = await supabase.from('chats').select('id').eq('id', g.id).maybeSingle();
+          if (chat) {
+            const { data: part } = await supabase.from('chat_participants').select('last_read_at').eq('chat_id', g.id).eq('user_id', user.id).single();
+            const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('chat_id', g.id).gt('created_at', part?.last_read_at || '1970-01-01').neq('sender_id', user.id);
+            unread = count || 0;
+          }
+        }
+        return {
+          id: g.id,
+          name: g.name,
+          bio: g.description || '',
+          image: g.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(g.name)}&background=random`,
+          members: g.members_count || 0,
+          type: (g.tags?.includes('private') ? 'private' : 'public') as 'public' | 'private',
+          permissions: defaultPermissions,
+          isMember: memberMap.has(g.id),
+          isAdmin: memberMap.get(g.id) === 'admin' || memberMap.get(g.id) === 'owner',
+          createdAt: g.created_at?.slice(0, 10) || '',
+          activity: formatActivity(g.created_at),
+          unread,
+        };
       }));
       setGroups(mapped);
       setLoading(false);
@@ -117,39 +130,65 @@ export function GroupsPage() {
     return sorted;
   }, [groups, sortMode]);
 
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<{ id: string; name: string; avatar: string }[]>([]);
+  const [memberSearch, setMemberSearch] = useState('');
+
+  useEffect(() => {
+    if (!showCreateModal || !user) return;
+    const fetchUsers = async () => {
+      const s = await supabase.auth.getSession();
+      const token = s.data.session?.access_token;
+      if (!token) return;
+      const res = await fetch(`/api/users/search?q=`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const { users } = await res.json();
+        setAvailableUsers(users || []);
+      }
+    };
+    fetchUsers();
+  }, [showCreateModal, user]);
+
   const handleCreateGroup = async () => {
     if (!formData.name.trim() || !user) return;
 
-    const { data: newGroup, error } = await supabase.from('groups').insert({
-      name: formData.name,
-      description: formData.bio || 'New group',
-      image: formData.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`,
-      members_count: 1,
-      tags: formData.type === 'private' ? ['private'] : [],
-      created_by: user.id,
-    }).select('id, created_at').single();
+    const s = await supabase.auth.getSession();
+    const token = s.data.session?.access_token;
+    if (!token) return;
 
-    if (error || !newGroup) { console.error('Create group error:', error?.message); return; }
-
-    await supabase.from('group_members').insert({
-      group_id: newGroup.id, user_id: user.id, role: 'owner',
+    const res = await fetch('/api/groups/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        name: formData.name,
+        description: formData.bio,
+        image: formData.image,
+        type: formData.type,
+        memberIds: selectedMembers,
+      }),
     });
 
+    const data = await res.json();
+    if (!res.ok) { console.error('Create group error:', data.error); return; }
+
     const newG: Group = {
-      id: newGroup.id,
+      id: data.group.id,
       name: formData.name,
       bio: formData.bio || 'New group',
       image: formData.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`,
-      members: 1,
+      members: 1 + selectedMembers.length,
       type: formData.type,
       permissions: { ...editPerms },
       isMember: true,
       isAdmin: true,
-      createdAt: newGroup.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+      createdAt: data.group.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
       activity: 'just now',
     };
     setGroups([newG, ...groups]);
     setShowCreateModal(false);
+    setSelectedMembers([]);
     setFormData({ name: '', bio: '', type: 'public', image: '' });
     setEditPerms(defaultPermissions);
   };
@@ -241,13 +280,20 @@ export function GroupsPage() {
               <div className="p-4">
                 <h3 className="font-bold text-foreground mb-1 line-clamp-1">{group.name}</h3>
                 <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{group.bio}</p>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Users size={14} strokeWidth={2} />
-                    <span>{group.members} members</span>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Users size={14} strokeWidth={2} />
+                      <span>{group.members} members</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {group.isMember && group.unread != null && group.unread > 0 && (
+                        <span className="min-w-[18px] h-[18px] bg-blue-500 rounded-full flex items-center justify-center px-1">
+                          <span className="text-[10px] font-bold text-white">{group.unread > 9 ? '9+' : group.unread}</span>
+                        </span>
+                      )}
+                      <PermissionsBadge type={permsType(group.permissions)} size="sm" />
+                    </div>
                   </div>
-                  <PermissionsBadge type={permsType(group.permissions)} size="sm" />
-                </div>
 
                 <div className="flex flex-wrap gap-1 mb-3">
                   {(Object.keys(permissionLabels) as (keyof GroupPermissions)[]).map(key => {
@@ -266,23 +312,23 @@ export function GroupsPage() {
                 <div className="text-[10px] text-muted-foreground/60 mb-3">Activity: {group.activity}</div>
 
                 <div className="flex gap-2">
-                  {group.isAdmin && (
-                    <button onClick={() => openPermsModal(group)}
-                      className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition text-xs font-semibold active:scale-95">
-                      <Shield size={13} /> Permissions
+                  {group.isMember && (
+                    <button onClick={() => router.push(`/dashboard/chat?group=${group.id}`)}
+                      className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:shadow-md transition active:scale-95 flex items-center justify-center gap-1">
+                      <MessageCircle size={14} /> Chat
                     </button>
                   )}
                   {!group.isMember && (
                     <button onClick={() => handleJoinGroup(group.id)}
                       className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:shadow-md transition active:scale-95">
-                      Join
+                      Join</button>
+                  )}
+                  {group.isAdmin && (
+                    <button onClick={() => openPermsModal(group)}
+                      className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition text-xs font-semibold active:scale-95">
+                      <Shield size={13} />
                     </button>
                   )}
-                  <button onClick={() => router.push(`/dashboard/chat?group=${group.id}`)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border text-foreground hover:bg-secondary transition text-xs font-semibold active:scale-95">
-                    <MessageCircle size={14} strokeWidth={2} />
-                    Chat
-                  </button>
                 </div>
               </div>
             </div>
@@ -372,6 +418,44 @@ export function GroupsPage() {
                   <option value="public">Public</option>
                   <option value="private">Private</option>
                 </select>
+              </div>
+              <div className="border-t border-border pt-4">
+                <h4 className="text-sm font-bold text-foreground mb-2 flex items-center gap-1.5">
+                  <UserPlus size={15} /> Add Members
+                </h4>
+                <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)}
+                  placeholder="Search users..."
+                  className="w-full px-3 py-1.5 text-xs border border-border rounded-lg focus:ring-1 focus:ring-primary transition bg-secondary text-foreground mb-2" />
+                <div className="max-h-28 overflow-y-auto space-y-0.5 mb-3">
+                  {availableUsers
+                    .filter(u => {
+                      const q = memberSearch.toLowerCase();
+                      return q ? u.name.toLowerCase().includes(q) : true;
+                    })
+                    .map(u => (
+                      <label key={u.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-secondary/50 cursor-pointer text-xs">
+                        <input type="checkbox" checked={selectedMembers.includes(u.id)}
+                          onChange={() => setSelectedMembers(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}
+                          className="accent-primary" />
+                        <img src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full" />
+                        <span className="text-foreground">{u.name}</span>
+                      </label>
+                    ))}
+                </div>
+                {selectedMembers.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {selectedMembers.map(id => {
+                      const u = availableUsers.find(x => x.id === id);
+                      if (!u) return null;
+                      return (
+                        <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full">
+                          {u.name}
+                          <button onClick={() => setSelectedMembers(prev => prev.filter(x => x !== id))} className="hover:text-red-400">×</button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div className="border-t border-border pt-4">
                 <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
