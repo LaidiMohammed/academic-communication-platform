@@ -114,9 +114,9 @@ export async function POST(req: NextRequest) {
     file_url: fileUrl || '',
     file_name: fileName || '',
     file_size: fileSize || '',
-  }).select('*, sender:profiles!sender_id(name, avatar)').single();
+  }).select('id').single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error || !msg) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
 
-  return NextResponse.json({ message: msg });
+  return NextResponse.json({ message: { id: msg.id } });
 }
