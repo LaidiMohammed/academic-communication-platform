@@ -982,7 +982,7 @@ export function ChatPage() {
             )}
           </AnimatePresence>
         </div>
-        <div className="flex-1 relative">
+        <div className="flex-1 overflow-y-auto relative">
           {filteredChats.map(chat => (
             <motion.div
               key={chat.id}
@@ -1409,7 +1409,7 @@ export function ChatPage() {
                   {sendError}
                 </div>
               )}
-        <div className="flex-1 overflow-y-auto relative">
+              <div className="flex-1 relative">
                 <div ref={inputRef} contentEditable
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
                   data-placeholder="Message..."
