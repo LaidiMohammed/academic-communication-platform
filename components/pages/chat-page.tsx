@@ -175,7 +175,7 @@ function parseEmoji(text: string, className = 'emoji-tw') {
 }
 
 function EmojiText({ text, className }: { text: string; className?: string }) {
-  const html = text ? parseEmoji(text, className) : '';
+  const html = text ? parseEmoji(text) : '';
   return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
@@ -195,6 +195,9 @@ export function ChatPage() {
   const [showPollModal, setShowPollModal] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
+  const [callState, setCallState] = useState<'none' | 'calling' | 'ringing' | 'connected'>('none');
+  const [callMode, setCallMode] = useState<'audio' | 'video'>('audio');
+  const [callMuted, setCallMuted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -206,6 +209,7 @@ export function ChatPage() {
   const [availableUsers, setAvailableUsers] = useState<{ id: string; name: string; avatar: string }[]>([]);
   const [chatMembers, setChatMembers] = useState<{ name: string; avatar: string; role: string; online: boolean }[]>([]);
   const [sendError, setSendError] = useState('');
+  const [chatFetchKey, setChatFetchKey] = useState(0);
   const { user: currentUser } = useAuth();
   const supabase = createClient();
   const getToken = async () => {
@@ -295,16 +299,16 @@ export function ChatPage() {
   useEffect(() => { scrollToBottom(); }, [messagesMap, selectedChat]);
 
   // Fetch chats from API
+  const fetchChats = async () => {
+    const res = await fetch('/api/chat/list', { headers: await authHeaders() });
+    if (!res.ok) return;
+    const { chats: list } = await res.json();
+    setChats(list.map((c: any) => ({ ...c, time: formatRelativeTime(c.time) })));
+  };
   useEffect(() => {
     if (!currentUser) return;
-    const fetchChats = async () => {
-      const res = await fetch('/api/chat/list', { headers: await authHeaders() });
-      if (!res.ok) return;
-      const { chats: list } = await res.json();
-      setChats(list.map((c: any) => ({ ...c, time: formatRelativeTime(c.time) })));
-    };
     fetchChats();
-  }, [currentUser]);
+  }, [currentUser, chatMode, chatFetchKey]);
 
   // Fetch messages + mark read via API
   useEffect(() => {
@@ -770,36 +774,22 @@ export function ChatPage() {
     kind: 'voice' | 'image' | 'file',
   ): Promise<string | null> => {
     try {
-      const res = await fetch('/api/chat/upload', {
+      const ext = file.name.split('.').pop() || 'webm';
+      const path = `${chatId}/${currentUser!.id}/${Date.now()}.${ext}`;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('path', path);
+      const res = await fetch('/api/upload', {
         method: 'POST',
-        headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chatId,
-          kind,
-          fileName: file.name,
-          contentType: file.type,
-          fileSize: file.size,
-        }),
+        headers: await authHeaders(),
+        body: formData,
       });
       const data = await res.json();
-      if (!res.ok || !data.path || !data.token) {
+      if (!res.ok || !data.url) {
         setSendError(data.error || 'File upload failed.');
         return null;
       }
-
-      const { error } = await supabase.storage
-        .from('chat-files')
-        .uploadToSignedUrl(data.path, data.token, file, {
-          cacheControl: '3600',
-          contentType: file.type || 'application/octet-stream',
-        });
-      if (error) {
-        setSendError(error.message || 'File upload failed.');
-        return null;
-      }
-
-      const { data: publicUrl } = supabase.storage.from('chat-files').getPublicUrl(data.path);
-      return publicUrl.publicUrl;
+      return data.url;
     } catch {
       setSendError('File upload failed.');
       return null;
@@ -862,7 +852,7 @@ export function ChatPage() {
     <div className="flex flex-1 min-h-0 bg-background overflow-hidden overflow-x-hidden">
       <style>{`.emoji-tw{display:inline;height:1em;width:1em;vertical-align:-0.15em;object-fit:contain;}`}</style>
       {/* Chat List - hides on mobile when a chat is selected */}
-      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-y-auto overflow-x-hidden max-w-full relative`}>
+      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-y-auto overflow-x-hidden max-w-full relative transform-gpu`}>
         <div className="p-3 border-b border-border relative sticky top-0 z-10 bg-card">
           <h2 className="text-lg font-bold text-foreground mb-2">Messages</h2>
           <div className="flex gap-1 mb-2 bg-secondary rounded-lg p-0.5">
@@ -996,8 +986,6 @@ export function ChatPage() {
               key={chat.id}
               onClick={() => handleChatSelect(chat.id)}
               onContextMenu={(e) => handleContextMenu(e, chat.id)}
-              whileHover={{ x: 2 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               className={`py-2.5 px-3 border-b border-border cursor-pointer transition-colors relative ${
                 selectedChat === chat.id
                   ? 'bg-primary/10 border-l-2 border-l-primary'
@@ -1067,7 +1055,7 @@ export function ChatPage() {
                           transition={{ duration: 0.15 }}
                           className="text-xs text-muted-foreground truncate flex-1"
                         >
-                          {chat.lastMessage}
+                          <EmojiText text={chat.lastMessage} className="text-xs text-muted-foreground" />
                         </motion.p>
                       )}
                     </AnimatePresence>
@@ -1152,7 +1140,7 @@ export function ChatPage() {
       {/* Chat Window + Details Panel (side by side) */}
       {selectedChat && currentChat ? (
         <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col bg-card overflow-hidden relative min-w-0">
+        <div className="flex flex-1 flex-col bg-card overflow-y-auto overflow-x-hidden relative min-w-0">
           {/* Header */}
           <div className="border-b border-border px-3 py-2.5 flex items-center justify-between shrink-0 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
             <div className="flex items-center gap-3">
@@ -1219,8 +1207,12 @@ export function ChatPage() {
               </div>
             </div>
             <div className="flex items-center gap-0.5">
-              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }} className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-green-400"><Phone size={17} /></motion.button>
-              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }} className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-blue-400"><Video size={17} /></motion.button>
+              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
+                onClick={() => { setCallMode('audio'); setCallState('calling'); setCallMuted(false); }}
+                className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-green-400"><Phone size={17} /></motion.button>
+              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
+                onClick={() => { setCallMode('video'); setCallState('calling'); setCallMuted(false); }}
+                className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-blue-400"><Video size={17} /></motion.button>
               <motion.button
                 whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
                 onClick={() => setShowDetailsPanel(!showDetailsPanel)}
@@ -1232,7 +1224,7 @@ export function ChatPage() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-2 flex flex-col">
+          <div className="flex-1 overflow-x-hidden px-3 py-2 space-y-2 flex flex-col">
             {messages.map(msg => (
               <div key={msg.id} className={`flex gap-2 ${msg.isOwn ? 'justify-end' : 'justify-start'} group`}
                 onMouseEnter={() => setHoveredMessage(msg.id)}
@@ -1469,6 +1461,51 @@ export function ChatPage() {
             </div>
           )}
         </div>
+
+        {/* Call Overlay */}
+        {callState !== 'none' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-40 bg-card/95 backdrop-blur-xl flex flex-col items-center justify-center gap-4"
+          >
+            <div className="relative">
+              <img src={currentChat!.avatar} alt={currentChat!.name}
+                className={`w-20 h-20 rounded-full shadow-lg ${callState === 'calling' ? 'animate-pulse' : ''}`} />
+              {callState === 'connected' && callMode === 'audio' && (
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-card flex items-center justify-center">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="8,5 19,12 8,19"/></svg>
+                </div>
+              )}
+            </div>
+            <p className="text-lg font-bold text-foreground">{currentChat!.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {callState === 'calling' ? 'Appel en cours...' : callState === 'ringing' ? 'Sonnerie...' : 'En appel'}
+            </p>
+            <div className="flex items-center gap-3 mt-2">
+              <motion.button whileTap={{ scale: 0.9 }}
+                onClick={() => setCallMuted(!callMuted)}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition ${
+                  callMuted ? 'bg-destructive text-white' : 'bg-secondary text-foreground hover:bg-secondary/80'
+                }`}>
+                {callMuted ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M12 2a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M8 21h8"/></svg>
+                )}
+              </motion.button>
+              <motion.button whileTap={{ scale: 0.9 }}
+                onClick={() => { setCallState('none'); setCallMuted(false); }}
+                className="w-14 h-14 rounded-full bg-destructive text-white flex items-center justify-center shadow-lg hover:bg-destructive/90 transition">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2"/></svg>
+              </motion.button>
+              {callMode === 'video' && (
+                <motion.button whileTap={{ scale: 0.9 }}
+                  className="w-12 h-12 rounded-full bg-secondary text-foreground flex items-center justify-center hover:bg-secondary/80 transition">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                </motion.button>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* Details Panel (inline, compresses chat) */}
         {showDetailsPanel && (
