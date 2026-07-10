@@ -71,37 +71,15 @@ export function GroupsPage() {
     if (!user) return;
     const fetchGroups = async () => {
       setLoading(true);
-      const { data: dbGroups } = await supabase.from('groups').select('*').order('created_at', { ascending: false });
-      const { data: myMemberships } = await supabase.from('group_members').select('group_id, role').eq('user_id', user.id);
-      const memberMap = new Map((myMemberships || []).map((m: any) => [m.group_id, m.role]));
-
-      const mapped: Group[] = await Promise.all((dbGroups || []).map(async (g: any) => {
-        let unread = 0;
-        const chatId = g.chat_id || '';
-        if (chatId && memberMap.has(g.id)) {
-          const { data: part } = await supabase.from('chat_participants').select('last_read_at').eq('chat_id', chatId).eq('user_id', user.id).single();
-          if (part) {
-            const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('chat_id', chatId).gt('created_at', part.last_read_at || '1970-01-01').neq('sender_id', user.id);
-            unread = count || 0;
-          }
-        }
-        return {
-          id: g.id,
-          name: g.name,
-          bio: g.description || '',
-          image: g.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(g.name)}&background=random`,
-          members: g.members_count || 0,
-          type: (g.tags?.includes('private') ? 'private' : 'public') as 'public' | 'private',
-          permissions: defaultPermissions,
-          isMember: memberMap.has(g.id),
-          isAdmin: memberMap.get(g.id) === 'admin' || memberMap.get(g.id) === 'owner',
-          createdAt: g.created_at?.slice(0, 10) || '',
-          activity: formatActivity(g.created_at),
-          unread,
-          chatId,
-        };
-      }));
-      setGroups(mapped);
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) return;
+      const res = await fetch('/api/groups/list', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { setLoading(false); return; }
+      const { groups: mapped } = await res.json();
+      setGroups(mapped.map((g: any) => ({ ...g, permissions: defaultPermissions })));
       setLoading(false);
     };
     fetchGroups();

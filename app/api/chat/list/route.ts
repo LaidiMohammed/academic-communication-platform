@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const { data: participations } = await supabase
     .from('chat_participants')
-    .select('chat_id, last_read_at, muted, pinned, chats(*)')
+    .select('chat_id, last_read_at, chats(*)')
     .eq('user_id', user.id);
 
   if (!participations) return NextResponse.json({ chats: [] });
@@ -55,8 +55,8 @@ export async function GET(req: NextRequest) {
       unread: count || 0,
       online: false,
       typing: false,
-      muted: p.muted || false,
-      pinned: p.pinned || false,
+      muted: false,
+      pinned: false,
       lastSeen: '',
       type: chat.type,
       members: chat.type === 'group' ? chat.members_count : undefined,
