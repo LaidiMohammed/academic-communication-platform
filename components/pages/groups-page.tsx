@@ -34,6 +34,7 @@ interface Group {
   createdAt: string;
   activity: string;
   unread?: number;
+  chatId?: string;
 }
 
 type SortMode = 'recent' | 'popular' | 'my';
@@ -76,11 +77,11 @@ export function GroupsPage() {
 
       const mapped: Group[] = await Promise.all((dbGroups || []).map(async (g: any) => {
         let unread = 0;
-        if (memberMap.has(g.id)) {
-          const { data: chat } = await supabase.from('chats').select('id').eq('id', g.id).maybeSingle();
-          if (chat) {
-            const { data: part } = await supabase.from('chat_participants').select('last_read_at').eq('chat_id', g.id).eq('user_id', user.id).single();
-            const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('chat_id', g.id).gt('created_at', part?.last_read_at || '1970-01-01').neq('sender_id', user.id);
+        const chatId = g.chat_id || '';
+        if (chatId && memberMap.has(g.id)) {
+          const { data: part } = await supabase.from('chat_participants').select('last_read_at').eq('chat_id', chatId).eq('user_id', user.id).single();
+          if (part) {
+            const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('chat_id', chatId).gt('created_at', part.last_read_at || '1970-01-01').neq('sender_id', user.id);
             unread = count || 0;
           }
         }
@@ -97,6 +98,7 @@ export function GroupsPage() {
           createdAt: g.created_at?.slice(0, 10) || '',
           activity: formatActivity(g.created_at),
           unread,
+          chatId,
         };
       }));
       setGroups(mapped);
@@ -191,6 +193,7 @@ export function GroupsPage() {
     setSelectedMembers([]);
     setFormData({ name: '', bio: '', type: 'public', image: '' });
     setEditPerms(defaultPermissions);
+    if (data.chat?.id) router.push(`/dashboard/chat?group=${data.chat.id}`);
   };
 
   const handleJoinGroup = async (groupId: string) => {
@@ -313,7 +316,7 @@ export function GroupsPage() {
 
                 <div className="flex gap-2">
                   {group.isMember && (
-                    <button onClick={() => router.push(`/dashboard/chat?group=${group.id}`)}
+                    <button onClick={() => router.push(`/dashboard/chat?group=${group.chatId || group.id}`)}
                       className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:shadow-md transition active:scale-95 flex items-center justify-center gap-1">
                       <MessageCircle size={14} /> Chat
                     </button>

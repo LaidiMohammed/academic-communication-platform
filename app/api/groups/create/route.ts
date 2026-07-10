@@ -24,11 +24,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Group name required' }, { status: 400 });
   }
 
+  const allIds = [user.id, ...(memberIds || []).filter((id: string) => id !== user.id)];
+
   const { data: group, error: groupErr } = await supabase.from('groups').insert({
     name: name.trim(),
     description: description || '',
     image: image || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
-    members_count: 1 + (memberIds?.length || 0),
+    members_count: allIds.length,
     tags: type === 'private' ? ['private'] : [],
     created_by: user.id,
   }).select('*').single();
@@ -38,16 +40,37 @@ export async function POST(req: NextRequest) {
   }
 
   const members = [{ group_id: group.id, user_id: user.id, role: 'owner' }];
-  if (memberIds?.length) {
-    memberIds.forEach((mid: string) => {
-      if (mid !== user.id) members.push({ group_id: group.id, user_id: mid, role: 'member' });
-    });
-  }
+  (memberIds || []).forEach((mid: string) => {
+    if (mid !== user.id) members.push({ group_id: group.id, user_id: mid, role: 'member' });
+  });
   const { error: memberErr } = await supabase.from('group_members').insert(members);
   if (memberErr) {
     await supabase.from('groups').delete().eq('id', group.id);
     return NextResponse.json({ error: memberErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ group });
+  const { data: chat, error: chatErr } = await supabase.from('chats').insert({
+    type: 'group',
+    name: name.trim(),
+    created_by: user.id,
+  }).select('*').single();
+
+  if (chatErr || !chat) {
+    await supabase.from('groups').delete().eq('id', group.id);
+    return NextResponse.json({ error: chatErr?.message || 'Failed to create chat' }, { status: 500 });
+  }
+
+  await supabase.from('groups').update({ chat_id: chat.id }).eq('id', group.id);
+
+  const participants = allIds.map((uid: string) => ({
+    chat_id: chat.id, user_id: uid, last_read_at: new Date().toISOString(),
+  }));
+  const { error: partErr } = await supabase.from('chat_participants').insert(participants);
+  if (partErr) {
+    await supabase.from('chats').delete().eq('id', chat.id);
+    await supabase.from('groups').delete().eq('id', group.id);
+    return NextResponse.json({ error: partErr.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ group, chat });
 }

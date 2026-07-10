@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Bell, BellOff, Pin, Image, Link2, Users,
   Shield, Lock, Trash2, UserX, Edit3, Volume2, VolumeX,
-  ChevronRight, Clock, Globe, Hash, Camera, FileText,
-  Music, Film, Download, ExternalLink, Circle,
+  ChevronRight, Camera, FileText,
+  Download, ExternalLink,
 } from 'lucide-react';
 
 interface ChatDetailsPanelProps {
@@ -21,34 +21,14 @@ interface ChatDetailsPanelProps {
   onChangeNickname: () => void;
   isMuted?: boolean;
   messages?: { type: string; image?: string; file?: { name: string; size: string; url?: string }; text?: string }[];
+  members?: { name: string; avatar: string; role: string; online: boolean }[];
 }
 
 type Tab = 'info' | 'media' | 'links' | 'files';
 
-const sharedMedia = [
-  { type: 'photo', icon: Camera, label: '3 photos' },
-  { type: 'music', icon: Music, label: '2 music' },
-  { type: 'video', icon: Film, label: '1 video' },
-  { type: 'file', icon: FileText, label: '5 files' },
-];
-
-const sharedLinks = [
-  { url: 'github.com/example', title: 'Project Repository' },
-  { url: 'docs.google.com/document', title: 'Collaboration Doc' },
-  { url: 'figma.com/file', title: 'UI Design Prototype' },
-];
-
-const members = [
-  { name: 'You', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=you', role: 'admin', online: true },
-  { name: 'Sarah Johnson', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah', role: 'member', online: true },
-  { name: 'Prof. Smith', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=smith', role: 'member', online: false },
-  { name: 'Alex Chen', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', role: 'member', online: true },
-  { name: 'Jessica Lee', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jessica', role: 'member', online: false },
-];
-
 export function ChatDetailsPanel({
   isOpen, onClose, chatName, chatAvatar, online,
-  onMute, onBlock, onDelete, onChangeNickname, isMuted = false, messages = [],
+  onMute, onBlock, onDelete, onChangeNickname, isMuted = false, messages = [], members = [],
 }: ChatDetailsPanelProps) {
   const [tab, setTab] = useState<Tab>('info');
   const [showNicknameModal, setShowNicknameModal] = useState(false);
@@ -57,6 +37,20 @@ export function ChatDetailsPanel({
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [pinned, setPinned] = useState(false);
+
+  const images = useMemo(() => messages.filter(m => m.type === 'image'), [messages]);
+  const files = useMemo(() => messages.filter(m => m.type === 'file'), [messages]);
+  const links = useMemo(() => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const found: { url: string }[] = [];
+    messages.forEach(m => {
+      if (m.text) {
+        const matches = m.text.match(urlRegex);
+        if (matches) matches.forEach(url => found.push({ url }));
+      }
+    });
+    return found.slice(0, 20);
+  }, [messages]);
 
   const handleSaveNickname = () => { onChangeNickname(); setShowNicknameModal(false); };
   const handleDelete = () => { onDelete(); setShowDeleteConfirm(false); };
@@ -71,7 +65,6 @@ export function ChatDetailsPanel({
 
   return (
     <>
-      {/* Backdrop */}
       <AnimatePresence>
         {isOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
@@ -79,7 +72,6 @@ export function ChatDetailsPanel({
         )}
       </AnimatePresence>
 
-      {/* Desktop Panel (inline flex, compresses chat) */}
       <motion.div
         initial={{ width: 0, opacity: 0 }}
         animate={{ width: 288, opacity: 1 }}
@@ -87,7 +79,6 @@ export function ChatDetailsPanel({
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className="hidden md:flex w-72 bg-card border-l border-border flex-col shadow-xl shrink-0 overflow-hidden"
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-3 py-3 border-b border-border shrink-0">
           <h3 className="text-sm font-semibold text-foreground">Chat Info</h3>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-secondary transition text-muted-foreground hover:text-foreground">
@@ -95,7 +86,6 @@ export function ChatDetailsPanel({
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-border shrink-0">
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
@@ -108,13 +98,9 @@ export function ChatDetailsPanel({
           ))}
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto">
-
-          {/* INFO TAB */}
           {tab === 'info' && (
             <div className="divide-y divide-border">
-              {/* Avatar & Name */}
               <div className="text-center py-4 px-3">
                 <div className="relative inline-block mb-2">
                   <img src={chatAvatar} alt={chatName} className="w-16 h-16 rounded-full" />
@@ -124,7 +110,6 @@ export function ChatDetailsPanel({
                 <p className="text-xs text-muted-foreground">{online ? 'Online' : 'Offline'}</p>
               </div>
 
-              {/* Actions */}
               <div className="py-1">
                 <button onClick={() => setShowNicknameModal(true)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-secondary transition text-sm text-foreground">
@@ -148,16 +133,31 @@ export function ChatDetailsPanel({
                 </button>
               </div>
 
-              {/* Shared Media Summary */}
+              {members.length > 0 && (
+                <div className="py-1">
+                  <div className="px-3 py-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Users size={14} />
+                    <span>{members.length} members</span>
+                  </div>
+                  {members.map((m, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 text-sm text-foreground">
+                      <img src={m.avatar} alt="" className="w-6 h-6 rounded-full" />
+                      <span className="flex-1 truncate">{m.name}</span>
+                      {m.online && <div className="w-1.5 h-1.5 rounded-full bg-accent" />}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="py-1">
                 <button onClick={() => setTab('media')}
                   className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-secondary transition text-sm text-foreground">
                   <div className="flex items-center gap-3">
                     <Image size={16} className="text-muted-foreground" />
-                    <span>Shared Media</span>
+                    <span>Images</span>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <span>11 items</span>
+                    <span>{images.length} items</span>
                     <ChevronRight size={14} />
                   </div>
                 </button>
@@ -168,25 +168,23 @@ export function ChatDetailsPanel({
                     <span>Shared Links</span>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <span>3 links</span>
+                    <span>{links.length} links</span>
                     <ChevronRight size={14} />
                   </div>
                 </button>
               </div>
 
-              {/* Security */}
               <div className="py-1">
                 <div className="flex items-center gap-3 px-3 py-2.5 text-sm text-foreground">
                   <Lock size={16} className="text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="text-sm">Encryption</p>
-                    <p className="text-xs text-muted-foreground">Messages are end-to-end encrypted</p>
+                    <p className="text-sm">Privacy</p>
+                    <p className="text-xs text-muted-foreground">Secured by Supabase</p>
                   </div>
                   <Shield size={16} className="text-accent" />
                 </div>
               </div>
 
-              {/* Danger Zone */}
               <div className="py-1">
                 <button onClick={() => setShowBlockConfirm(true)}
                   className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-destructive/10 transition text-sm text-destructive">
@@ -202,13 +200,12 @@ export function ChatDetailsPanel({
             </div>
           )}
 
-          {/* MEDIA TAB */}
           {tab === 'media' && (
             <div className="p-3">
-              <p className="text-xs text-muted-foreground mb-3">Shared Media ({messages.filter(m => m.type === 'image').length})</p>
-              {messages.filter(m => m.type === 'image').length > 0 ? (
+              <p className="text-xs text-muted-foreground mb-3">Shared Media ({images.length})</p>
+              {images.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1">
-                  {messages.filter(m => m.type === 'image').map((m, i) => (
+                  {images.map((m, i) => (
                     <div key={i} className="aspect-square bg-secondary rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition">
                       <img src={m.image} alt="" className="w-full h-full object-cover" />
                     </div>
@@ -223,34 +220,38 @@ export function ChatDetailsPanel({
             </div>
           )}
 
-          {/* LINKS TAB */}
           {tab === 'links' && (
             <div className="p-3">
-              <p className="text-xs text-muted-foreground mb-3">Shared Links</p>
-              <div className="space-y-2">
-                {sharedLinks.map((link, i) => (
-                  <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-secondary transition cursor-pointer">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Link2 size={14} className="text-primary" />
+              <p className="text-xs text-muted-foreground mb-3">Shared Links ({links.length})</p>
+              {links.length > 0 ? (
+                <div className="space-y-2">
+                  {links.map((link, i) => (
+                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-secondary transition cursor-pointer">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Link2 size={14} className="text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-muted-foreground truncate">{link.url}</p>
+                      </div>
+                      <ExternalLink size={12} className="text-muted-foreground shrink-0 mt-1" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-foreground truncate">{link.title}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{link.url}</p>
-                    </div>
-                    <ExternalLink size={12} className="text-muted-foreground shrink-0 mt-1" />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Link2 size={24} className="mx-auto mb-2 opacity-40" />
+                  <p className="text-xs">No links shared yet</p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* FILES TAB */}
           {tab === 'files' && (
             <div className="p-3">
-              <p className="text-xs text-muted-foreground mb-3">Shared Files ({messages.filter(m => m.type === 'file').length})</p>
-              {messages.filter(m => m.type === 'file').length > 0 ? (
+              <p className="text-xs text-muted-foreground mb-3">Shared Files ({files.length})</p>
+              {files.length > 0 ? (
                 <div className="space-y-2">
-                  {messages.filter(m => m.type === 'file').map((m, i) => (
+                  {files.map((m, i) => (
                     <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary transition cursor-pointer group">
                       <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
                         <FileText size={14} className="text-accent" />
@@ -274,7 +275,6 @@ export function ChatDetailsPanel({
         </div>
       </motion.div>
 
-      {/* Nickname Modal */}
       <AnimatePresence>
         {showNicknameModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -298,7 +298,6 @@ export function ChatDetailsPanel({
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation */}
       <AnimatePresence>
         {showDeleteConfirm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -322,7 +321,6 @@ export function ChatDetailsPanel({
         )}
       </AnimatePresence>
 
-      {/* Block Confirmation */}
       <AnimatePresence>
         {showBlockConfirm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

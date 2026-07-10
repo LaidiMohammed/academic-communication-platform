@@ -151,6 +151,8 @@ export function ChatPage() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [addUserQuery, setAddUserQuery] = useState('');
   const [availableUsers, setAvailableUsers] = useState<{ id: string; name: string; avatar: string }[]>([]);
+  const [chatMembers, setChatMembers] = useState<{ name: string; avatar: string; role: string; online: boolean }[]>([]);
+  const [sendError, setSendError] = useState('');
   const { user: currentUser } = useAuth();
   const supabase = createClient();
   const addUserRef = useRef<HTMLDivElement>(null);
@@ -307,6 +309,23 @@ export function ChatPage() {
         msgs.filter(m => m.sender_id !== currentUser.id).map(m => ({ message_id: m.id, user_id: currentUser.id }))
       ).then(() => {});
       supabase.from('chat_participants').update({ last_read_at: new Date().toISOString() }).eq('chat_id', selectedChat).eq('user_id', currentUser.id).then(() => {});
+
+      const { data: participants } = await supabase.from('chat_participants')
+        .select('user_id').eq('chat_id', selectedChat);
+      if (participants?.length) {
+        const { data: profiles } = await supabase.from('profiles')
+          .select('id, name, avatar').in('id', participants.map(p => p.user_id));
+        const otherIds = participants.filter(p => p.user_id !== currentUser.id).map(p => p.user_id);
+        const { data: groupRanks } = await supabase.from('group_members')
+          .select('user_id, role').in('user_id', otherIds);
+        const roleMap = new Map((groupRanks || []).map((r: any) => [r.user_id, r.role]));
+        setChatMembers((profiles || []).map((p: any) => ({
+          name: p.name || 'Unknown',
+          avatar: p.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.id}`,
+          role: roleMap.get(p.id) || 'member',
+          online: false,
+        })));
+      }
     };
     fetchMessages();
 
@@ -382,15 +401,39 @@ export function ChatPage() {
     };
   }, [selectedChat, currentUser]);
 
-  // Handle URL group param
+  // Handle URL group param — ensure a valid chat exists
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const groupId = params.get('group');
-    if (groupId) {
-      setChatMode('group');
-      setSelectedChat(groupId);
-    }
-  }, []);
+    const groupParam = params.get('group');
+    if (!groupParam) return;
+    setChatMode('group');
+    const initChat = async () => {
+      const { data: chat } = await supabase.from('chats').select('id').eq('id', groupParam).maybeSingle();
+      if (chat) {
+        setSelectedChat(chat.id);
+      } else {
+        const { data: grp } = await supabase.from('groups').select('chat_id, name, created_by').eq('id', groupParam).single();
+        if (grp?.chat_id) {
+          setSelectedChat(grp.chat_id);
+        } else if (grp && currentUser) {
+          const { data: newChat } = await supabase.from('chats').insert({
+            type: 'group', name: grp.name || 'Group', created_by: grp.created_by,
+          }).select('id').single();
+          if (newChat) {
+            await supabase.from('groups').update({ chat_id: newChat.id }).eq('id', groupParam);
+            const { data: members } = await supabase.from('group_members').select('user_id').eq('group_id', groupParam);
+            if (members) {
+              await supabase.from('chat_participants').insert(
+                members.map((m: any) => ({ chat_id: newChat.id, user_id: m.user_id, last_read_at: new Date().toISOString() }))
+              );
+            }
+            setSelectedChat(newChat.id);
+          }
+        }
+      }
+    };
+    initChat();
+  }, [currentUser]);
 
   const handleChatSelect = (chatId: string) => {
     setSelectedChat(chatId);
@@ -430,12 +473,14 @@ export function ChatPage() {
     setContextMenu({ chatId, x: rect.left + 20, y: rect.top + 6 });
   };
 
-  const getNextId = (chatId: string) => {
-    const msgs = messagesMap[chatId] || [];
-    return msgs.length > 0 ? Math.max(...msgs.map(m => m.id)) + 1 : 1;
+  const localIdCounter = useRef(0);
+  const getNextId = () => {
+    localIdCounter.current += 1;
+    return localIdCounter.current;
   };
 
   const addMessage = async (chatId: string, msg: Partial<Message>) => {
+    setSendError('');
     const fileUrl = (msg as any).image || (msg as any).file?.url || (msg as any).voice || '';
     const { data: inserted, error } = await supabase.from('messages').insert({
       chat_id: chatId, sender_id: currentUser?.id,
@@ -444,7 +489,7 @@ export function ChatPage() {
       file_url: fileUrl,
       reply_to: (msg as any).replyTo || null,
     }).select('id').single();
-    if (error) { console.error('Send error:', error); return; }
+    if (error) { setSendError('Failed to send message. Check your connection.'); console.error('Send error:', error); return; }
     const newMsg: Message = {
       id: inserted.id, sender: 'You', text: msg.text || '',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -463,12 +508,13 @@ export function ChatPage() {
 
   const emojis = ['😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','🥰','😘','😗','😙','😚','🙂','🤩','🤔','🤨','😐','😑','😶','😏','😮','😯','😪','😫','😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','😖','😞','😟','😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤝','🙏','✌️','🤟','🤘','👌','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💗','💖','💘','💝','✨','🔥','⭐','🌟','💫','🎉','🎊','🎈','🎁','💯','✅','❌','❓','❗','🚀','💪','👀','🙈','🙉','🙊','💀','☠️','👋','✋','👌','🤏','👆','👇','👈','👉','👊','👋','👏','🙌','👐','🤲','🙏','💅','👂','👃','🧠','👁️','👅','👄','💋','👶','👦','👧','🧑','👩','👨','👴','👵','🤶','🎅','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🐘','🦏','🐪','🐫','🦒','🐃','🐄','🐎','🐖','🐏','🐑','🐕','🐩','🐈','🐇','🐁','🐀','🐿️','🦔','🐾','🐉','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🍃','🍂','🍁','🍄','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌎','🌍','🌏','⭐','🌟','✨','⚡','💥','🔥','🌈','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','💨','💧','💦','☔','🌊','🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌽','🥕','🥔','🍠','🥐','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🥓','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🌮','🌯','🥗','🥘','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','🍼','☕','🍵','🥤','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾','🥄','🍴','🍽️','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🏒','🏑','🥍','🏏','⛳','🏹','🎣','🥊','🥋','🎯','🎮','🎲','🧩','🎭','🎨','🎪','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎬','🎿','🏂','🥇','🥈','🥉','🏅','🏆','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚚','🚛','🚜','🏍️','🛵','🛺','🚲','🛴','🛹','🚏','⛽','🚢','✈️','🛩️','🛫','🛬','💺','🚁','🚀','🛸','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏯','🏰','💒','🗼','🗽','⛪','🕌','🕍','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗾','🏔️','⛰️','🌋','🗻','🏖️','🏜️','🏝️','🏞️','🗺️','🇩🇿','🇺🇸','🇬🇧','🇫🇷','🇪🇸','🇩🇪','🇮🇹','🇯🇵','🇨🇳','🇷🇺','🇧🇷','🇮🇳','🇦🇪','🇸🇦','🇲🇦','🇹🇳','🇪🇬']; // cleaned, no ZWJ sequences
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     const div = inputRef.current as HTMLElement | null;
     const text = div ? div.innerText.trim() : '';
     if (!text || !selectedChat) return;
+    if (!currentUser) { console.error('Not logged in'); return; }
     const newMsg: Message = {
-      id: getNextId(selectedChat),
+      id: getNextId(),
       sender: 'You',
       text,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -477,10 +523,10 @@ export function ChatPage() {
       type: 'text',
       replyTo: replyTo || undefined,
     };
-    addMessage(selectedChat, newMsg);
+    setSending(true);
+    await addMessage(selectedChat, newMsg);
     if (inputRef.current) (inputRef.current as HTMLElement).innerHTML = '';
     setReplyTo(null);
-    setSending(true);
     setTimeout(() => setSending(false), 300);
     inputRef.current?.focus();
   };
@@ -513,7 +559,7 @@ export function ChatPage() {
 
   const doForward = (targetChatId: string) => {
     if (!showForward) return;
-    const fwd: Message = { ...showForward, id: getNextId(targetChatId), isOwn: true, sender: 'You', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+    const fwd: Message = { ...showForward, id: getNextId(), isOwn: true, sender: 'You', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
     addMessage(targetChatId, fwd);
     setShowForward(null);
   };
@@ -522,7 +568,7 @@ export function ChatPage() {
     if (!selectedChat || !pollQuestion.trim()) return;
     const opts = pollOptions.filter(o => o.trim());
     const newMsg: Message = {
-      id: getNextId(selectedChat),
+      id: getNextId(),
       sender: 'You',
       text: `📊 ${pollQuestion}`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -545,7 +591,7 @@ export function ChatPage() {
       (pos) => {
         const { latitude, longitude } = pos.coords;
         const newMsg: Message = {
-          id: getNextId(selectedChat!),
+          id: getNextId(),
           sender: 'You',
           text: '📍 Location',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -562,7 +608,7 @@ export function ChatPage() {
         const lat = +(36.7372 + (Math.random() - 0.5) * 0.02).toFixed(4);
         const lng = +(3.0862 + (Math.random() - 0.5) * 0.02).toFixed(4);
         const newMsg: Message = {
-          id: getNextId(selectedChat!),
+          id: getNextId(),
           sender: 'You',
           text: '📍 Location (approx)',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -599,7 +645,7 @@ export function ChatPage() {
         const publicUrl = await uploadFile(file, fileName);
         const url = publicUrl || URL.createObjectURL(blob);
         const newMsg: Message = {
-          id: getNextId(selectedChat),
+          id: getNextId(),
           sender: 'You',
           text: `🎤 ${Math.floor(dur / 60)}:${(dur % 60).toString().padStart(2, '0')}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -655,7 +701,7 @@ export function ChatPage() {
     const path = `${selectedChat}/${Date.now()}_${f.name}`;
     const publicUrl = await uploadFile(f, path);
     const newMsg: Message = {
-      id: getNextId(selectedChat),
+      id: getNextId(),
       sender: 'You',
       text: `📎 ${f.name}`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -674,7 +720,7 @@ export function ChatPage() {
     const publicUrl = await uploadFile(f, path);
     const url = publicUrl || URL.createObjectURL(f);
     const newMsg: Message = {
-      id: getNextId(selectedChat),
+      id: getNextId(),
       sender: 'You',
       text: '📷 Photo',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1255,6 +1301,11 @@ export function ChatPage() {
                   </div>
                 )}
               </div>
+              {sendError && (
+                <div className="px-3 py-1.5 mb-1 text-xs text-destructive bg-destructive/10 rounded-lg">
+                  {sendError}
+                </div>
+              )}
               <div className="flex-1 relative">
                 <div ref={inputRef as any} contentEditable
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
@@ -1314,7 +1365,7 @@ export function ChatPage() {
           chatName={currentChat!.name} chatAvatar={currentChat!.avatar} online={'online' in currentChat! ? Boolean(currentChat!.online) : false}
           isMuted={isChatMuted} onMute={() => setIsChatMuted(!isChatMuted)}
           onChangeNickname={() => {}} onBlock={() => {}} onDelete={() => { setSelectedChat(null); setShowDetailsPanel(false); }}
-          messages={messages} />
+          messages={messages} members={chatMembers} />
         )}
       </div>
       ) : (
