@@ -97,17 +97,40 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   const [progress, setProgress] = useState(0);
   const [resolvedDuration, setResolvedDuration] = useState(duration);
   const [playbackError, setPlaybackError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [audioUrl, setAudioUrl] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const blobUrlRef = useRef('');
 
   useEffect(() => {
     setResolvedDuration(duration);
     setProgress(0);
     setPlaybackError(false);
-  }, [duration, src]);
+    setLoading(true);
+
+    const fetchAudio = async () => {
+      if (!src) { setPlaybackError(true); setLoading(false); return; }
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+      try {
+        const res = await fetch(src);
+        if (!res.ok) throw new Error('Failed to fetch audio');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
+        setAudioUrl(url);
+      } catch {
+        setPlaybackError(true);
+      }
+      setLoading(false);
+    };
+    fetchAudio();
+
+    return () => { if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current); };
+  }, [src, duration]);
 
   const toggle = async () => {
     const audio = audioRef.current;
-    if (!audio || playbackError) return;
+    if (!audio || playbackError || loading) return;
     if (audio.paused) {
       try {
         await audio.play();
@@ -125,8 +148,8 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
     <div className="flex items-center gap-2 mb-1 min-w-40">
       <audio
         ref={audioRef}
-        src={src}
-        preload="metadata"
+        src={audioUrl}
+        preload="auto"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => { setPlaying(false); setProgress(0); }}
@@ -143,19 +166,23 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
       <button
         onMouseDown={(e) => e.preventDefault()}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggle(); }}
-        disabled={playbackError}
+        disabled={playbackError || loading}
         className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {playing
-          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-          : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg>}
+        {loading ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="animate-spin"><path d="M12 2a10 10 0 0 1 10 10h-2a8 8 0 0 0-8-8V2z"/></svg>
+        ) : playing ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg>
+        )}
       </button>
       <div className="flex-1 h-1.5 bg-background/20 rounded-full overflow-hidden">
         <div className="h-full bg-white rounded-full transition-all" style={{ width: `${progress * 100}%` }} />
       </div>
       <div className="flex flex-col items-end leading-tight">
         <span className="text-[10px] opacity-80 font-mono">{mins}:{secs.toString().padStart(2, '0')}</span>
-        <span className="text-[8px] opacity-50">{playbackError ? 'Unavailable' : playing ? 'Playing' : ''}</span>
+        <span className="text-[8px] opacity-50">{loading ? 'Loading...' : playbackError ? 'Unavailable' : playing ? 'Playing' : ''}</span>
       </div>
     </div>
   );
@@ -839,8 +866,6 @@ export function ChatPage() {
     e.target.value = '';
   };
 
-  useEffect(() => { if (currentUser) fetchChats(); }, [chatMode]);
-
   const filteredByMode = chats.filter(c => c.type === chatMode);
   const filteredChats = searchQuery
     ? filteredByMode.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -854,7 +879,7 @@ export function ChatPage() {
     <div className="flex flex-1 min-h-0 bg-background overflow-hidden overflow-x-hidden">
       <style>{`.emoji-tw{display:inline;height:1em;width:1em;vertical-align:-0.15em;object-fit:contain;}`}</style>
       {/* Chat List - hides on mobile when a chat is selected */}
-      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-x-hidden max-w-full relative`}>
+      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-hidden max-w-full relative`}>
         <div className="p-3 border-b border-border relative bg-card">
           <h2 className="text-lg font-bold text-foreground mb-2">Messages</h2>
           <div className="flex gap-1 mb-2 bg-secondary rounded-lg p-0.5">
