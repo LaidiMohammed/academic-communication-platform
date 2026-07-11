@@ -200,8 +200,12 @@ export function ChatPage() {
   const [callState, setCallState] = useState<'none' | 'calling' | 'connected'>('none');
   const [callMode, setCallMode] = useState<'audio' | 'video'>('audio');
   const [callMuted, setCallMuted] = useState(false);
-  const [incomingCall, setIncomingCall] = useState<{ from: string; fromName: string; chatId: string; mode: 'audio' | 'video' } | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{ from: string; fromName: string; chatId: string; mode: 'audio' | 'video'; sdp?: string } | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const rtcPeerRef = useRef<RTCPeerConnection | null>(null);
+  const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -365,9 +369,35 @@ export function ChatPage() {
             if (signalType === 'offer') {
               const mode = parts[3] as 'audio' | 'video';
               const fromName = parts[4] || 'Someone';
-              setIncomingCall({ from: newMsg.sender_id, fromName, chatId: newMsg.chat_id, mode });
+              setIncomingCall({ from: newMsg.sender_id, fromName, chatId: newMsg.chat_id, mode, sdp: newMsg.file_url || '' });
             } else if (signalType === 'answer') {
-              if (callStateRef.current === 'calling') setCallState('connected');
+              if (callStateRef.current === 'calling' && newMsg.file_url) {
+                const pc = rtcPeerRef.current;
+                if (pc) {
+                  try {
+                    const desc = JSON.parse(newMsg.file_url);
+                    await pc.setRemoteDescription(new RTCSessionDescription(desc));
+                    await flushPendingCandidates();
+                  } catch (e) {
+                    console.error('setRemoteDescription (answer) error:', e);
+                  }
+                }
+                setCallState('connected');
+              }
+            } else if (signalType === 'ice') {
+              if (newMsg.file_url) {
+                try {
+                  const candidate = JSON.parse(newMsg.file_url) as RTCIceCandidateInit;
+                  const pc = rtcPeerRef.current;
+                  if (pc && pc.remoteDescription) {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                  } else {
+                    pendingIceRef.current.push(candidate);
+                  }
+                } catch (e) {
+                  console.error('addIceCandidate error:', e);
+                }
+              }
             } else if (signalType === 'end') {
               if (callStateRef.current !== 'none') endCall();
             }
@@ -526,15 +556,16 @@ export function ChatPage() {
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  const sendCallSignal = async (type: string, extra?: string) => {
-    if (!selectedChat || !currentUser) return;
+  const sendCallSignal = async (type: string, extra?: string, data?: string) => {
+    const chatId = selectedChat || incomingCall?.chatId;
+    if (!chatId || !currentUser) return;
     try {
       const { error } = await supabase.from('messages').insert({
-        chat_id: selectedChat,
+        chat_id: chatId,
         sender_id: currentUser.id,
         text: `__call__${type}${extra || ''}`,
         type: 'text',
-        file_url: '',
+        file_url: data || '',
         file_name: '',
         file_size: '',
         created_at: new Date().toISOString(),
@@ -546,6 +577,75 @@ export function ChatPage() {
   };
 
   const remoteStreamRef = useRef<MediaStream | null>(null);
+
+  const STUN_SERVERS: RTCConfiguration = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+  };
+
+  const flushPendingCandidates = async () => {
+    const pc = rtcPeerRef.current;
+    if (!pc || !pc.remoteDescription) return;
+    for (const c of pendingIceRef.current) {
+      try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
+    }
+    pendingIceRef.current = [];
+  };
+
+  const createPeerConnection = async (remoteSdp?: string) => {
+    if (rtcPeerRef.current) rtcPeerRef.current.close();
+    pendingIceRef.current = [];
+
+    const pc = new RTCPeerConnection(STUN_SERVERS);
+    rtcPeerRef.current = pc;
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => {
+        pc.addTrack(t, localStreamRef.current!);
+      });
+    }
+
+    pc.ontrack = (event) => {
+      if (event.streams[0]) {
+        if (remoteVideoRef.current && remoteStreamRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+        }
+        if (remoteAudioRef.current && !remoteVideoRef.current) {
+          remoteAudioRef.current.srcObject = event.streams[0];
+        }
+        if (remoteStreamRef.current) {
+          remoteStreamRef.current.getTracks().forEach(t => t.stop());
+        }
+        remoteStreamRef.current = event.streams[0];
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendCallSignal('ice', '', JSON.stringify(event.candidate));
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+        endCall();
+      }
+    };
+
+    if (remoteSdp) {
+      try {
+        const desc = JSON.parse(remoteSdp);
+        await pc.setRemoteDescription(new RTCSessionDescription(desc));
+        await flushPendingCandidates();
+      } catch (e) {
+        console.error('setRemoteDescription error:', e);
+      }
+    }
+
+    return pc;
+  };
 
   const startCall = async (mode: 'audio' | 'video') => {
     if (localStreamRef.current) endCall();
@@ -560,8 +660,16 @@ export function ChatPage() {
       if (mode === 'video' && localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
-      // Send call offer signal via messages table (caught by real-time on receiver)
-      await sendCallSignal('offer', `__${mode}__${currentUser?.name || 'Someone'}`);
+      // Create RTCPeerConnection
+      const pc = await createPeerConnection();
+      // Add tracks again (localStreamRef was set after PC creation)
+      localStreamRef.current.getTracks().forEach(t => {
+        try { pc.addTrack(t, localStreamRef.current!); } catch {}
+      });
+      // Create and send offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await sendCallSignal('offer', `__${mode}__${currentUser?.name || 'Someone'}`, JSON.stringify(offer));
     } catch {
       setSendError(mode === 'video'
         ? 'Camera/microphone access denied. Allow access and try again.'
@@ -571,6 +679,11 @@ export function ChatPage() {
   };
 
   const endCall = () => {
+    if (rtcPeerRef.current) {
+      rtcPeerRef.current.close();
+      rtcPeerRef.current = null;
+    }
+    pendingIceRef.current = [];
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
@@ -580,6 +693,7 @@ export function ChatPage() {
       remoteStreamRef.current = null;
     }
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     setCallState('none');
     setCallMuted(false);
     void sendCallSignal('end');
@@ -598,8 +712,16 @@ export function ChatPage() {
       if (incomingCall.mode === 'video' && localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
-      // Send answer signal
-      await sendCallSignal('answer');
+      // Create RTCPeerConnection with remote SDP from offer
+      const pc = await createPeerConnection(incomingCall.sdp);
+      // Add local tracks
+      localStreamRef.current.getTracks().forEach(t => {
+        try { pc.addTrack(t, localStreamRef.current!); } catch {}
+      });
+      // Create and send answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await sendCallSignal('answer', '', JSON.stringify(answer));
       setIncomingCall(null);
     } catch {
       setSendError('Microphone/camera access denied. Allow access to answer the call.');
@@ -1604,10 +1726,15 @@ export function ChatPage() {
           >
             {callMode === 'video' && (
               <div className="absolute inset-0 overflow-hidden rounded-lg">
+                <video ref={remoteVideoRef} autoPlay playsInline
+                  className="w-full h-full object-cover" />
                 <video ref={localVideoRef} autoPlay playsInline muted
-                  className="w-full h-full object-cover scale-x-[-1]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+                  className="absolute bottom-4 right-4 w-28 h-40 rounded-lg object-cover scale-x-[-1] shadow-xl border-2 border-white/20" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
               </div>
+            )}
+            {callMode === 'audio' && (
+              <audio ref={remoteAudioRef} autoPlay />
             )}
             <div className="relative z-10 flex flex-col items-center gap-4">
               {callMode === 'audio' && (
