@@ -892,8 +892,8 @@ export function ChatPage() {
     <div className="flex flex-1 min-h-0 bg-background overflow-hidden overflow-x-hidden">
       <style>{`.emoji-tw{display:inline;height:1em;width:1em;vertical-align:-0.15em;object-fit:contain;}`}</style>
       {/* Chat List - hides on mobile when a chat is selected */}
-      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-hidden max-w-full relative`}>
-        <div className="p-3 border-b border-border relative bg-card">
+      <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col overflow-hidden max-w-full relative min-h-0`}>
+        <div className="shrink-0 p-3 border-b border-border relative bg-card">
           <h2 className="text-lg font-bold text-foreground mb-2">Messages</h2>
           <div className="flex gap-1 mb-2 bg-secondary rounded-lg p-0.5">
             <button onClick={() => { setChatMode('individual'); setSelectedChat(null); setExpandedMessage(null); setChatFetchKey(prev => prev + 1); }}
@@ -1020,7 +1020,7 @@ export function ChatPage() {
             )}
           </AnimatePresence>
         </div>
-        <div className="flex-1 overflow-y-auto relative">
+        <div className="flex-1 overflow-y-auto relative min-h-0">
           {filteredChats.map(chat => (
             <motion.div
               key={chat.id}
@@ -1180,7 +1180,7 @@ export function ChatPage() {
       {/* Chat Window + Details Panel (side by side) */}
       {selectedChat && currentChat ? (
         <div className="flex flex-1 overflow-hidden relative">
-        <div className="flex flex-1 flex-col bg-card overflow-hidden relative min-w-0">
+        <div className="flex flex-1 flex-col bg-card overflow-hidden relative min-w-0 min-h-0">
           {/* Header */}
           <div className="border-b border-border px-3 py-2.5 flex items-center justify-between shrink-0 bg-card/80 backdrop-blur-sm">
             <div className="flex items-center gap-3">
@@ -1264,7 +1264,7 @@ export function ChatPage() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-2 flex flex-col">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-2 flex flex-col min-h-0">
             {messages.map(msg => (
               <div key={msg.id} className={`flex gap-2 ${msg.isOwn ? 'justify-end' : 'justify-start'} group`}
                 onMouseEnter={() => setHoveredMessage(msg.id)}
@@ -1505,7 +1505,8 @@ export function ChatPage() {
         {/* Call Overlay */}
         {callState !== 'none' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-40 bg-card/95 backdrop-blur-xl flex flex-col items-center justify-center gap-4"
+            className="absolute inset-0 z-50 bg-card/95 backdrop-blur-xl flex flex-col items-center justify-center gap-4 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
           >
             {callMode === 'video' && (
               <div className="absolute inset-0 overflow-hidden rounded-lg">
