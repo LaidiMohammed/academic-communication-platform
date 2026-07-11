@@ -243,6 +243,8 @@ export function ChatPage() {
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingTimeRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatsRef = useRef<any[]>([]);
+  const selectedChatRef = useRef<string | null>(null);
   const inputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
@@ -343,12 +345,12 @@ export function ChatPage() {
       }).then(() => {});
     };
     fetchMessages();
+  }, [selectedChat, currentUser]);
 
-    // Track chats via ref to avoid stale closure
-    const chatsRef = { current: chats };
-    chatsRef.current = chats;
+  // Always-active real-time subscription for messages + chat_participants
+  useEffect(() => {
+    if (!currentUser) return;
 
-    // Real-time subscription for ALL new messages
     const channel = supabase
       .channel(`msgs:${currentUser.id}`)
       .on('postgres_changes',
@@ -357,7 +359,6 @@ export function ChatPage() {
           const newMsg = payload.new as RealtimeMessage;
           if (newMsg.sender_id === currentUser.id) return;
 
-          // Handle call signals FIRST (before isMyChat so calls reach even if chat not yet loaded)
           if (newMsg.text?.startsWith('__call__')) {
             const parts = newMsg.text.split('__');
             const signalType = parts[2];
@@ -380,7 +381,7 @@ export function ChatPage() {
             .from('profiles').select('name, avatar').eq('id', newMsg.sender_id).single();
           const { data: readData } = await supabase.from('message_reads').select('id').eq('message_id', newMsg.id);
 
-          if (newMsg.chat_id === selectedChat) {
+          if (newMsg.chat_id === selectedChatRef.current) {
             const msg: Message = {
               id: newMsg.id,
               sender: sender?.name || 'Unknown',
@@ -399,9 +400,9 @@ export function ChatPage() {
               duration: newMsg.type === 'voice' ? parseVoiceDuration(newMsg.text) : undefined,
             };
             setMessagesMap(prev => {
-              const existing = prev[selectedChat] || [];
+              const existing = prev[selectedChatRef.current!] || [];
               if (existing.some(m => m.id === newMsg.id)) return prev;
-              return { ...prev, [selectedChat]: [...existing, msg] };
+              return { ...prev, [selectedChatRef.current!]: [...existing, msg] };
             });
           }
           if (!newMsg.text?.startsWith('__call__')) {
@@ -425,7 +426,6 @@ export function ChatPage() {
       )
       .subscribe();
 
-    // Real-time subscription for new chat_participants — refresh via API
     const partChannel = supabase
       .channel(`parts:${currentUser.id}`)
       .on('postgres_changes',
@@ -447,10 +447,12 @@ export function ChatPage() {
       supabase.removeChannel(channel);
       supabase.removeChannel(partChannel);
     };
-  }, [selectedChat, currentUser]);
+  }, [currentUser]);
 
-  // Sync callState to ref on every render
+  // Sync refs on every render
   useEffect(() => { callStateRef.current = callState; });
+  useEffect(() => { chatsRef.current = chats; });
+  useEffect(() => { selectedChatRef.current = selectedChat; });
 
   // Handle URL group param — ensure a valid chat exists
   const searchParams = useSearchParams();
@@ -527,14 +529,20 @@ export function ChatPage() {
   const sendCallSignal = async (type: string, extra?: string) => {
     if (!selectedChat || !currentUser) return;
     try {
-      await supabase.from('messages').insert({
+      const { error } = await supabase.from('messages').insert({
         chat_id: selectedChat,
         sender_id: currentUser.id,
         text: `__call__${type}${extra || ''}`,
         type: 'text',
+        file_url: '',
+        file_name: '',
+        file_size: '',
         created_at: new Date().toISOString(),
       });
-    } catch {}
+      if (error) console.error('sendCallSignal insert error:', error);
+    } catch (e) {
+      console.error('sendCallSignal catch:', e);
+    }
   };
 
   const remoteStreamRef = useRef<MediaStream | null>(null);
