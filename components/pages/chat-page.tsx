@@ -393,9 +393,6 @@ export function ChatPage() {
             return;
           }
 
-          const isMyChat = chatsRef.current.some((c: any) => c.id === newMsg.chat_id);
-          if (!isMyChat) return;
-
           const { data: sender } = await supabase
             .from('profiles').select('name, avatar').eq('id', newMsg.sender_id).single();
           const { data: readData } = await supabase.from('message_reads').select('id').eq('message_id', newMsg.id);
@@ -424,7 +421,17 @@ export function ChatPage() {
               return { ...prev, [selectedChatRef.current!]: [...existing, msg] };
             });
           }
-          if (!newMsg.text?.startsWith('__call__')) {
+
+          if (!chatsRef.current.some(c => c.id === newMsg.chat_id)) {
+            const res = await fetch('/api/chat/list', { headers: await authHeaders() });
+            if (res.ok) {
+              const { chats: freshList } = await res.json();
+              const newChat = freshList.find((c: any) => c.id === newMsg.chat_id);
+              if (newChat) {
+                setChats(prev => [{ ...newChat, time: formatRelativeTime(newChat.time) }, ...prev]);
+              }
+            }
+          } else {
             setChats(prev => prev.map(c =>
               c.id === newMsg.chat_id
                 ? {
@@ -549,7 +556,7 @@ export function ChatPage() {
   };
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+  const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }] };
 
   const sendCallSignal = async (type: string, extra?: string, data?: string) => {
     const chatId = selectedChat || incomingCall?.chatId;
@@ -586,6 +593,7 @@ export function ChatPage() {
 
   const startCall = async (mode: 'audio' | 'video') => {
     if (simplePeerRef.current) endCall();
+    setSendError('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia(
         mode === 'video' ? { video: true, audio: true } : { audio: true }

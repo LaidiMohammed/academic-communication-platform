@@ -166,7 +166,7 @@ export function GroupsPage() {
       id: data.group.id,
       name: formData.name,
       bio: formData.bio || 'New group',
-      image: formData.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`,
+      image: formData.image || '',
       members: 1 + selectedMembers.length,
       type: formData.type,
       permissions: { ...editPerms },
@@ -270,13 +270,9 @@ export function GroupsPage() {
             <div key={group.id}
               className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
               <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20">
-                {group.image ? (
-                  <img src={group.image} alt={group.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-primary/40">
-                    {group.name?.charAt(0)?.toUpperCase() || 'G'}
-                  </div>
-                )}
+                <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-primary/40">
+                  <Avatar src={group.image} name={group.name} className="w-16 h-16 rounded-full text-2xl" />
+                </div>
                 {group.isAdmin && (
                   <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                     <Shield size={10} /> Admin

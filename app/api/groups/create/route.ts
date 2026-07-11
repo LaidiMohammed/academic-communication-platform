@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const { data: group, error: groupErr } = await auth.supabase.from('groups').insert({
     name: name.trim(),
     description: description || '',
-    image: image || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+    image: image || '',
     members_count: allIds.length,
     tags: type === 'private' ? ['private'] : [],
     created_by: auth.user.id,
