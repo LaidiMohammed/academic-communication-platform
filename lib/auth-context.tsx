@@ -87,17 +87,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = getSupabase();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchProfile(session.user);
-      } else {
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (session?.user) {
+          fetchProfile(session.user);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error('Session fetch failed:', err);
         setLoading(false);
-      }
-    });
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchProfile(session.user);
+        fetchProfile(session.user).catch((err) => {
+          console.error('Auth state change profile fetch failed:', err);
+          setLoading(false);
+        });
       } else {
         setUser(null);
         setIsLoggedIn(false);
