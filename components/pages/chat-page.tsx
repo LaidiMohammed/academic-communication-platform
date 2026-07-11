@@ -356,10 +356,8 @@ export function ChatPage() {
         async (payload) => {
           const newMsg = payload.new as RealtimeMessage;
           if (newMsg.sender_id === currentUser.id) return;
-          const isMyChat = chatsRef.current.some((c: any) => c.id === newMsg.chat_id);
-          if (!isMyChat) return;
 
-          // Handle call signals via messages table
+          // Handle call signals FIRST (before isMyChat so calls reach even if chat not yet loaded)
           if (newMsg.text?.startsWith('__call__')) {
             const parts = newMsg.text.split('__');
             const signalType = parts[2];
@@ -375,6 +373,9 @@ export function ChatPage() {
             }
             return;
           }
+
+          const isMyChat = chatsRef.current.some((c: any) => c.id === newMsg.chat_id);
+          if (!isMyChat) return;
 
           const { data: sender } = await supabase
             .from('profiles').select('name, avatar').eq('id', newMsg.sender_id).single();
@@ -975,7 +976,7 @@ export function ChatPage() {
   const reactionEmojis = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
 
   return (
-    <div className="flex flex-1 bg-background min-h-0">
+    <div className={`flex flex-1 bg-background ${callState !== 'none' || incomingCall ? 'overflow-hidden' : 'min-h-0'}`}>
       <style>{`.emoji-tw{display:inline;height:1em;width:1em;vertical-align:-0.15em;object-fit:contain;}`}</style>
       {/* Chat List - hides on mobile when a chat is selected */}
       <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col max-w-full relative`}>

@@ -202,209 +202,189 @@ export default function MembershipPage() {
     );
   }
 
-  /* ── Already has membership ── */
-  if (step === 'exists' && membership) {
-    const subjects: string[] = membership.subjects || [];
-    const sessionsLeft = (membership.sessions_total || 4) - (membership.sessions_used || 0);
-    const expiresAt = membership.expires_at ? new Date(membership.expires_at) : null;
-    const daysLeft = expiresAt ? Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+  /* ── Already has membership — dead code replaced by unified single return below ── */
 
-    return (
-      <div className="max-w-4xl mx-auto space-y-8 pb-16">
-        <motion.div {...stagger(0)} className="text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full text-green-400 text-xs font-bold mb-4">
-            <CheckCircle2 size={13} /> اشتراك نشط
-          </div>
-          <h1 className="text-3xl font-black text-foreground mb-2">اشتراكي</h1>
-          <p className="text-muted-foreground text-sm max-w-lg mx-auto">
-            تفاصيل اشتراكك في مدرسة بن دلة.
-          </p>
-        </motion.div>
+  /* ── Level Selection — dead code replaced by unified single return below ── */
 
-        <motion.div {...stagger(1)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  const hasMembership = !!membership;
+  const membershipSubjects: string[] = membership?.subjects || [];
+  const sessionsLeft = hasMembership ? (membership.sessions_total || 4) - (membership.sessions_used || 0) : 0;
+  const expiresAt = hasMembership && membership.expires_at ? new Date(membership.expires_at) : null;
+  const daysLeft = expiresAt ? Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
+
+  /* ── Subject Selection + Payment ── */
+  return (
+    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+
+      {/* ── TOP: User state + QR code (always visible) ── */}
+      <motion.div {...stagger(0)}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-6 rounded-full bg-gradient-to-b from-green-400 to-emerald-400" />
-              <h3 className="font-bold text-foreground">تفاصيل الاشتراك</h3>
+              <div className="w-2 h-6 rounded-full bg-gradient-to-b from-blue-400 to-violet-400" />
+              <h3 className="font-bold text-foreground">{hasMembership ? 'Membership' : 'Profile'}</h3>
             </div>
-
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
-              <div className="w-3 h-3 rounded-full bg-green-400 shadow-lg flex-shrink-0" />
-              <div>
-                <p className="text-sm font-bold text-green-400">نشط</p>
-                <p className="text-xs text-muted-foreground">ينتهي: {expiresAt?.toLocaleDateString('ar-DZ') || '—'}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <GraduationCap size={13} /> المستوى
-                </div>
-                <span className="font-semibold text-foreground">{membership.level || '—'}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <BookOpen size={13} /> المواد
-                </div>
-                <div className="flex flex-wrap gap-1 justify-end">
-                  {subjects.map((s: string) => {
-                    const subj = ALL_SUBJECTS.find(x => x.id === s);
-                    return <SubjectTag key={s} label={subj?.ar || s} />;
-                  })}
-                  {subjects.length === 0 && <span className="text-muted-foreground">—</span>}
-                </div>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calendar size={13} /> الحصص
-                </div>
-                <span className="font-semibold text-foreground">{sessionsLeft}/4 متبقية</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock size={13} /> الأيام المتبقية
-                </div>
-                <span className="font-semibold text-foreground">{daysLeft} يوم</span>
-              </div>
-            </div>
-
             <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>استخدام الحصص هذا الشهر</span>
-                <span>{membership.sessions_used || 0} / {membership.sessions_total || 4}</span>
-              </div>
-              <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-green-400 to-emerald-400 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, ((membership.sessions_used || 0) / (membership.sessions_total || 4)) * 100)}%` }}
-                />
-              </div>
+              <p className="text-sm font-semibold text-foreground">{user?.name || 'Student'}</p>
+              <p className="text-xs text-muted-foreground">{user?.email || ''}</p>
             </div>
+            {hasMembership ? (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+                <div className="w-3 h-3 rounded-full bg-green-400 shadow-lg flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-green-400">Active Subscription</p>
+                  <p className="text-xs text-muted-foreground">Expires: {expiresAt?.toLocaleDateString('ar-DZ') || '—'}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <div className="w-3 h-3 rounded-full bg-amber-400 shadow-lg flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-amber-400">No Active Membership</p>
+                  <p className="text-xs text-muted-foreground">Subscribe below to get started</p>
+                </div>
+              </div>
+            )}
+            {hasMembership && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground"><GraduationCap size={13} /> Level</div>
+                  <span className="font-semibold text-foreground">{membership.level || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground"><Calendar size={13} /> Sessions</div>
+                  <span className="font-semibold text-foreground">{sessionsLeft}/4 remaining</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground"><Clock size={13} /> Days left</div>
+                  <span className="font-semibold text-foreground">{daysLeft} days</span>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>Session usage</span>
+                    <span>{membership.sessions_used || 0} / {membership.sessions_total || 4}</span>
+                  </div>
+                  <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-green-400 to-emerald-400 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, ((membership.sessions_used || 0) / (membership.sessions_total || 4)) * 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-
           <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 flex flex-col items-center gap-4">
             <div className="flex items-center gap-2 w-full">
               <div className="w-2 h-6 rounded-full bg-gradient-to-b from-blue-400 to-violet-400" />
-              <h3 className="font-bold text-foreground">رمز العضوية QR</h3>
+              <h3 className="font-bold text-foreground">Membership QR Code</h3>
             </div>
             <p className="text-xs text-muted-foreground text-center w-full">
-              أظهر هذا الرمز للمشرف للتحقق من عضويتك وتسجيل الحصة.
+              Show this code to the admin to verify your membership.
             </p>
             <MemberQRCode
               userId={user?.id || 'unknown'}
               name={user?.name || 'Student'}
               email={user?.email || ''}
-              level={membership.level || ''}
-              subjects={subjects}
+              level={hasMembership ? (membership.level || '') : ((user as any)?.level || '')}
+              subjects={membershipSubjects}
               sessionsLeft={sessionsLeft}
             />
           </div>
-        </motion.div>
+        </div>
+      </motion.div>
 
-        <motion.div {...stagger(2)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6">
-          <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
-            <Shield size={16} className="text-blue-400" /> معلومات الحصص
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[
-              { q: 'كم حصة شهرياً؟', a: 'تحصل على 4 حصص شهرياً. كل حصة مدتها ساعة مع أستاذ.' },
-              { q: 'كيف يتم خصم الحصص؟', a: 'المشرف يمسح رمز QR الخاص بك في بداية كل حصة.' },
-              { q: 'ماذا لو نفدت الحصص؟', a: 'يمكنك شراء حصص إضافية أو انتظار تجديد الشهر القادم.' },
-              { q: 'متى تتجدد الحصص؟', a: 'الحصص تتجدد كل شهر في تاريخ اشتراكك.' },
-            ].map((item) => (
-              <div key={item.q} className="p-4 bg-secondary/50 rounded-xl">
-                <p className="text-sm font-semibold text-foreground mb-1">{item.q}</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">{item.a}</p>
+      {/* ── Membership details (if member) ── */}
+      {hasMembership && (
+        <>
+          {membershipSubjects.length > 0 && (
+            <motion.div {...stagger(1)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6">
+              <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+                <BookOpen size={16} className="text-blue-400" /> Your Subjects
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {membershipSubjects.map((s: string) => {
+                  const subj = ALL_SUBJECTS.find(x => x.id === s);
+                  return <SubjectTag key={s} label={subj?.ar || s} />;
+                })}
               </div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  /* ── Level Selection ── */
-  if (step === 'plans') {
-    return (
-      <div className="max-w-4xl mx-auto space-y-8 pb-16">
-        <motion.div {...stagger(0)} className="text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-xs font-bold mb-4">
-            <CreditCard size={13} /> الاشتراك والدفع
-          </div>
-          <h1 className="text-3xl font-black text-foreground mb-2">اختر مستواك الدراسي</h1>
-          <p className="text-muted-foreground text-sm max-w-lg mx-auto">
-            اختر مستواك ثم اختر المواد التي تريدها. كل شهر يتضمن <strong>4 حصص</strong>.
-          </p>
-        </motion.div>
-
-        <motion.div {...stagger(1)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {LEVELS.map((level, i) => (
-            <motion.div
-              key={level.id}
-              whileHover={{ y: -4, scale: 1.01 }}
-              className="relative rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 flex flex-col gap-4 cursor-pointer hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300"
-              onClick={() => handleSelectLevel(level)}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${level.color} flex items-center justify-center text-2xl shadow-lg`}>
-                  {level.icon}
-                </div>
-                <div>
-                  <h3 className="font-bold text-foreground text-lg">{level.label}</h3>
-                  <p className="text-xs text-muted-foreground">{level.ar}</p>
-                </div>
-              </div>
-              <div className="flex items-baseline gap-1 mt-2">
-                <span className="text-3xl font-black text-foreground">{getLevelBasePrice(level.id).toLocaleString()} <span className="text-sm font-normal text-muted-foreground">د.ج</span></span>
-                <span className="text-sm text-muted-foreground">/مادة</span>
-              </div>
-              <ul className="space-y-1.5 flex-1">
-                <li className="flex items-start gap-2 text-sm">
-                  <Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-foreground/80">4 حصص شهرياً</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-foreground/80">اختر أي مادة تريد</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" />
-                  <span className="text-foreground/80">الدعم والمرافق مجاناً</span>
-                </li>
-              </ul>
-              <button className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all">
-                اختر {level.label}
-              </button>
             </motion.div>
-          ))}
-        </motion.div>
+          )}
+          <motion.div {...stagger(2)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6">
+            <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+              <Shield size={16} className="text-blue-400" /> Session Info
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { q: 'كم حصة شهرياً؟', a: 'تحصل على 4 حصص شهرياً. كل حصة مدتها ساعة مع أستاذ.' },
+                { q: 'كيف يتم خصم الحصص؟', a: 'المشرف يمسح رمز QR الخاص بك في بداية كل حصة.' },
+                { q: 'ماذا لو نفدت الحصص؟', a: 'يمكنك شراء حصص إضافية أو انتظار تجديد الشهر القادم.' },
+                { q: 'متى تتجدد الحصص؟', a: 'الحصص تتجدد كل شهر في تاريخ اشتراكك.' },
+              ].map((item) => (
+                <div key={item.q} className="p-4 bg-secondary/50 rounded-xl">
+                  <p className="text-sm font-semibold text-foreground mb-1">{item.q}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{item.a}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </>
+      )}
 
-        <motion.div {...stagger(2)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6">
-          <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
-            <Shield size={16} className="text-blue-400" /> الدفع والأمان
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[
-              { q: 'كيف أدفع؟', a: 'ادفع عبر الإنترنت بـ Chargily Pay (EDAHABIA · CIB) أو في مكتب المدرسة (روي بيلير، وهران).' },
-              { q: 'هل يمكنني الإلغاء؟', a: 'نعم — اتصل بالإدارة على 0661 45 77 97 قبل تاريخ الفاتورة القادم.' },
-              { q: 'ماذا لو فاتني الدفع؟', a: 'سيتم تحويل حسابك إلى وضع المعاينة المجانية حتى تأكيد الدفع.' },
-              { q: 'هل رمز QR آمن؟', a: 'نعم — كل رمز مرتبط بمعرف المستخدم الفريد وتاريخ انتهاء الصلاحية.' },
-            ].map((item) => (
-              <div key={item.q} className="p-4 bg-secondary/50 rounded-xl">
-                <p className="text-sm font-semibold text-foreground mb-1">{item.q}</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">{item.a}</p>
-              </div>
+      {/* ── Level selection (if not member) ── */}
+      {!hasMembership && step === 'plans' && (
+        <>
+          <motion.div {...stagger(0)} className="text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-xs font-bold mb-4">
+              <CreditCard size={13} /> Subscription & Payment
+            </div>
+            <h1 className="text-3xl font-black text-foreground mb-2">Choose your level</h1>
+            <p className="text-muted-foreground text-sm max-w-lg mx-auto">
+              Select your level then choose subjects. Each month includes <strong>4 sessions</strong>.
+            </p>
+          </motion.div>
+          <motion.div {...stagger(1)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {LEVELS.map((level, i) => (
+              <motion.div key={level.id} whileHover={{ y: -4, scale: 1.01 }}
+                className="relative rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 flex flex-col gap-4 cursor-pointer hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300"
+                onClick={() => handleSelectLevel(level)}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${level.color} flex items-center justify-center text-2xl shadow-lg`}>{level.icon}</div>
+                  <div>
+                    <h3 className="font-bold text-foreground text-lg">{level.label}</h3>
+                    <p className="text-xs text-muted-foreground">{level.ar}</p>
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-1 mt-2">
+                  <span className="text-3xl font-black text-foreground">{getLevelBasePrice(level.id).toLocaleString()} <span className="text-sm font-normal text-muted-foreground">د.ج</span></span>
+                  <span className="text-sm text-muted-foreground">/subject</span>
+                </div>
+                <ul className="space-y-1.5 flex-1">
+                  <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">4 sessions per month</span></li>
+                  <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">Choose any subject</span></li>
+                  <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">Free support &amp; resources</span></li>
+                </ul>
+                <button className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all">Choose {level.label}</button>
+              </motion.div>
             ))}
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
+          </motion.div>
+          <motion.div {...stagger(2)} className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6">
+            <h3 className="font-bold text-foreground mb-4 flex items-center gap-2"><Shield size={16} className="text-blue-400" /> Payment &amp; Security</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { q: 'كيف أدفع؟', a: 'ادفع عبر الإنترنت بـ Chargily Pay (EDAHABIA · CIB) أو في مكتب المدرسة (روي بيلير، وهران).' },
+                { q: 'هل يمكنني الإلغاء؟', a: 'نعم — اتصل بالإدارة على 0661 45 77 97 قبل تاريخ الفاتورة القادم.' },
+                { q: 'ماذا لو فاتني الدفع؟', a: 'سيتم تحويل حسابك إلى وضع المعاينة المجانية حتى تأكيد الدفع.' },
+                { q: 'هل رمز QR آمن؟', a: 'نعم — كل رمز مرتبط بمعرف المستخدم الفريد وتاريخ انتهاء الصلاحية.' },
+              ].map((item) => (
+                <div key={item.q} className="p-4 bg-secondary/50 rounded-xl"><p className="text-sm font-semibold text-foreground mb-1">{item.q}</p><p className="text-xs text-muted-foreground leading-relaxed">{item.a}</p></div>
+              ))}
+            </div>
+          </motion.div>
+        </>
+      )}
 
-  /* ── Subject Selection + Payment ── */
-  return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+      {/* ── Subject selection + payment (if not member + not plans step) ── */}
+      {!hasMembership && step !== 'plans' && (
+      <>
       <motion.div {...stagger(0)} className="text-center">
         <button
           onClick={() => setStep('plans')}
@@ -606,6 +586,8 @@ export default function MembershipPage() {
           ))}
         </div>
       </motion.div>
+      </>
+      )}
     </div>
   );
 }
