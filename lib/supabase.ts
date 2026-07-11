@@ -6,11 +6,19 @@ let serviceClient: SupabaseClient | null = null;
 
 export function createClient(): SupabaseClient {
   if (!anonClient) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseUrl = typeof window !== 'undefined' 
+      ? window?.location?.origin === 'http://localhost:3000' 
+        ? process.env.NEXT_PUBLIC_SUPABASE_URL
+        : process.env.NEXT_PUBLIC_SUPABASE_URL
+      : process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
-    if (!supabaseUrl) throw new Error('NEXT_PUBLIC_SUPABASE_URL is required');
-    if (!supabaseAnonKey) throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required');
+    if (!supabaseUrl) {
+      throw new Error(`NEXT_PUBLIC_SUPABASE_URL is required. Got: ${supabaseUrl}`);
+    }
+    if (!supabaseAnonKey) {
+      throw new Error(`NEXT_PUBLIC_SUPABASE_ANON_KEY is required. Got: ${supabaseAnonKey}`);
+    }
     
     anonClient = createSupabaseClient(supabaseUrl, supabaseAnonKey);
   }
