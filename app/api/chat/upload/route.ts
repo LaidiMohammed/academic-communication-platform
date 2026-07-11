@@ -1,23 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { canAccessChat } from '@/lib/chat-access';
+import { validateContentType, validateBodySize, getAuthUser } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
-import { createServiceClient } from '@/lib/supabase';
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const AUDIO_TYPES = new Set([
-  'audio/aac',
-  'audio/mp4',
-  'audio/mpeg',
-  'audio/ogg',
-  'audio/webm',
-  'audio/x-m4a',
+  'audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/webm', 'audio/x-m4a',
 ]);
 const BLOCKED_FILE_TYPES = new Set([
-  'application/javascript',
-  'image/svg+xml',
-  'text/html',
-  'text/javascript',
+  'application/javascript', 'image/svg+xml', 'text/html', 'text/javascript',
 ]);
 
 function getExtension(fileName: string, mimeType: string) {
@@ -25,37 +17,25 @@ function getExtension(fileName: string, mimeType: string) {
   if (originalExtension?.match(/^[a-z0-9]{1,8}$/)) return originalExtension;
 
   const mimeExtensions: Record<string, string> = {
-    'audio/aac': 'aac',
-    'audio/mp4': 'm4a',
-    'audio/mpeg': 'mp3',
-    'audio/ogg': 'ogg',
-    'audio/webm': 'webm',
-    'audio/x-m4a': 'm4a',
-    'image/gif': 'gif',
-    'image/heic': 'heic',
-    'image/heif': 'heif',
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
+    'audio/aac': 'aac', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3',
+    'audio/ogg': 'ogg', 'audio/webm': 'webm', 'audio/x-m4a': 'm4a',
+    'image/gif': 'gif', 'image/heic': 'heic', 'image/heif': 'heif',
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
   };
   return mimeExtensions[mimeType] || 'bin';
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-  const { allowed } = rateLimit(ip, 20, 60000);
+  const ctCheck = validateContentType(req);
+  if (ctCheck) return ctCheck;
+  const sizeCheck = validateBodySize(req, MAX_UPLOAD_BYTES);
+  if (sizeCheck) return sizeCheck;
+
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { allowed } = await rateLimit(auth.user.id, 20, 60000, auth.supabase);
   if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const supabase = createServiceClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.slice(7));
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   const body: unknown = await req.json();
   if (!body || typeof body !== 'object') {
@@ -77,7 +57,7 @@ export async function POST(req: NextRequest) {
   if (kind !== 'voice' && kind !== 'image' && kind !== 'file') {
     return NextResponse.json({ error: 'Invalid upload kind' }, { status: 400 });
   }
-  if (!(await canAccessChat(supabase, user.id, chatId))) {
+  if (!(await canAccessChat(auth.supabase, auth.user.id, chatId))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   if (!fileSize || fileSize > MAX_UPLOAD_BYTES) {
@@ -93,8 +73,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unsupported file format' }, { status: 400 });
   }
 
-  const path = `${chatId}/${user.id}/${randomUUID()}.${getExtension(fileName, mimeType)}`;
-  const { data, error: uploadError } = await supabase.storage
+  // Validate file extension against declared MIME type to prevent MIME mismatch attacks
+  const ext = getExtension(fileName, mimeType);
+  const extMimeMap: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+    webp: 'image/webp', heic: 'image/heic', heif: 'image/heif',
+    mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav',
+    m4a: 'audio/x-m4a', aac: 'audio/aac', webm: 'audio/webm',
+    pdf: 'application/pdf', doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    txt: 'text/plain', csv: 'text/csv',
+  };
+  const expectedMime = extMimeMap[ext];
+  if (expectedMime && expectedMime !== mimeType && kind !== 'file') {
+    return NextResponse.json({ error: 'File extension does not match content type' }, { status: 400 });
+  }
+
+  const path = `${chatId}/${auth.user.id}/${randomUUID()}.${ext}`;
+  const { data, error: uploadError } = await auth.supabase.storage
     .from('chat-files')
     .createSignedUploadUrl(path);
 

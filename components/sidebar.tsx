@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   MessageSquare, Users, Video, BookOpen, Award, Zap, Info,
   Settings, Shield, LogOut, Menu, X, ChevronLeft, ChevronRight,
-  CreditCard,
+  CreditCard, Home,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useSidebar } from '@/lib/sidebar-context';
@@ -98,6 +98,7 @@ function SidebarInner({
   const isAdmin = user?.role === 'admin';
 
   const mainItems = [
+    { icon: Home,          label: 'Home',         href: '/dashboard',            id: 'home'       },
     ...(isAdmin ? [{ icon: Shield,        label: 'Admin',        href: '/dashboard/admin',      id: 'admin'      }] : []),
     { icon: MessageSquare, label: 'Chat',         href: '/dashboard/chat',       id: 'chat'       },
     { icon: Users,         label: 'Groups',       href: '/dashboard/groups',     id: 'groups'     },
@@ -114,7 +115,7 @@ function SidebarInner({
   ];
 
   const checkActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + '/');
+    href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(href + '/');
 
   const profileActive = checkActive('/dashboard/profile');
   // unique layoutId per instance so desktop & mobile don't conflict

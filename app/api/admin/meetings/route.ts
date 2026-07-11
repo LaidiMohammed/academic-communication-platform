@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
+import { getAuthUser, validateContentType } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
 
-async function verifyAdmin(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const token = authHeader.slice(7);
-  const supabase = createServiceClient();
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) return null;
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+async function getAdminSupabase(req: NextRequest) {
+  const auth = await getAuthUser(req);
+  if (auth.error) return null;
+  const { data: profile } = await auth.supabase.from('profiles').select('role').eq('id', auth.user.id).single();
   if (profile?.role !== 'admin') return null;
-  return supabase;
+  return auth.supabase;
 }
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || 'unknown';
-  const { allowed } = rateLimit(ip, 20, 60000);
-  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-  const supabase = await verifyAdmin(req);
+  const supabase = await getAdminSupabase(req);
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: meetings, error } = await supabase.from('meetings').select('*, meeting_participants(count)').order('date', { ascending: true });
@@ -27,11 +20,16 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || 'unknown';
-  const { allowed } = rateLimit(ip, 10, 60000);
-  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-  const supabase = await verifyAdmin(req);
+  const ctCheck = validateContentType(req);
+  if (ctCheck) return ctCheck;
+  const supabase = await getAdminSupabase(req);
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const auth = await getAuthUser(req);
+  if (!auth.error) {
+    const { allowed } = await rateLimit(auth.user.id, 10, 60000, supabase);
+    if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
 
   const { title, date, time, duration, description, link } = await req.json();
   if (!title?.trim() || !date) return NextResponse.json({ error: 'Title and date required' }, { status: 400 });
@@ -46,11 +44,14 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || 'unknown';
-  const { allowed } = rateLimit(ip, 10, 60000);
-  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-  const supabase = await verifyAdmin(req);
+  const supabase = await getAdminSupabase(req);
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const auth = await getAuthUser(req);
+  if (!auth.error) {
+    const { allowed } = await rateLimit(auth.user.id, 10, 60000, supabase);
+    if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
 
   const id = req.nextUrl.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });

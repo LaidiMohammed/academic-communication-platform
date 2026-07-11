@@ -192,7 +192,7 @@ export function HomePage() {
   });
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden">
+    <div className="relative min-h-0 w-full">
       <MeshBackground />
 
       {/* Fine grid texture */}

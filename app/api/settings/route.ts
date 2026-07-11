@@ -1,35 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
+import { validateContentType, validateBodySize, getAuthUser } from '@/lib/api-utils';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer '))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
 
-  const supabase = createServiceClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.slice(7));
-  if (authErr || !user)
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { allowed } = await rateLimit(auth.user.id, 30, 60000, auth.supabase);
+  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
-  const { data } = await supabase.from('profiles').select('settings').eq('id', user.id).single();
+  const { data } = await auth.supabase.from('profiles').select('settings').eq('id', auth.user.id).single();
   return NextResponse.json({ settings: data?.settings || {} });
 }
 
 export async function PATCH(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer '))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const ctCheck = validateContentType(req);
+  if (ctCheck) return ctCheck;
+  const sizeCheck = validateBodySize(req);
+  if (sizeCheck) return sizeCheck;
 
-  const supabase = createServiceClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.slice(7));
-  if (authErr || !user)
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { allowed } = await rateLimit(auth.user.id, 20, 60000, auth.supabase);
+  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
   const { settings } = await req.json();
-  if (!settings)
-    return NextResponse.json({ error: 'Missing settings' }, { status: 400 });
+  if (!settings) return NextResponse.json({ error: 'Missing settings' }, { status: 400 });
 
-  const { error } = await supabase.from('profiles').update({ settings }).eq('id', user.id);
+  const { error } = await auth.supabase.from('profiles').update({ settings }).eq('id', auth.user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

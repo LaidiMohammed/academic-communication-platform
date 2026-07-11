@@ -18,12 +18,12 @@ interface DisplayTeacher {
 }
 
 const fallbackTeachers: DisplayTeacher[] = [
-  { id: '1', name: 'Dr. Sarah Smith', email: 'sarah.smith@school.edu', subjects: ['Mathematics', 'Advanced Calculus'], level: 'Lycée 1-3', rating: 4.8, reviews: 124, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah-smith', bio: 'Expert in mathematics with 15 years of teaching experience', available: true },
-  { id: '2', name: 'Mr. James Johnson', email: 'james.johnson@school.edu', subjects: ['Physics', 'Laboratory Science'], level: 'CEM 2-3, Lycée 1-2', rating: 4.6, reviews: 98, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=james-johnson', bio: 'Passionate physicist dedicated to hands-on learning', available: true },
-  { id: '3', name: 'Mrs. Emily Davis', email: 'emily.davis@school.edu', subjects: ['English Literature', 'Creative Writing'], level: 'Lycée 1-3', rating: 4.9, reviews: 156, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=emily-davis', bio: 'Inspiring teacher who makes literature come alive', available: false },
-  { id: '4', name: 'Dr. Michael Chen', email: 'michael.chen@school.edu', subjects: ['Chemistry', 'Organic Chemistry'], level: 'CEM 3, Lycée 1-3', rating: 4.7, reviews: 112, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael-chen', bio: 'Chemistry expert with innovative teaching methods', available: true },
-  { id: '5', name: 'Mr. Robert Wilson', email: 'robert.wilson@school.edu', subjects: ['History', 'Global Studies'], level: 'CEM 1-3, Lycée 1-3', rating: 4.5, reviews: 87, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=robert-wilson', bio: 'History teacher bringing past and present together', available: true },
-  { id: '6', name: 'Dr. Lisa Anderson', email: 'lisa.anderson@school.edu', subjects: ['Biology', 'Environmental Science'], level: 'Lycée 1-3', rating: 4.8, reviews: 134, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=lisa-anderson', bio: 'Dedicated biologist passionate about environmental education', available: true },
+  { id: '1', name: 'Dr. Sarah Smith', email: 'sarah.smith@school.edu', subjects: ['Mathematics', 'Advanced Calculus'], level: 'Lycée 1-3', rating: 4.8, reviews: 124, avatar: 'https://api.dicebear.com/7.x/avataaars-neutral/svg?seed=sarah-smith', bio: 'Expert in mathematics with 15 years of teaching experience', available: true },
+  { id: '2', name: 'Mr. James Johnson', email: 'james.johnson@school.edu', subjects: ['Physics', 'Laboratory Science'], level: 'CEM 2-3, Lycée 1-2', rating: 4.6, reviews: 98, avatar: 'https://api.dicebear.com/7.x/avataaars-neutral/svg?seed=james-johnson', bio: 'Passionate physicist dedicated to hands-on learning', available: true },
+  { id: '3', name: 'Mrs. Emily Davis', email: 'emily.davis@school.edu', subjects: ['English Literature', 'Creative Writing'], level: 'Lycée 1-3', rating: 4.9, reviews: 156, avatar: 'https://api.dicebear.com/7.x/avataaars-neutral/svg?seed=emily-davis', bio: 'Inspiring teacher who makes literature come alive', available: false },
+  { id: '4', name: 'Dr. Michael Chen', email: 'michael.chen@school.edu', subjects: ['Chemistry', 'Organic Chemistry'], level: 'CEM 3, Lycée 1-3', rating: 4.7, reviews: 112, avatar: 'https://api.dicebear.com/7.x/avataaars-neutral/svg?seed=michael-chen', bio: 'Chemistry expert with innovative teaching methods', available: true },
+  { id: '5', name: 'Mr. Robert Wilson', email: 'robert.wilson@school.edu', subjects: ['History', 'Global Studies'], level: 'CEM 1-3, Lycée 1-3', rating: 4.5, reviews: 87, avatar: 'https://api.dicebear.com/7.x/avataaars-neutral/svg?seed=robert-wilson', bio: 'History teacher bringing past and present together', available: true },
+  { id: '6', name: 'Dr. Lisa Anderson', email: 'lisa.anderson@school.edu', subjects: ['Biology', 'Environmental Science'], level: 'Lycée 1-3', rating: 4.8, reviews: 134, avatar: 'https://api.dicebear.com/7.x/avataaars-neutral/svg?seed=lisa-anderson', bio: 'Dedicated biologist passionate about environmental education', available: true },
 ];
 
 function loadTeachers(): DisplayTeacher[] {
@@ -41,7 +41,7 @@ function loadTeachers(): DisplayTeacher[] {
       level: t.level || '',
       rating: 4.5,
       reviews: 0,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(t.name || 'teacher')}`,
+      avatar: `https://api.dicebear.com/7.x/avataaars-neutral/svg?seed=${encodeURIComponent(t.name || 'teacher')}`,
       bio: `${t.subject || 'Teacher'} at the school`,
       available: true,
     }));

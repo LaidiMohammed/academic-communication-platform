@@ -8,7 +8,7 @@ const CHARGILY_SECRET_KEY = process.env.CHARGILY_SECRET_KEY || '';
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
-    const { allowed } = rateLimit(ip, 10, 60000);
+    const { allowed } = await rateLimit(ip, 10, 60000);
     if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
     const body = await req.text();

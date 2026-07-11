@@ -1,15 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, Check, QrCode, Shield, BookOpen, Star,
   ChevronRight, Calendar, Users, RefreshCw, Crown, Sparkles,
   Clock, AlertCircle, CheckCircle2, Download, Plus, X,
-  GraduationCap, Filter, User,
+  GraduationCap, Filter, FileText,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { createClient } from '@/lib/supabase';
+import { QRStudentPassport } from '@/components/qr-student-passport';
+import Link from 'next/link';
 
 /* ── Subject tag ── */
 function SubjectTag({ label, onRemove }: { label: string; onRemove?: () => void }) {
@@ -69,12 +72,16 @@ const ALL_SUBJECTS = [
 /* ── Main Page ── */
 export default function MembershipPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<'plans' | 'subjects' | 'exists'>('plans');
   const [selectedLevel, setSelectedLevel] = useState<any>(null);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [membership, setMembership] = useState<any>(null);
   const [loadingMembership, setLoadingMembership] = useState(true);
+  const [latestPayment, setLatestPayment] = useState<any>(null);
+  const [justPaid, setJustPaid] = useState(false);
+  const [justPaidPaymentId, setJustPaidPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -90,7 +97,13 @@ export default function MembershipPage() {
         setLoadingMembership(false);
       });
 
+    const fetchLatestPayment = () =>
+      supabase.from('payments').select('id, amount, paid_at, status, plan_title, level, subjects')
+        .eq('user_id', user.id).eq('status', 'completed').order('paid_at', { ascending: false }).limit(1).maybeSingle()
+        .then(({ data }) => { if (data) setLatestPayment(data); });
+
     fetchMembership();
+    fetchLatestPayment();
 
     const channel = supabase
       .channel(`membership:${user.id}`)
@@ -102,6 +115,18 @@ export default function MembershipPage() {
 
     return () => { supabase.removeChannel(channel); };
   }, [user]);
+
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      const paymentId = searchParams.get('paymentId');
+      if (paymentId) setJustPaidPaymentId(paymentId);
+      setJustPaid(true);
+      const supabase = createClient();
+      supabase.from('payments').select('id, amount, paid_at, status, plan_title, level, subjects')
+        .eq('user_id', user?.id).eq('status', 'completed').order('paid_at', { ascending: false }).limit(1).maybeSingle()
+        .then(({ data }) => { if (data) setLatestPayment(data); });
+    }
+  }, [searchParams]);
 
   const handleSelectLevel = (level: any) => {
     setSelectedLevel(level);
@@ -141,10 +166,8 @@ export default function MembershipPage() {
           subjectCount: selectedSubjects.length,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Payment failed');
-
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       }
@@ -226,6 +249,14 @@ export default function MembershipPage() {
                   <div className="flex items-center gap-2 text-muted-foreground"><Clock size={13} /> Days left</div>
                   <span className="font-semibold text-foreground">{daysLeft} days</span>
                 </div>
+                {latestPayment && (
+                  <Link
+                    href={`/dashboard/receipt/${latestPayment.id}`}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition text-sm font-semibold"
+                  >
+                    <FileText size={14} /> View Receipt
+                  </Link>
+                )}
                 <div>
                   <div className="flex justify-between text-xs text-muted-foreground mb-1">
                     <span>Session usage</span>
@@ -244,18 +275,10 @@ export default function MembershipPage() {
               <div className="w-2 h-6 rounded-full bg-gradient-to-b from-blue-400 to-violet-400" />
               <h3 className="font-bold text-foreground">Attendance QR Code</h3>
             </div>
-            <div className="flex flex-col items-center gap-3 py-4">
-              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                <User size={28} className="text-blue-400" />
-              </div>
-              <p className="text-sm text-muted-foreground text-center">
-                Show your QR code from your <strong>Profile page</strong> to the admin to mark attendance.
-              </p>
-              <a href="/dashboard/profile"
-                className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-400 transition shadow-lg flex items-center gap-2">
-                <User size={14} /> Go to Profile
-              </a>
-            </div>
+            <p className="text-xs text-muted-foreground text-center w-full">
+              Show this QR code to the admin at the start of each session to mark your attendance.
+            </p>
+            <QRStudentPassport studentId={user?.id || ''} name={user?.name || ''} />
           </div>
         </div>
       </motion.div>
@@ -556,6 +579,86 @@ export default function MembershipPage() {
       </motion.div>
       </>
       )}
+
+      {/* ── Receipt Widget (shown after successful payment) ── */}
+      <AnimatePresence>
+        {justPaid && latestPayment && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.97 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setJustPaid(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, type: 'spring', stiffness: 300, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden"
+            >
+              {/* Success header */}
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-8 text-center text-white">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
+                  className="w-16 h-16 rounded-full bg-white/20 mx-auto flex items-center justify-center mb-3"
+                >
+                  <CheckCircle2 size={36} className="text-white" />
+                </motion.div>
+                <h2 className="text-xl font-black">Payment Successful!</h2>
+                <p className="text-sm text-white/80 mt-1">Your subscription is now active</p>
+              </div>
+
+              {/* Receipt summary */}
+              <div className="px-6 py-6 space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Receipt</span>
+                  <span className="font-mono font-bold text-gray-900">{latestPayment.id?.slice(0, 8).toUpperCase()}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Date</span>
+                  <span className="font-semibold text-gray-900">
+                    {latestPayment.paid_at ? new Date(latestPayment.paid_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Level</span>
+                  <span className="font-semibold text-gray-900">{latestPayment.level || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Subjects</span>
+                  <span className="font-semibold text-gray-900">{(latestPayment.subjects || []).length}</span>
+                </div>
+
+                <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
+                  <span className="text-base font-bold text-gray-900">Total Paid</span>
+                  <span className="text-2xl font-black text-green-600">
+                    {latestPayment.amount?.toLocaleString('ar-DZ')} <span className="text-sm font-semibold">د.ج</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 pb-6 flex flex-col gap-3">
+                <Link
+                  href={`/dashboard/receipt/${latestPayment.id}`}
+                  className="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold text-sm text-center hover:bg-blue-700 transition shadow-lg"
+                >
+                  <FileText size={15} className="inline mr-2" />View Full Receipt
+                </Link>
+                <button
+                  onClick={() => setJustPaid(false)}
+                  className="w-full py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition"
+                >
+                  Continue
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

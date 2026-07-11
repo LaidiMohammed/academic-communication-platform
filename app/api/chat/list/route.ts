@@ -1,52 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
+import { getAuthUser } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-  const { allowed } = rateLimit(ip, 30, 60000);
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { allowed } = await rateLimit(auth.user.id, 30, 60000, auth.supabase);
   if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer '))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const supabase = createServiceClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.slice(7));
-  if (authErr || !user)
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  // Fetch existing chat participations
-  const { data: participations } = await supabase
+  const { data: participations } = await auth.supabase
     .from('chat_participants')
     .select('chat_id, last_read_at, chats(*)')
-    .eq('user_id', user.id);
+    .eq('user_id', auth.user.id);
 
   const seenChatIds = new Set((participations || []).map((p: any) => p.chat_id));
 
-  // Fetch group memberships for groups where user has no chat_participants entry
-  const { data: memberships } = await supabase
+  const { data: memberships } = await auth.supabase
     .from('group_members')
     .select('group_id')
-    .eq('user_id', user.id);
+    .eq('user_id', auth.user.id);
 
   for (const m of (memberships || []) as any[]) {
-    const { data: grp } = await supabase.from('groups').select('id, chat_id, name, members_count').eq('id', m.group_id).single();
+    const { data: grp } = await auth.supabase.from('groups').select('id, chat_id, name, members_count').eq('id', m.group_id).single();
     if (!grp) continue;
     if (grp.chat_id && !seenChatIds.has(grp.chat_id)) {
-      const { error: insErr } = await supabase.from('chat_participants').insert({
-        chat_id: grp.chat_id, user_id: user.id, last_read_at: new Date().toISOString(),
+      const { error: insErr } = await auth.supabase.from('chat_participants').insert({
+        chat_id: grp.chat_id, user_id: auth.user.id, last_read_at: new Date().toISOString(),
       });
       if (!insErr) seenChatIds.add(grp.chat_id);
     } else if (!grp.chat_id) {
-      const { data: newChat } = await supabase.from('chats').insert({
-        type: 'group', name: grp.name || 'Group', created_by: user.id,
+      const { data: newChat } = await auth.supabase.from('chats').insert({
+        type: 'group', name: grp.name || 'Group', created_by: auth.user.id,
       }).select('id').single();
       if (newChat) {
-        await supabase.from('groups').update({ chat_id: newChat.id }).eq('id', m.group_id);
-        const { data: allMembers } = await supabase.from('group_members').select('user_id').eq('group_id', m.group_id);
+        await auth.supabase.from('groups').update({ chat_id: newChat.id }).eq('id', m.group_id);
+        const { data: allMembers } = await auth.supabase.from('group_members').select('user_id').eq('group_id', m.group_id);
         if (allMembers?.length) {
-          await supabase.from('chat_participants').insert(
+          await auth.supabase.from('chat_participants').insert(
             allMembers.map((x: any) => ({ chat_id: newChat.id, user_id: x.user_id, last_read_at: new Date().toISOString() }))
           );
         }
@@ -55,11 +46,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Re-fetch after potential inserts
-  const { data: finalParticipations } = await supabase
+  const { data: finalParticipations } = await auth.supabase
     .from('chat_participants')
     .select('chat_id, last_read_at, chats(*)')
-    .eq('user_id', user.id);
+    .eq('user_id', auth.user.id);
 
   if (!finalParticipations) return NextResponse.json({ chats: [] });
 
@@ -69,11 +59,11 @@ export async function GET(req: NextRequest) {
     let name = chat.name;
     let avatar = chat.avatar;
     if (chat.type === 'individual') {
-      const { data: others } = await supabase
+      const { data: others } = await auth.supabase
         .from('chat_participants')
         .select('profiles!inner(name, avatar)')
         .eq('chat_id', chat.id)
-        .neq('user_id', user.id)
+        .neq('user_id', auth.user.id)
         .limit(1);
       if (others?.[0]) {
         const pr = (others[0] as any).profiles;
@@ -81,11 +71,11 @@ export async function GET(req: NextRequest) {
         avatar = pr.avatar;
       }
     }
-    const { count } = await supabase.from('messages')
+    const { count } = await auth.supabase.from('messages')
       .select('*', { count: 'exact', head: true })
       .eq('chat_id', chat.id)
       .gt('created_at', p.last_read_at || '1970-01-01')
-      .neq('sender_id', user.id);
+      .neq('sender_id', auth.user.id);
 
     return {
       id: chat.id,
@@ -104,5 +94,7 @@ export async function GET(req: NextRequest) {
     };
   }));
 
-  return NextResponse.json({ chats: chats.filter(Boolean) });
+  const res = NextResponse.json({ chats: chats.filter(Boolean) });
+  res.headers.set('Cache-Control', 'public, max-age=5, s-maxage=5, stale-while-revalidate=15');
+  return res;
 }

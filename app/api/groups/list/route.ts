@@ -1,37 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
+import { getAuthUser } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-  const { allowed } = rateLimit(ip, 30, 60000);
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { allowed } = await rateLimit(auth.user.id, 30, 60000, auth.supabase);
   if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer '))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const supabase = createServiceClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.slice(7));
-  if (authErr || !user)
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { data: dbGroups } = await supabase.from('groups').select('*').order('created_at', { ascending: false });
-  const { data: myMemberships } = await supabase.from('group_members').select('group_id, role').eq('user_id', user.id);
+  const { data: dbGroups } = await auth.supabase.from('groups').select('*').order('created_at', { ascending: false });
+  const { data: myMemberships } = await auth.supabase.from('group_members').select('group_id, role').eq('user_id', auth.user.id);
   const memberMap = new Map((myMemberships || []).map((m: any) => [m.group_id, m.role]));
 
   const groups = await Promise.all((dbGroups || []).map(async (g: any) => {
     let unread = 0;
     const chatId = g.chat_id || '';
     if (chatId && memberMap.has(g.id)) {
-      const { data: part } = await supabase.from('chat_participants')
-        .select('last_read_at').eq('chat_id', chatId).eq('user_id', user.id).maybeSingle();
+      const { data: part } = await auth.supabase.from('chat_participants')
+        .select('last_read_at').eq('chat_id', chatId).eq('user_id', auth.user.id).maybeSingle();
       if (part) {
-        const { count } = await supabase.from('messages')
+        const { count } = await auth.supabase.from('messages')
           .select('*', { count: 'exact', head: true })
           .eq('chat_id', chatId)
           .gt('created_at', part.last_read_at || '1970-01-01')
-          .neq('sender_id', user.id);
+          .neq('sender_id', auth.user.id);
         unread = count || 0;
       }
     }
@@ -58,5 +51,7 @@ export async function GET(req: NextRequest) {
     };
   }));
 
-  return NextResponse.json({ groups });
+  const res = NextResponse.json({ groups });
+  res.headers.set('Cache-Control', 'public, max-age=30, s-maxage=30, stale-while-revalidate=60');
+  return res;
 }

@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { DashboardContent } from '@/components/dashboard-content';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
+import { ConnectionBanner } from '@/components/connection-banner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, loading } = useAuth();
@@ -37,6 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <SidebarProvider>
       <div className="h-screen bg-background flex flex-col">
         <Sidebar />
+        <ConnectionBanner />
         <DashboardContent>{children}</DashboardContent>
         <MobileBottomNav />
       </div>

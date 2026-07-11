@@ -12,7 +12,7 @@ import {
   Calendar, CheckCircle, XCircle, AlertTriangle, Search, Camera,
   Download, Plus, ChevronRight, Clock, CreditCard, UserCheck, Award,
   Trash2, Edit, Filter, GraduationCap, MessageSquare, Video, PieChart,
-  BarChart3, CircleDollarSign, UserPlus, UserX, Percent, Loader,
+  BarChart3, CircleDollarSign, UserPlus, UserX, Percent, Loader, X,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -27,6 +27,7 @@ interface Student {
 interface Teacher {
   id: string; name: string; email: string; subject: string; phone: string;
   monthlySalary: number; paid: boolean; paidDate: string; hireDate: string; level: string;
+  sexe: string; age: number; specialite: string;
 }
 interface Revenue {
   id: string; source: string; amount: number; date: string; type: 'income' | 'expense'; category: string;
@@ -38,6 +39,7 @@ interface Lesson {
 interface Group {
   id: string; name: string; members: number; type: 'public' | 'private'; createdBy: string;
   createdAt: string; status: 'active' | 'archived';
+  image?: string; description?: string; memberIds?: string[];
 }
 
 /* ===== Initial Data ===== */
@@ -53,11 +55,11 @@ const initialStudents: Student[] = [
 ];
 
 const initialTeachers: Teacher[] = [
-  { id: 'TCH-001', name: 'Dr. Sarah Smith', email: 'sarah@school.edu', subject: 'Mathematics', phone: '0555-111111', monthlySalary: 2400, paid: true, paidDate: '2026-06-01', hireDate: '2022-09-01', level: 'Lycée 1-3' },
-  { id: 'TCH-002', name: 'Mr. James Johnson', email: 'james@school.edu', subject: 'Physics', phone: '0555-222222', monthlySalary: 2200, paid: false, paidDate: '', hireDate: '2023-01-15', level: 'CEM 2-3, Lycée 1-2' },
-  { id: 'TCH-003', name: 'Mrs. Emily Davis', email: 'emily@school.edu', subject: 'English', phone: '0555-333333', monthlySalary: 2100, paid: true, paidDate: '2026-06-01', hireDate: '2021-09-01', level: 'Lycée 1-3' },
-  { id: 'TCH-004', name: 'Dr. Michael Chen', email: 'michael@school.edu', subject: 'Chemistry', phone: '0555-444444', monthlySalary: 2500, paid: false, paidDate: '', hireDate: '2022-09-01', level: 'CEM 3, Lycée 1-3' },
-  { id: 'TCH-005', name: 'Ms. Samira Belkacem', email: 'samira@school.edu', subject: 'Arabic', phone: '0555-555555', monthlySalary: 1900, paid: true, paidDate: '2026-06-01', hireDate: '2024-09-01', level: 'CEM 1-3' },
+  { id: 'TCH-001', name: 'Dr. Sarah Smith', email: 'sarah@school.edu', subject: 'Mathematics', phone: '0555-111111', monthlySalary: 2400, paid: true, paidDate: '2026-06-01', hireDate: '2022-09-01', level: 'Lycée 1-3', sexe: 'Femme', age: 38, specialite: 'Mathematics' },
+  { id: 'TCH-002', name: 'Mr. James Johnson', email: 'james@school.edu', subject: 'Physics', phone: '0555-222222', monthlySalary: 2200, paid: false, paidDate: '', hireDate: '2023-01-15', level: 'CEM 2-3, Lycée 1-2', sexe: 'Homme', age: 42, specialite: 'Physics' },
+  { id: 'TCH-003', name: 'Mrs. Emily Davis', email: 'emily@school.edu', subject: 'English', phone: '0555-333333', monthlySalary: 2100, paid: true, paidDate: '2026-06-01', hireDate: '2021-09-01', level: 'Lycée 1-3', sexe: 'Femme', age: 35, specialite: 'English' },
+  { id: 'TCH-004', name: 'Dr. Michael Chen', email: 'michael@school.edu', subject: 'Chemistry', phone: '0555-444444', monthlySalary: 2500, paid: false, paidDate: '', hireDate: '2022-09-01', level: 'CEM 3, Lycée 1-3', sexe: 'Homme', age: 45, specialite: 'Chemistry' },
+  { id: 'TCH-005', name: 'Ms. Samira Belkacem', email: 'samira@school.edu', subject: 'Arabic', phone: '0555-555555', monthlySalary: 1900, paid: true, paidDate: '2026-06-01', hireDate: '2024-09-01', level: 'CEM 1-3', sexe: 'Femme', age: 30, specialite: 'Arabic' },
 ];
 
 const initialRevenues: Revenue[] = [
@@ -149,6 +151,9 @@ function TeacherForm({ initial, onSave, onCancel }: {
 }) {
   const [name, setName] = useState(initial?.name || '');
   const [email, setEmail] = useState(initial?.email || '');
+  const [sexe, setSexe] = useState(initial?.sexe || 'Homme');
+  const [age, setAge] = useState(String(initial?.age || ''));
+  const [specialite, setSpecialite] = useState(initial?.specialite || 'Mathematics');
   const [subject, setSubject] = useState(initial?.subject || 'Mathematics');
   const [phone, setPhone] = useState(initial?.phone || '');
   const [monthlySalary, setMonthlySalary] = useState(String(initial?.monthlySalary || ''));
@@ -158,6 +163,11 @@ function TeacherForm({ initial, onSave, onCancel }: {
     <div className="space-y-3">
       <InputField label="Full Name" value={name} onChange={setName} />
       <InputField label="Email" value={email} onChange={setEmail} type="email" />
+      <SelectField label="Sexe" value={sexe} onChange={setSexe}
+        options={['Homme', 'Femme']} />
+      <InputField label="Age" value={age} onChange={setAge} type="number" />
+      <SelectField label="Specialite" value={specialite} onChange={setSpecialite}
+        options={['Mathematics','Physics','English','Chemistry','Arabic','History','Biology','Computer Science']} />
       <SelectField label="Subject" value={subject} onChange={setSubject}
         options={['Mathematics','Physics','English','Chemistry','Arabic','History','Biology','Computer Science']} />
       <InputField label="Phone" value={phone} onChange={setPhone} />
@@ -165,7 +175,7 @@ function TeacherForm({ initial, onSave, onCancel }: {
       <InputField label="Level(s)" value={level} onChange={setLevel} placeholder="e.g. CEM 1-3, Lycée 1-2" />
       <div className="flex gap-2 justify-end pt-2">
         <button onClick={onCancel} className="px-4 py-2 text-xs border border-border/60 text-foreground/80 rounded-lg hover:bg-blue-500/10 transition">Cancel</button>
-        <button onClick={() => onSave({ name, email, subject, phone, monthlySalary: Number(monthlySalary), level })}
+        <button onClick={() => onSave({ name, email, sexe, age: Number(age), specialite, subject, phone, monthlySalary: Number(monthlySalary), level })}
           className="px-4 py-2 text-xs bg-blue-500 text-primary-foreground rounded-lg hover:bg-blue-400 transition shadow-lg disabled:opacity-50"
           disabled={!name || !email || !monthlySalary}>Save</button>
       </div>
@@ -213,14 +223,120 @@ function GroupForm({ onSave, onCancel }: {
 }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('public');
+  const [description, setDescription] = useState('');
+  const [image, setImage] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
+  const [availableUsers, setAvailableUsers] = useState<{ id: string; name: string; avatar: string }[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!user) return;
+      setLoading(true);
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const res = await fetch(`/api/users/search?q=`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (res.ok) {
+          const { users } = await res.json();
+          setAvailableUsers(users || []);
+        }
+      } catch {}
+      setLoading(false);
+    };
+    fetchUsers();
+  }, [user]);
+
+  const toggleMember = (id: string) => {
+    setSelectedMembers(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
+  };
+
+  const q = memberSearch.toLowerCase();
+  const filteredUsers = availableUsers.filter(u =>
+    u.name.toLowerCase().includes(q) && !selectedMembers.includes(u.id)
+  );
 
   return (
     <div className="space-y-3">
       <InputField label="Group Name" value={name} onChange={setName} />
+
+      {/* Image upload with first-character fallback */}
+      <div>
+        <label className="block text-xs text-muted-foreground mb-1">Group Picture</label>
+        <div className="flex items-center gap-3">
+          <div className="relative group cursor-pointer" onClick={() => document.getElementById('adminGroupAvatarUpload')?.click()}>
+            {image ? (
+              <img src={image} alt="Group" className="w-16 h-16 rounded-full object-cover border-2 border-border" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-secondary border-2 border-border flex items-center justify-center text-2xl font-bold text-foreground">
+                {name ? name.charAt(0).toUpperCase() : <Camera size={20} className="text-muted-foreground" />}
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+              <Camera size={16} className="text-white" />
+            </div>
+            <input type="file" id="adminGroupAvatarUpload" className="hidden" accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => setImage(reader.result as string);
+                  reader.readAsDataURL(file);
+                }
+              }} />
+          </div>
+          <span className="text-xs text-muted-foreground/70">Click to upload (optional)</span>
+        </div>
+      </div>
+
       <SelectField label="Type" value={type} onChange={setType} options={['public','private']} />
+      <InputField label="Description (optional)" value={description} onChange={setDescription} />
+
+      {/* Member search & multi-select */}
+      <div>
+        <label className="block text-xs text-muted-foreground mb-1">Members</label>
+        <div className="flex items-center gap-1.5 bg-secondary border border-border rounded-lg px-2 py-1.5">
+          <Search size={14} className="text-muted-foreground/70 shrink-0" />
+          <input value={memberSearch} onChange={e => setMemberSearch(e.target.value)}
+            placeholder="Search users to add..."
+            className="flex-1 bg-transparent text-foreground text-sm focus:outline-none placeholder:text-muted-foreground/50" />
+        </div>
+        {selectedMembers.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {selectedMembers.map(id => {
+              const u = availableUsers.find(u => u.id === id);
+              return (
+                <span key={id} className="flex items-center gap-1 bg-blue-500/10 text-blue-400 text-xs px-2 py-0.5 rounded-full">
+                  {u?.name || id}
+                  <button onClick={() => toggleMember(id)} className="hover:text-red-400 transition">
+                    <X size={12} />
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        {memberSearch && filteredUsers.length > 0 && (
+          <div className="mt-1 max-h-36 overflow-y-auto border border-border rounded-lg bg-card">
+            {filteredUsers.map(u => (
+              <button key={u.id} onClick={() => toggleMember(u.id)}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-secondary/60 transition text-left">
+                <span className="text-muted-foreground">{u.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {loading && <p className="text-xs text-muted-foreground/50 mt-1">Loading users...</p>}
+      </div>
+
       <div className="flex gap-2 justify-end pt-2">
         <button onClick={onCancel} className="px-4 py-2 text-xs border border-border/60 text-foreground/80 rounded-lg hover:bg-blue-500/10 transition">Cancel</button>
-        <button onClick={() => onSave({ name, type })}
+        <button onClick={() => onSave({ name, type, description, image, memberIds: selectedMembers, members: 1 + selectedMembers.length })}
           className="px-4 py-2 text-xs bg-blue-500 text-primary-foreground rounded-lg hover:bg-blue-400 transition shadow-lg disabled:opacity-50"
           disabled={!name}>Save</button>
       </div>
@@ -789,6 +905,8 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-border text-muted-foreground/70 text-xs">
                   <th className="text-left p-3 font-medium">Name</th>
+                  <th className="text-left p-3 font-medium">Sexe</th>
+                  <th className="text-left p-3 font-medium">Age</th>
                   <th className="text-left p-3 font-medium">Subject</th>
                   <th className="text-left p-3 font-medium">Level</th>
                   <th className="text-left p-3 font-medium">Salary</th>
@@ -799,7 +917,9 @@ export default function AdminPage() {
                   {filter(teachers, ['name','email','subject','id']).map(t => (
                     <tr key={t.id} className="hover:bg-secondary/50 transition">
                       <td className="p-3"><p className="text-foreground font-medium">{t.name}</p><p className="text-[10px] text-muted-foreground/50">{t.id}</p></td>
-                      <td className="p-3 text-muted-foreground text-xs">{t.subject}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{t.sexe}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{t.age}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{t.specialite}</td>
                       <td className="p-3 text-muted-foreground text-xs">{t.level}</td>
                       <td className="p-3"><span className="text-foreground font-medium">{t.monthlySalary.toLocaleString()} DA</span></td>
                       <td className="p-3"><span className={`text-xs px-2 py-0.5 rounded-full ${t.paid ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>{t.paid ? 'Paid' : 'Unpaid'}</span></td>
@@ -1288,7 +1408,7 @@ export default function AdminPage() {
               {showModal.type === 'add-group' && (
                 <GroupForm
                   onSave={(data) => {
-                    setGroups(p => [...p, { ...data, id: `GRP-${String(p.length + 1).padStart(3, '0')}`, members: 0, createdBy: user?.name || 'Admin', createdAt: new Date().toISOString().slice(0, 10), status: 'active' }]);
+                    setGroups(p => [...p, { ...data, id: `GRP-${String(p.length + 1).padStart(3, '0')}`, createdBy: user?.name || 'Admin', createdAt: new Date().toISOString().slice(0, 10), status: 'active' }]);
                     setShowModal(null);
                   }}
                   onCancel={() => setShowModal(null)}

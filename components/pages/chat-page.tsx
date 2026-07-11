@@ -12,8 +12,13 @@ import {
 } from 'lucide-react';
 import { ChatInputWidget } from '@/components/chat-input-widget';
 import { ChatDetailsPanel } from '@/components/chat-details-panel';
+import { Avatar } from '@/components/avatar';
+import { ConnectionBanner } from '@/components/connection-banner';
+import { useTypingIndicator } from '@/lib/use-typing-indicator';
+import { useOnlinePresence } from '@/lib/use-online-presence';
 import { motion, AnimatePresence } from 'framer-motion';
 import twemoji from 'twemoji';
+import SimplePeer from 'simple-peer';
 
 function formatRelativeTime(dateStr: string) {
   if (!dateStr) return '';
@@ -200,10 +205,10 @@ export function ChatPage() {
   const [callState, setCallState] = useState<'none' | 'calling' | 'connected'>('none');
   const [callMode, setCallMode] = useState<'audio' | 'video'>('audio');
   const [callMuted, setCallMuted] = useState(false);
-  const [incomingCall, setIncomingCall] = useState<{ from: string; fromName: string; chatId: string; mode: 'audio' | 'video'; sdp?: string } | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{ from: string; fromName: string; chatId: string; mode: 'audio' | 'video'; signalData?: any } | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const rtcPeerRef = useRef<RTCPeerConnection | null>(null);
-  const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const simplePeerRef = useRef<SimplePeer.Instance | null>(null);
+  const pendingSignalsRef = useRef<any[]>([]);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -220,6 +225,8 @@ export function ChatPage() {
   const [chatFetchKey, setChatFetchKey] = useState(0);
   const { user: currentUser } = useAuth();
   const supabase = createClient();
+  const { typingUsers, startTyping, stopTyping } = useTypingIndicator(selectedChat, currentUser?.id || '');
+  const { isOnline } = useOnlinePresence(currentUser?.id || null);
   const getToken = async () => {
     const s = await supabase.auth.getSession();
     return s.data.session?.access_token || '';
@@ -239,6 +246,7 @@ export function ChatPage() {
   const addUserRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const callStateRef = useRef<'none' | 'calling' | 'connected'>('none');
+  useEffect(() => { callStateRef.current = callState; }, [callState]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -369,35 +377,16 @@ export function ChatPage() {
             if (signalType === 'offer') {
               const mode = parts[3] as 'audio' | 'video';
               const fromName = parts[4] || 'Someone';
-              setIncomingCall({ from: newMsg.sender_id, fromName, chatId: newMsg.chat_id, mode, sdp: newMsg.file_url || '' });
-            } else if (signalType === 'answer') {
-              if (callStateRef.current === 'calling' && newMsg.file_url) {
-                const pc = rtcPeerRef.current;
-                if (pc) {
-                  try {
-                    const desc = JSON.parse(newMsg.file_url);
-                    await pc.setRemoteDescription(new RTCSessionDescription(desc));
-                    await flushPendingCandidates();
-                  } catch (e) {
-                    console.error('setRemoteDescription (answer) error:', e);
-                  }
-                }
-                setCallState('connected');
-              }
-            } else if (signalType === 'ice') {
-              if (newMsg.file_url) {
-                try {
-                  const candidate = JSON.parse(newMsg.file_url) as RTCIceCandidateInit;
-                  const pc = rtcPeerRef.current;
-                  if (pc && pc.remoteDescription) {
-                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                  } else {
-                    pendingIceRef.current.push(candidate);
-                  }
-                } catch (e) {
-                  console.error('addIceCandidate error:', e);
-                }
-              }
+              let signalData: any;
+              if (newMsg.file_url) { try { signalData = JSON.parse(newMsg.file_url); } catch {} }
+              setIncomingCall({ from: newMsg.sender_id, fromName, chatId: newMsg.chat_id, mode, signalData });
+            } else if (signalType === 'signal' && newMsg.file_url) {
+              try {
+                const data = JSON.parse(newMsg.file_url);
+                const peer = simplePeerRef.current;
+                if (peer) { peer.signal(data); }
+                else { pendingSignalsRef.current.push(data); }
+              } catch (e) { console.error('signal parse error:', e); }
             } else if (signalType === 'end') {
               if (callStateRef.current !== 'none') endCall();
             }
@@ -479,6 +468,11 @@ export function ChatPage() {
     };
   }, [currentUser]);
 
+  // Derive live typing/online status for the selected chat header
+  const selectedChatIsTyping = typingUsers.length > 0;
+  const selectedChatMemberIsOnline = selectedChat
+    ? chatMembers.some(m => isOnline(m.name))
+    : false;
   // Sync refs on every render
   useEffect(() => { callStateRef.current = callState; });
   useEffect(() => { chatsRef.current = chats; });
@@ -555,12 +549,13 @@ export function ChatPage() {
   };
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const iceConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
 
   const sendCallSignal = async (type: string, extra?: string, data?: string) => {
     const chatId = selectedChat || incomingCall?.chatId;
     if (!chatId || !currentUser) return;
     try {
-      const { error } = await supabase.from('messages').insert({
+      await supabase.from('messages').insert({
         chat_id: chatId,
         sender_id: currentUser.id,
         text: `__call__${type}${extra || ''}`,
@@ -570,85 +565,27 @@ export function ChatPage() {
         file_size: '',
         created_at: new Date().toISOString(),
       });
-      if (error) console.error('sendCallSignal insert error:', error);
     } catch (e) {
       console.error('sendCallSignal catch:', e);
     }
   };
 
-  const remoteStreamRef = useRef<MediaStream | null>(null);
-
-  const STUN_SERVERS: RTCConfiguration = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-    ],
-  };
-
-  const flushPendingCandidates = async () => {
-    const pc = rtcPeerRef.current;
-    if (!pc || !pc.remoteDescription) return;
-    for (const c of pendingIceRef.current) {
-      try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch {}
-    }
-    pendingIceRef.current = [];
-  };
-
-  const createPeerConnection = async (remoteSdp?: string) => {
-    if (rtcPeerRef.current) rtcPeerRef.current.close();
-    pendingIceRef.current = [];
-
-    const pc = new RTCPeerConnection(STUN_SERVERS);
-    rtcPeerRef.current = pc;
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(t => {
-        pc.addTrack(t, localStreamRef.current!);
-      });
-    }
-
-    pc.ontrack = (event) => {
-      if (event.streams[0]) {
-        if (remoteVideoRef.current && remoteStreamRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
-        if (remoteAudioRef.current && !remoteVideoRef.current) {
-          remoteAudioRef.current.srcObject = event.streams[0];
-        }
-        if (remoteStreamRef.current) {
-          remoteStreamRef.current.getTracks().forEach(t => t.stop());
-        }
-        remoteStreamRef.current = event.streams[0];
-      }
-    };
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        sendCallSignal('ice', '', JSON.stringify(event.candidate));
-      }
-    };
-
-    pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-        endCall();
-      }
-    };
-
-    if (remoteSdp) {
-      try {
-        const desc = JSON.parse(remoteSdp);
-        await pc.setRemoteDescription(new RTCSessionDescription(desc));
-        await flushPendingCandidates();
-      } catch (e) {
-        console.error('setRemoteDescription error:', e);
-      }
-    }
-
-    return pc;
+  const createPeer = (initiator: boolean, stream: MediaStream, onSignal: (data: any) => void) => {
+    const peer = new SimplePeer({ initiator, stream, config: iceConfig });
+    simplePeerRef.current = peer;
+    peer.on('signal', onSignal);
+    peer.on('stream', (remoteStream: MediaStream) => {
+      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+      if (remoteAudioRef.current && !remoteVideoRef.current) remoteAudioRef.current.srcObject = remoteStream;
+    });
+    peer.on('connect', () => { setCallState('connected'); });
+    peer.on('close', () => { endCall(); });
+    peer.on('error', (err: Error) => { console.error('SimplePeer error:', err); endCall(); });
+    return peer;
   };
 
   const startCall = async (mode: 'audio' | 'video') => {
-    if (localStreamRef.current) endCall();
+    if (simplePeerRef.current) endCall();
     try {
       const stream = await navigator.mediaDevices.getUserMedia(
         mode === 'video' ? { video: true, audio: true } : { audio: true }
@@ -657,41 +594,22 @@ export function ChatPage() {
       setCallMode(mode);
       setCallMuted(false);
       setCallState('calling');
-      if (mode === 'video' && localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-      // Create RTCPeerConnection
-      const pc = await createPeerConnection();
-      // Add tracks again (localStreamRef was set after PC creation)
-      localStreamRef.current.getTracks().forEach(t => {
-        try { pc.addTrack(t, localStreamRef.current!); } catch {}
+      if (mode === 'video' && localVideoRef.current) localVideoRef.current.srcObject = stream;
+      let firstSignal = true;
+      createPeer(true, stream, (data: any) => {
+        if (firstSignal) { firstSignal = false;
+          sendCallSignal('offer', `__${mode}__${currentUser?.name || 'Someone'}`, JSON.stringify(data));
+        } else { sendCallSignal('signal', '', JSON.stringify(data)); }
       });
-      // Create and send offer
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await sendCallSignal('offer', `__${mode}__${currentUser?.name || 'Someone'}`, JSON.stringify(offer));
     } catch {
-      setSendError(mode === 'video'
-        ? 'Camera/microphone access denied. Allow access and try again.'
-        : 'Microphone access denied. Allow access and try again.'
-      );
+      setSendError(mode === 'video' ? 'Camera/microphone access denied.' : 'Microphone access denied.');
     }
   };
 
   const endCall = () => {
-    if (rtcPeerRef.current) {
-      rtcPeerRef.current.close();
-      rtcPeerRef.current = null;
-    }
-    pendingIceRef.current = [];
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(t => t.stop());
-      localStreamRef.current = null;
-    }
-    if (remoteStreamRef.current) {
-      remoteStreamRef.current.getTracks().forEach(t => t.stop());
-      remoteStreamRef.current = null;
-    }
+    if (simplePeerRef.current) { simplePeerRef.current.destroy(); simplePeerRef.current = null; }
+    pendingSignalsRef.current = [];
+    if (localStreamRef.current) { localStreamRef.current.getTracks().forEach(t => t.stop()); localStreamRef.current = null; }
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     setCallState('none');
@@ -709,22 +627,16 @@ export function ChatPage() {
       setCallMode(incomingCall.mode);
       setCallMuted(false);
       setCallState('connected');
-      if (incomingCall.mode === 'video' && localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-      // Create RTCPeerConnection with remote SDP from offer
-      const pc = await createPeerConnection(incomingCall.sdp);
-      // Add local tracks
-      localStreamRef.current.getTracks().forEach(t => {
-        try { pc.addTrack(t, localStreamRef.current!); } catch {}
+      if (incomingCall.mode === 'video' && localVideoRef.current) localVideoRef.current.srcObject = stream;
+      const peer = createPeer(false, stream, (data: any) => {
+        sendCallSignal('signal', '', JSON.stringify(data));
       });
-      // Create and send answer
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      await sendCallSignal('answer', '', JSON.stringify(answer));
+      if (incomingCall.signalData) peer.signal(incomingCall.signalData);
+      pendingSignalsRef.current.forEach(d => peer.signal(d));
+      pendingSignalsRef.current = [];
       setIncomingCall(null);
     } catch {
-      setSendError('Microphone/camera access denied. Allow access to answer the call.');
+      setSendError('Microphone/camera access denied.');
     }
   };
 
@@ -734,10 +646,9 @@ export function ChatPage() {
   };
 
   const toggleMute = () => {
-    const stream = localStreamRef.current;
-    if (!stream) return;
+    if (!localStreamRef.current) return;
     const muted = !callMuted;
-    stream.getAudioTracks().forEach(t => { t.enabled = !muted; });
+    localStreamRef.current.getAudioTracks().forEach(t => { t.enabled = !muted; });
     setCallMuted(muted);
   };
 
@@ -1226,7 +1137,7 @@ export function ChatPage() {
                       }}
                       className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-lg text-foreground hover:bg-secondary transition"
                     >
-                      <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full" />
+                      <Avatar src={user.avatar} name={user.name} className="w-6 h-6 rounded-full" />
                       <span>{user.name}</span>
                     </button>
                   ))}
@@ -1252,7 +1163,7 @@ export function ChatPage() {
               <div className="flex items-center gap-2.5">
                 {/* Avatar with online dot */}
                 <div className="relative flex-shrink-0">
-                  <img src={chat.avatar} alt={chat.name} className="w-10 h-10 rounded-full" />
+                  <Avatar src={chat.avatar} name={chat.name} className="w-10 h-10 rounded-full" />
                   {chat.type === 'individual' && (
                     <motion.div
                       className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
@@ -1405,13 +1316,13 @@ export function ChatPage() {
                 <ChevronDown size={18} className="rotate-90" />
               </button>
               <div className="relative">
-                <img src={currentChat.avatar} alt={currentChat.name} className="w-10 h-10 rounded-full" />
+                <Avatar src={currentChat.avatar} name={currentChat.name} className="w-10 h-10 rounded-full" />
                 {currentChat.type === 'individual' && (
                   <motion.div
                     className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
-                      currentChat.online ? 'bg-green-400' : 'bg-muted-foreground/40'
+                      selectedChatMemberIsOnline ? 'bg-green-400' : 'bg-muted-foreground/40'
                     }`}
-                    animate={currentChat.online ? { scale: [1, 1.3, 1] } : {}}
+                    animate={selectedChatMemberIsOnline ? { scale: [1, 1.3, 1] } : {}}
                     transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
                   />
                 )}
@@ -1419,7 +1330,7 @@ export function ChatPage() {
               <div>
                 <p className="text-sm font-bold text-foreground leading-tight">{currentChat.name}</p>
                 <AnimatePresence mode="wait" initial={false}>
-                  {(currentChat as any).typing ? (
+                  {selectedChatIsTyping ? (
                     <motion.div
                       key="hdr-typing"
                       initial={{ opacity: 0, y: 4 }}
@@ -1451,7 +1362,7 @@ export function ChatPage() {
                     >
                       {currentChat.type === 'group' ? (
                         <span className="text-muted-foreground">{(currentChat as any).members} membres</span>
-                      ) : currentChat.online ? (
+                      ) : selectedChatMemberIsOnline ? (
                         <span className="text-green-400 font-medium">En ligne</span>
                       ) : (currentChat as any).lastSeen ? (
                         <span className="text-muted-foreground">{(currentChat as any).lastSeen}</span>
@@ -1486,7 +1397,7 @@ export function ChatPage() {
                 onMouseEnter={() => setHoveredMessage(msg.id)}
                 onMouseLeave={() => setHoveredMessage(null)}
               >
-                {!msg.isOwn && <img src={msg.avatar} alt={msg.sender} className="w-7 h-7 rounded-full flex-shrink-0 self-end" />}
+                {!msg.isOwn && <Avatar src={msg.avatar} name={msg.sender} className="w-7 h-7 rounded-full flex-shrink-0 self-end" />}
                 <div className={`flex flex-col ${msg.isOwn ? 'items-end' : 'items-start'} max-w-[70%]`}>
                   {/* Reply indicator */}
                   {msg.replyTo && (
@@ -1665,7 +1576,12 @@ export function ChatPage() {
               )}
               <div className="flex-1 relative">
                 <div ref={inputRef} contentEditable
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); } }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); stopTyping(); }
+                    else { startTyping(); }
+                  }}
+                  onInput={() => { startTyping(); }}
+                  onBlur={() => { stopTyping(); }}
                   data-placeholder="Message..."
                   role="textbox"
                   aria-label="Message"
@@ -1739,7 +1655,7 @@ export function ChatPage() {
             <div className="relative z-10 flex flex-col items-center gap-4">
               {callMode === 'audio' && (
                 <div className="relative">
-                  <img src={currentChat!.avatar} alt={currentChat!.name}
+                  <Avatar src={currentChat!.avatar} name={currentChat!.name}
                     className="w-20 h-20 rounded-full shadow-lg" />
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-card flex items-center justify-center">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="8,5 19,12 8,19"/></svg>
@@ -1973,7 +1889,7 @@ export function ChatPage() {
                 {chats.filter(c => c.id !== selectedChat).map(chat => (
                   <button key={chat.id} onClick={() => doForward(chat.id)}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-secondary transition text-sm text-foreground">
-                    <img src={chat.avatar} alt={chat.name} className="w-8 h-8 rounded-full" />
+                    <Avatar src={chat.avatar} name={chat.name} className="w-8 h-8 rounded-full" />
                     <span className="truncate">{chat.name}</span>
                   </button>
                 ))}

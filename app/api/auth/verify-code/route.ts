@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
+import { validateContentType, validateBodySize } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
+    const ctCheck = validateContentType(req);
+    if (ctCheck) return ctCheck;
+    const sizeCheck = validateBodySize(req);
+    if (sizeCheck) return sizeCheck;
+
+    // Pre-auth endpoint: use IP-based rate limiting
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    const { allowed } = rateLimit(ip, 10, 60000);
-    if (!allowed) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
+    const { allowed } = await rateLimit(ip, 10, 60000);
+    if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
     const { email, code } = await req.json();
     if (!email || !code || typeof email !== 'string' || typeof code !== 'string') {

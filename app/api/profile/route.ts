@@ -1,35 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
+import { getAuthUser, validateContentType, validateBodySize } from '@/lib/api-utils';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const jwt = authHeader.slice(7);
-  const supabase = createServiceClient();
-  const { data: { user }, error: userErr } = await supabase.auth.getUser(jwt);
-  if (userErr || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { allowed } = await rateLimit(auth.user.id, 30, 60000, auth.supabase);
+  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
+  const { data, error } = await auth.supabase.from('profiles').select('*').eq('id', auth.user.id).single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
 
 export async function PATCH(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  const jwt = authHeader.slice(7);
-  const supabase = createServiceClient();
-  const { data: { user }, error: userErr } = await supabase.auth.getUser(jwt);
-  if (userErr || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const ctCheck = validateContentType(req);
+  if (ctCheck) return ctCheck;
+  const sizeCheck = validateBodySize(req);
+  if (sizeCheck) return sizeCheck;
+
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { allowed } = await rateLimit(auth.user.id, 20, 60000, auth.supabase);
+  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
   const updates = await req.json();
-  const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select().single();
+  const { data, error } = await auth.supabase.from('profiles').update(updates).eq('id', auth.user.id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

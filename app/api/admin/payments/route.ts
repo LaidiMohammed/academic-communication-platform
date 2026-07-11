@@ -1,28 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
+import { getAuthUser, validateContentType } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || 'unknown';
-  const { allowed } = rateLimit(ip, 20, 60000);
-  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const token = authHeader.slice(7);
-  const supabase = createServiceClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-  if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { data: profile } = await auth.supabase.from('profiles').select('role').eq('id', auth.user.id).single();
   if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: payments, error } = await supabase
+  const { data: payments, error } = await auth.supabase
     .from('payments')
     .select('id, user_id, amount, status, checkout_id, currency, level, subjects, created_at')
     .order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const userIds = [...new Set((payments || []).map((p: any) => p.user_id))];
-  const { data: payers } = await supabase
+  const { data: payers } = await auth.supabase
     .from('profiles')
     .select('id, name, email')
     .in('id', userIds);
@@ -44,24 +38,19 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-  const { allowed } = rateLimit(ip, 60, 60000);
+  const ctCheck = validateContentType(req);
+  if (ctCheck) return ctCheck;
+
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { allowed } = await rateLimit(auth.user.id, 10, 60000, auth.supabase);
   if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer '))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const supabase = createServiceClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.slice(7));
-  if (authErr || !user)
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  // Verify user is admin
-  const { data: admin } = await supabase
+  const { data: admin } = await auth.supabase
     .from('profiles')
     .select('role')
-    .eq('id', user.id)
+    .eq('id', auth.user.id)
     .single();
 
   if (admin?.role !== 'admin') {
@@ -75,8 +64,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Fetch student
-    const { data: student, error: studentErr } = await supabase
+    const { data: student, error: studentErr } = await auth.supabase
       .from('students')
       .select('id, name, remaining_sessions, status')
       .eq('id', studentId)
@@ -86,16 +74,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // Get current remaining sessions
     const remainingPerModule = student.remaining_sessions || {};
     const previousBalance = remainingPerModule[moduleId] || 0;
     const sessionsToAdd = 4;
     const newBalance = previousBalance + sessionsToAdd;
 
-    // Update student with new session count and mark as active
     const updatedRemaining = { ...remainingPerModule, [moduleId]: newBalance };
 
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await auth.supabase
       .from('students')
       .update({
         remaining_sessions: updatedRemaining,
@@ -104,12 +90,10 @@ export async function POST(req: NextRequest) {
       .eq('id', studentId);
 
     if (updateErr) {
-      console.error('Update error:', updateErr);
       return NextResponse.json({ error: 'Failed to update student' }, { status: 500 });
     }
 
-    // Create immutable payment audit entry
-    const { error: auditErr } = await supabase
+    const { error: auditErr } = await auth.supabase
       .from('payment_audit')
       .insert({
         student_id: studentId,
@@ -117,15 +101,14 @@ export async function POST(req: NextRequest) {
         amount: amount || 0,
         sessions_added: sessionsToAdd,
         payment_date: new Date().toISOString(),
-        admin_operator_id: user.id,
+        admin_operator_id: auth.user.id,
         previous_balance: previousBalance,
         new_balance: newBalance,
         status: 'active',
       });
 
     if (auditErr) {
-      console.error('Audit log error:', auditErr);
-      // Don't fail the payment if audit log fails
+      // Non-fatal: audit log failure shouldn't block payment
     }
 
     return NextResponse.json({
@@ -137,7 +120,6 @@ export async function POST(req: NextRequest) {
       sessionsAdded: sessionsToAdd,
     });
   } catch (error) {
-    console.error('Payment error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

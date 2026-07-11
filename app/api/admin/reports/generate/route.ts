@@ -1,26 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
+import { getAuthUser, validateContentType } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-  const { allowed } = rateLimit(ip, 30, 60000);
+  const ctCheck = validateContentType(req);
+  if (ctCheck) return ctCheck;
+
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { allowed } = await rateLimit(auth.user.id, 5, 60000, auth.supabase);
   if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer '))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const supabase = createServiceClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.slice(7));
-  if (authErr || !user)
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  // Verify user is admin
-  const { data: admin } = await supabase
+  const { data: admin } = await auth.supabase
     .from('profiles')
     .select('role')
-    .eq('id', user.id)
+    .eq('id', auth.user.id)
     .single();
 
   if (admin?.role !== 'admin') {
@@ -33,17 +28,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing tier or modules' }, { status: 400 });
   }
 
-  const reportMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM
+  const reportMonth = month || new Date().toISOString().slice(0, 7);
 
   try {
-    // Fetch students for the given tier
-    const { data: students, error: studentErr } = await supabase
+    const { data: students, error: studentErr } = await auth.supabase
       .from('students')
       .select('id, name, date_of_birth, status, remaining_sessions, email, phone, academic_level')
       .eq('academic_level', tier);
 
     if (studentErr) {
-      console.error('Student fetch error:', studentErr);
       return NextResponse.json({ error: 'Failed to fetch students' }, { status: 500 });
     }
 
@@ -57,37 +50,32 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Fetch payments for these students
     const studentIds = students.map(s => s.id);
-    const { data: payments } = await supabase
+    const { data: payments } = await auth.supabase
       .from('payments')
       .select('user_id, amount, status, created_at')
       .in('user_id', studentIds)
       .order('created_at', { ascending: false });
 
-    // Fetch teachers assigned to this tier
-    const { data: teachers } = await supabase
+    const { data: teachers } = await auth.supabase
       .from('profiles')
       .select('id, name')
       .eq('role', 'teacher');
 
-    // Fetch meetings/attendance for the report month
     const monthStart = `${reportMonth}-01`;
     const monthEnd = new Date(new Date(monthStart).getTime() + 32 * 86400000).toISOString().slice(0, 10);
-    const { data: meetings } = await supabase
+    const { data: meetings } = await auth.supabase
       .from('meetings')
       .select('student_id, module, teacher_id, date')
       .gte('date', monthStart)
       .lt('date', monthEnd);
 
-    // Build attendance map: studentId -> module -> count
     const attendanceMap: Record<string, Record<string, number>> = {};
     meetings?.forEach(m => {
       if (!attendanceMap[m.student_id]) attendanceMap[m.student_id] = {};
       attendanceMap[m.student_id][m.module] = (attendanceMap[m.student_id][m.module] || 0) + 1;
     });
 
-    // Build teacher map per module
     const teacherPerModule: Record<string, string> = {};
     meetings?.forEach(m => {
       if (m.teacher_id && m.module && !teacherPerModule[m.module]) {
@@ -96,7 +84,6 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Calculate ages and format student data
     const reportData = students.map(student => {
       const dob = student.date_of_birth ? new Date(student.date_of_birth) : null;
       const age = dob
@@ -123,23 +110,20 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Create report metadata
     const reportId = `REPORT_${reportMonth}_${Date.now()}`;
     const generatedAt = new Date().toISOString();
 
     try {
-      await supabase
-        .from('reports')
-        .insert({
-          id: reportId,
-          admin_id: user.id,
-          tier,
-          modules: modules,
-          student_count: reportData.length,
-          generated_at: generatedAt,
-          status: 'completed',
-          month: reportMonth,
-        });
+      await auth.supabase.from('reports').insert({
+        id: reportId,
+        admin_id: auth.user.id,
+        tier,
+        modules: modules,
+        student_count: reportData.length,
+        generated_at: generatedAt,
+        status: 'completed',
+        month: reportMonth,
+      });
     } catch {
       // Silently fail if table doesn't exist
     }
@@ -154,8 +138,7 @@ export async function POST(req: NextRequest) {
       generatedAt,
       month: reportMonth,
     });
-  } catch (error) {
-    console.error('Report generation error:', error);
+  } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

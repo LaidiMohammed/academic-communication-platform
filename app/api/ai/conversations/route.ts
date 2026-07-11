@@ -1,26 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
-
-const db = createServiceClient();
-
-async function getAuthedUser(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const token = authHeader.slice(7);
-  const { data: { user }, error } = await db.auth.getUser(token);
-  if (error || !user) return null;
-  return user;
-}
+import { getAuthUser, validateContentType } from '@/lib/api-utils';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await getAuthedUser(req);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await getAuthUser(req);
+    if (auth.error) return auth.error;
 
-    const { data, error } = await db
+    const { allowed } = await rateLimit(auth.user.id, 30, 60000, auth.supabase);
+    if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
+    const { data, error } = await auth.supabase
       .from('ai_conversations')
       .select('id, title, created_at, updated_at')
-      .eq('user_id', user.id)
+      .eq('user_id', auth.user.id)
       .order('updated_at', { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -32,13 +25,19 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const user = await getAuthedUser(req);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const ctCheck = validateContentType(req);
+    if (ctCheck) return ctCheck;
+
+    const auth = await getAuthUser(req);
+    if (auth.error) return auth.error;
+
+    const { allowed } = await rateLimit(auth.user.id, 20, 60000, auth.supabase);
+    if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
     const { title } = await req.json();
-    const { data, error } = await db
+    const { data, error } = await auth.supabase
       .from('ai_conversations')
-      .insert({ user_id: user.id, title: title || 'New Chat' })
+      .insert({ user_id: auth.user.id, title: title || 'New Chat' })
       .select('id, title, created_at, updated_at')
       .single();
 

@@ -2,21 +2,23 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { MessageSquare, Users, Video, BookOpen, Zap } from 'lucide-react';
+import { MessageSquare, Users, Video, BookOpen, Zap, Home, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const items = [
+  { icon: Home, label: 'Home', href: '/dashboard' },
   { icon: MessageSquare, label: 'Chat', href: '/dashboard/chat' },
   { icon: Users, label: 'Groups', href: '/dashboard/groups' },
   { icon: Video, label: 'Meet', href: '/dashboard/meet' },
   { icon: BookOpen, label: 'Lessons', href: '/dashboard/lessons' },
   { icon: Zap, label: 'AI', href: '/dashboard/ai' },
+  { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
 ];
 
 export function MobileBottomNav() {
   const pathname = usePathname();
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+  const isActive = (href: string) => href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(href + '/');
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border safe-area-bottom">

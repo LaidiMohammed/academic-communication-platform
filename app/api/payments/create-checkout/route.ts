@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ChargilyClient } from '@chargily/chargily-pay';
-import { createServiceClient } from '@/lib/supabase';
+import { validateContentType, validateBodySize, getAuthUser } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
 
 const PRICE_IDS: Record<string, string> = {
@@ -34,11 +34,16 @@ function getSubjectPrice(levelId: string, subjectId: string): number {
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    const { allowed } = rateLimit(ip, 5, 60000);
-    if (!allowed) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
+    const ctCheck = validateContentType(req);
+    if (ctCheck) return ctCheck;
+    const sizeCheck = validateBodySize(req);
+    if (sizeCheck) return sizeCheck;
+
+    const auth = await getAuthUser(req);
+    if (auth.error) return auth.error;
+
+    const { allowed } = await rateLimit(auth.user.id, 5, 60000, auth.supabase);
+    if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
 
     const CHARGILY_SECRET_KEY = process.env.CHARGILY_SECRET_KEY;
     if (!CHARGILY_SECRET_KEY) {
@@ -50,6 +55,13 @@ export async function POST(req: NextRequest) {
     const { userId, planId, planTitle, isYearly, level, subjects } = await req.json();
     if (!userId || !planId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+    // Verify user can only create checkout for themselves (unless admin)
+    if (userId !== auth.user.id) {
+      const { data: profile } = await auth.supabase.from('profiles').select('role').eq('id', auth.user.id).single();
+      if (profile?.role !== 'admin') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const subjectsList: string[] = subjects || [];
@@ -101,8 +113,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create checkout', details: checkout }, { status: 500 });
     }
 
-    const supabase = createServiceClient();
-    await supabase.from('payments').insert({
+    await auth.supabase.from('payments').insert({
       user_id: userId,
       plan_id: planId,
       plan_title: planTitle || '',

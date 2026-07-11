@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { createClient } from '@/lib/supabase';
+import { Avatar } from '@/components/avatar';
 import {
   Plus, Users, Search, MessageCircle, X,
   MessageSquare, Camera, UserPlus, Pin, Settings, Shield,
@@ -55,10 +55,22 @@ const permissionLabels: Record<keyof GroupPermissions, { label: string; icon: an
   changeInfo: { label: 'Change Group Info', icon: Settings },
 };
 
+async function getToken(): Promise<string | null> {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith('sb-') && key.endsWith('-auth-token')) {
+      try {
+        const item = JSON.parse(localStorage.getItem(key) || '{}');
+        return item.access_token || null;
+      } catch {}
+    }
+  }
+  return null;
+}
+
 export function GroupsPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const supabase = createClient();
   const canCreate = user?.role === 'teacher' || user?.role === 'admin';
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPermsModal, setShowPermsModal] = useState<Group | null>(null);
@@ -71,8 +83,7 @@ export function GroupsPage() {
     if (!user) return;
     const fetchGroups = async () => {
       setLoading(true);
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const token = await getToken();
       if (!token) return;
       const res = await fetch('/api/groups/list', {
         headers: { Authorization: `Bearer ${token}` },
@@ -117,8 +128,7 @@ export function GroupsPage() {
   useEffect(() => {
     if (!showCreateModal || !user) return;
     const fetchUsers = async () => {
-      const s = await supabase.auth.getSession();
-      const token = s.data.session?.access_token;
+      const token = await getToken();
       if (!token) return;
       const res = await fetch(`/api/users/search?q=`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -134,8 +144,7 @@ export function GroupsPage() {
   const handleCreateGroup = async () => {
     if (!formData.name.trim() || !user) return;
 
-    const s = await supabase.auth.getSession();
-    const token = s.data.session?.access_token;
+    const token = await getToken();
     if (!token) return;
 
     const res = await fetch('/api/groups/create', {
@@ -176,8 +185,18 @@ export function GroupsPage() {
 
   const handleJoinGroup = async (groupId: string) => {
     if (!user) return;
-    await supabase.from('group_members').insert({ group_id: groupId, user_id: user.id, role: 'member' });
-    await supabase.from('groups').update({ members_count: (groups.find(g => g.id === groupId)?.members || 0) + 1 }).eq('id', groupId);
+    const token = await getToken();
+    if (!token) return;
+    const res = await fetch('/api/groups/member', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ groupId, action: 'join' }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error('Join group error:', data.error);
+      return;
+    }
     setGroups(groups.map(g => g.id === groupId ? { ...g, isMember: true, members: g.members + 1 } : g));
   };
 
@@ -251,7 +270,13 @@ export function GroupsPage() {
             <div key={group.id}
               className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
               <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-primary/20 to-accent/20">
-                <img src={group.image} alt={group.name} className="w-full h-full object-cover" />
+                {group.image ? (
+                  <img src={group.image} alt={group.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-primary/40">
+                    {group.name?.charAt(0)?.toUpperCase() || 'G'}
+                  </div>
+                )}
                 {group.isAdmin && (
                   <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                     <Shield size={10} /> Admin
@@ -420,7 +445,7 @@ export function GroupsPage() {
                           className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition ${
                             isSelected ? 'bg-primary/15 text-primary font-semibold' : 'hover:bg-secondary/50 text-foreground'
                           }`}>
-                          <img src={u.avatar} alt={u.name} className="w-6 h-6 rounded-full flex-shrink-0" />
+                          <Avatar src={u.avatar} name={u.name} className="w-6 h-6 rounded-full flex-shrink-0" />
                           <span className="truncate text-left">{u.name}</span>
                           {isSelected && <span className="ml-auto text-primary text-[10px] font-bold">✓</span>}
                         </button>

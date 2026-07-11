@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Avatar } from '@/components/avatar';
 import {
   X, Bell, BellOff, Pin, Image, Link2, Users,
   Shield, Lock, Trash2, UserX, Edit3, Volume2, VolumeX,
@@ -103,7 +104,7 @@ export function ChatDetailsPanel({
             <div className="divide-y divide-border">
               <div className="text-center py-4 px-3">
                 <div className="relative inline-block mb-2">
-                  <img src={chatAvatar} alt={chatName} className="w-16 h-16 rounded-full" />
+                  <Avatar src={chatAvatar} name={chatName} className="w-16 h-16 rounded-full" />
                   {online && <div className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-accent rounded-full border-2 border-card" />}
                 </div>
                 <h4 className="text-base font-semibold text-foreground">{chatName}</h4>
@@ -141,7 +142,7 @@ export function ChatDetailsPanel({
                   </div>
                   {members.map((m, i) => (
                     <div key={i} className="flex items-center gap-2 px-3 py-1.5 text-sm text-foreground">
-                      <img src={m.avatar} alt="" className="w-6 h-6 rounded-full" />
+                      <Avatar src={m.avatar} name={m.name} className="w-6 h-6 rounded-full" />
                       <span className="flex-1 truncate">{m.name}</span>
                       {m.online && <div className="w-1.5 h-1.5 rounded-full bg-accent" />}
                     </div>

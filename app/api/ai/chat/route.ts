@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
+import { getAuthUser, validateContentType, validateBodySize } from '@/lib/api-utils';
+import { rateLimit } from '@/lib/rate-limit';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const db = createServiceClient();
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,20 +11,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
     }
 
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const token = authHeader.slice(7);
-    const { data: { user }, error: authErr } = await db.auth.getUser(token);
-    if (authErr || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const ctCheck = validateContentType(req);
+    if (ctCheck) return ctCheck;
+    const sizeCheck = validateBodySize(req);
+    if (sizeCheck) return sizeCheck;
 
-    const { messages, conversationId, userId } = await req.json();
-    if (userId !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const auth = await getAuthUser(req);
+    if (auth.error) return auth.error;
+
+    const { allowed } = await rateLimit(auth.user.id, 10, 60000, auth.supabase);
+    if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
+    const { messages, conversationId } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
@@ -68,19 +66,19 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || 'No response generated.';
 
-    if (conversationId && userId) {
+    if (conversationId) {
       const lastMsg = messages[messages.length - 1];
       const userImages = lastMsg?.images || [];
       const imagesJson = userImages.length > 0 ? JSON.stringify(userImages) : '[]';
 
-      await db.from('ai_messages').insert([
+      await auth.supabase.from('ai_messages').insert([
         { conversation_id: conversationId, role: 'user', text: lastMsg?.text || '', images: imagesJson },
         { conversation_id: conversationId, role: 'assistant', text: reply, images: '[]' },
       ]);
 
       const titleText = lastMsg?.text || '';
       const shortTitle = titleText.length > 60 ? titleText.slice(0, 60) + '...' : titleText || 'New Chat';
-      await db.from('ai_conversations').update({ title: shortTitle, updated_at: new Date().toISOString() }).eq('id', conversationId);
+      await auth.supabase.from('ai_conversations').update({ title: shortTitle, updated_at: new Date().toISOString() }).eq('id', conversationId);
     }
 
     return NextResponse.json({ reply });

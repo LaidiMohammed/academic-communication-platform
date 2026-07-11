@@ -1,31 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase';
+import { validateContentType, getAuthUser } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-  const { allowed } = rateLimit(ip, 30, 60000);
+  const ctCheck = validateContentType(req);
+  if (ctCheck) return ctCheck;
+
+  const auth = await getAuthUser(req);
+  if (auth.error) return auth.error;
+
+  const { allowed } = await rateLimit(auth.user.id, 30, 60000, auth.supabase);
   if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer '))
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const supabase = createServiceClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.slice(7));
-  if (authErr || !user)
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { chatId, messageIds } = await req.json();
 
   if (messageIds?.length) {
-    await supabase.from('message_reads').insert(
-      messageIds.map((mid: number) => ({ message_id: mid, user_id: user.id }))
+    await auth.supabase.from('message_reads').insert(
+      messageIds.map((mid: number) => ({ message_id: mid, user_id: auth.user.id }))
     );
   }
   if (chatId) {
-    await supabase.from('chat_participants').update({ last_read_at: new Date().toISOString() })
-      .eq('chat_id', chatId).eq('user_id', user.id);
+    await auth.supabase.from('chat_participants').update({ last_read_at: new Date().toISOString() })
+      .eq('chat_id', chatId).eq('user_id', auth.user.id);
   }
 
   return NextResponse.json({ ok: true });

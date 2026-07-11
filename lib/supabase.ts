@@ -4,12 +4,17 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 let anonClient: SupabaseClient | null = null;
 let serviceClient: SupabaseClient | null = null;
 
+const CLIENT_OPTIONS = {
+  db: { schema: 'public' as const },
+  global: {
+    headers: { 'x-connection-timeout': '30000' },
+  },
+};
+
 export function createClient(): SupabaseClient {
   if (!anonClient) {
     const supabaseUrl = typeof window !== 'undefined' 
-      ? window?.location?.origin === 'http://localhost:3000' 
-        ? process.env.NEXT_PUBLIC_SUPABASE_URL
-        : process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? process.env.NEXT_PUBLIC_SUPABASE_URL
       : process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     
@@ -20,7 +25,7 @@ export function createClient(): SupabaseClient {
       throw new Error(`NEXT_PUBLIC_SUPABASE_ANON_KEY is required. Got: ${supabaseAnonKey}`);
     }
     
-    anonClient = createSupabaseClient(supabaseUrl, supabaseAnonKey);
+    anonClient = createSupabaseClient(supabaseUrl, supabaseAnonKey, CLIENT_OPTIONS);
   }
   return anonClient;
 }
@@ -34,6 +39,7 @@ export function createServiceClient(): SupabaseClient {
     if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set');
     
     serviceClient = createSupabaseClient(supabaseUrl, key, {
+      ...CLIENT_OPTIONS,
       auth: { autoRefreshToken: false, persistSession: false },
     });
   }
