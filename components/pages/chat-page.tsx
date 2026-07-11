@@ -525,7 +525,14 @@ export function ChatPage() {
       lat: msg.lat,
       lng: msg.lng,
     };
-    setMessagesMap(prev => ({ ...prev, [chatId]: [...(prev[chatId] || []), newMsg] }));
+    // Use immutable append: only add new message, never overwrite existing ones
+    setMessagesMap(prev => {
+      const existing = prev[chatId] || [];
+      const messageIds = new Set(existing.map(m => m.id));
+      // Avoid duplicate IDs
+      if (messageIds.has(newMsg.id)) return prev;
+      return { ...prev, [chatId]: [...existing, newMsg] };
+    });
     setChats(prev => prev.map(c => c.id === chatId ? {
       ...c,
       lastMessage: newMsg.text || (
@@ -1226,9 +1233,12 @@ export function ChatPage() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-2 flex flex-col">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-2 flex flex-col" style={{ contain: 'layout style paint' }}>
             {messages.map(msg => (
-              <div key={msg.id} className={`flex gap-2 ${msg.isOwn ? 'justify-end' : 'justify-start'} group`}
+              <div 
+                key={msg.id} 
+                className={`flex gap-2 ${msg.isOwn ? 'justify-end' : 'justify-start'} group`} 
+                style={{ contain: 'content' }}
                 onMouseEnter={() => setHoveredMessage(msg.id)}
                 onMouseLeave={() => setHoveredMessage(null)}
               >
