@@ -127,13 +127,27 @@ export default function MembershipPage() {
     if (!user) return;
     setLoadingMembership(true);
     const supabase = createClient();
-    supabase.from('memberships').select('*').eq('user_id', user.id).maybeSingle().then(({ data }) => {
-      if (data) {
-        setMembership(data);
-        setStep('exists');
-      }
-      setLoadingMembership(false);
-    });
+
+    const fetchMembership = () =>
+      supabase.from('memberships').select('*').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+        if (data) {
+          setMembership(data);
+          setStep('exists');
+        }
+        setLoadingMembership(false);
+      });
+
+    fetchMembership();
+
+    const channel = supabase
+      .channel(`membership:${user.id}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'memberships', filter: `user_id=eq.${user.id}` },
+        () => { fetchMembership(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const handleSelectLevel = (level: any) => {

@@ -78,10 +78,14 @@ function parseVoiceDuration(text: string) {
 function MapPreview({ lat, lng, onZoom }: { lat: number; lng: number; onZoom: () => void }) {
   const bbox = `${lng-0.01}%2C${lat-0.01}%2C${lng+0.01}%2C${lat+0.01}`;
   const url = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
+  const googleMapsUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15`;
   return (
-    <div onClick={onZoom} className="w-full h-28 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition border border-border relative mb-1">
-      <iframe src={url} className="w-full h-full pointer-events-none" title="Map" loading="lazy" />
-      <div className="absolute inset-0 bg-transparent" />
+    <div onClick={onZoom} className="w-full h-28 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition border border-border relative mb-1 group">
+      <iframe src={url} className="w-full h-full pointer-events-none md:pointer-events-auto" title="Map" loading="lazy" />
+      <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition md:hidden"
+      >Open in Maps</a>
     </div>
   );
 }
@@ -293,12 +297,8 @@ export function ChatPage() {
     fetchUsers();
   }, [currentUser]);
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-
   const [chats, setChats] = useState<any[]>([]);
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>({});
-
-  useEffect(() => { scrollToBottom(); }, [messagesMap, selectedChat]);
 
   // Fetch chats from API
   const fetchChats = async () => {
@@ -369,7 +369,6 @@ export function ChatPage() {
               if (callStateRef.current === 'calling') setCallState('connected');
             } else if (signalType === 'end') {
               if (callStateRef.current !== 'none') endCall();
-              setIncomingCall(null);
             }
             return;
           }
@@ -405,21 +404,23 @@ export function ChatPage() {
               return { ...prev, [selectedChat]: [...existing, msg] };
             });
           }
-          setChats(prev => prev.map(c =>
-            c.id === newMsg.chat_id
-              ? {
-                  ...c,
-                  lastMessage: newMsg.text || (
-                    newMsg.type === 'image' ? '📷 Photo'
-                      : newMsg.type === 'file' ? '📎 File'
-                        : newMsg.type === 'voice' ? '🎤 Voice message'
-                          : ''
-                  ),
-                  time: 'now',
-                  unread: c.unread + 1,
-                }
-              : c
-          ));
+          if (!newMsg.text?.startsWith('__call__')) {
+            setChats(prev => prev.map(c =>
+              c.id === newMsg.chat_id
+                ? {
+                    ...c,
+                    lastMessage: newMsg.text || (
+                      newMsg.type === 'image' ? '📷 Photo'
+                        : newMsg.type === 'file' ? '📎 File'
+                          : newMsg.type === 'voice' ? '🎤 Voice message'
+                            : ''
+                    ),
+                    time: 'now',
+                    unread: c.unread + 1,
+                  }
+                : c
+            ));
+          }
         }
       )
       .subscribe();
@@ -573,7 +574,6 @@ export function ChatPage() {
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     setCallState('none');
     setCallMuted(false);
-    setIncomingCall(null);
     void sendCallSignal('end');
   };
 
@@ -976,7 +976,7 @@ export function ChatPage() {
   const reactionEmojis = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
 
   return (
-    <div className={`flex flex-1 bg-background ${callState !== 'none' || incomingCall ? 'overflow-hidden' : 'min-h-0'}`}>
+    <div className="flex flex-1 bg-background min-h-0">
       <style>{`.emoji-tw{display:inline;height:1em;width:1em;vertical-align:-0.15em;object-fit:contain;}`}</style>
       {/* Chat List - hides on mobile when a chat is selected */}
       <div className={`${selectedChat ? 'hidden' : 'flex'} md:flex md:w-72 bg-card border-r border-border flex-col max-w-full relative`}>
@@ -1267,7 +1267,7 @@ export function ChatPage() {
       {/* Chat Window + Details Panel (side by side) */}
       {selectedChat && currentChat ? (
         <div className="flex flex-1 relative">
-        <div className="flex flex-1 flex-col bg-card relative min-w-0">
+        <div className="flex flex-1 flex-col bg-card relative min-w-0 overflow-y-auto">
           {/* Header */}
           <div className="sticky top-0 z-10 border-b border-border px-3 py-2.5 flex items-center justify-between bg-card/80 backdrop-blur-sm">
             <div className="flex items-center gap-3">
@@ -1350,7 +1350,7 @@ export function ChatPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-2">
+          <div className="flex-1 px-3 py-2 space-y-2">
             {messages.map(msg => (
               <div key={msg.id} className={`flex gap-2 ${msg.isOwn ? 'justify-end' : 'justify-start'} group`}
                 onMouseEnter={() => setHoveredMessage(msg.id)}

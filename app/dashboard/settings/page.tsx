@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
+import { createClient } from '@/lib/supabase';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -63,17 +64,60 @@ export default function SettingsPage() {
 
   const [language, setLanguage] = useState(() => localStorage.getItem('settings_language') || 'english');
 
+  const syncSettingsToServer = async () => {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    const payload = { notifications, privacy, fontSize, language, bio };
+    fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ settings: payload }),
+    }).catch(() => {});
+  };
+
   useEffect(() => {
     document.documentElement.classList.remove('font-size-small', 'font-size-medium', 'font-size-large');
     document.documentElement.classList.add(`font-size-${fontSize}`);
     localStorage.setItem('settings_fontSize', fontSize);
+    syncSettingsToServer();
   }, [fontSize]);
 
-  useEffect(() => { localStorage.setItem('settings_language', language); }, [language]);
-  useEffect(() => { localStorage.setItem('settings_notifications', JSON.stringify(notifications)); }, [notifications]);
-  useEffect(() => { localStorage.setItem('settings_privacy', JSON.stringify(privacy)); }, [privacy]);
+  useEffect(() => {
+    localStorage.setItem('settings_language', language);
+    syncSettingsToServer();
+  }, [language]);
+  useEffect(() => {
+    localStorage.setItem('settings_notifications', JSON.stringify(notifications));
+    syncSettingsToServer();
+  }, [notifications]);
+  useEffect(() => {
+    localStorage.setItem('settings_privacy', JSON.stringify(privacy));
+    syncSettingsToServer();
+  }, [privacy]);
   useEffect(() => { localStorage.setItem('settings_bio', bio); }, [bio]);
   useEffect(() => { localStorage.setItem('settings_activeTab', activeTab); }, [activeTab]);
+
+  // Load settings from server on mount
+  useEffect(() => {
+    const loadServerSettings = async () => {
+      const s = createClient();
+      const { data: { session } } = await s.auth.getSession();
+      if (!session?.access_token) return;
+      const res = await fetch('/api/settings', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) return;
+      const { settings } = await res.json();
+      if (!settings) return;
+      if (settings.fontSize) setFontSize(settings.fontSize);
+      if (settings.language) setLanguage(settings.language);
+      if (settings.bio) setBio(settings.bio);
+      if (settings.notifications) setNotifications(settings.notifications);
+      if (settings.privacy) setPrivacy(settings.privacy);
+    };
+    loadServerSettings();
+  }, []);
 
   const toggle = (section: string, key: string) => {
     if (section === 'notifications') setNotifications(prev => ({ ...prev, [key]: !(prev as any)[key] }));
@@ -182,7 +226,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-5 max-w-lg">
+              <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-foreground/80 mb-2">Full Name</label>
                   <input type="text" value={profile.name}
@@ -232,7 +276,7 @@ export default function SettingsPage() {
             <motion.div key="notifications" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
               <h2 className="text-2xl font-bold text-foreground mb-2">Notifications</h2>
               <p className="text-muted-foreground mb-6">Customize your notification preferences</p>
-              <div className="space-y-1 max-w-lg">
+              <div className="space-y-1">
                 {[
                   { key: 'messages', label: 'Message Notifications', desc: 'New messages from individuals', icon: Mail },
                   { key: 'groups', label: 'Group Notifications', desc: 'Activity in your groups', icon: Bell },
@@ -264,7 +308,7 @@ export default function SettingsPage() {
               <h2 className="text-2xl font-bold text-foreground mb-2">Privacy & Security</h2>
               <p className="text-muted-foreground mb-6">Control your privacy and account security</p>
 
-              <div className="space-y-6 max-w-lg">
+              <div className="space-y-6">
                 <div className="bg-secondary rounded-xl p-5 space-y-4">
                   <h3 className="font-semibold text-foreground flex items-center gap-2"><CircleDot size={16} className="text-blue-400" /> Who can see my info</h3>
                   <div>
@@ -306,7 +350,7 @@ export default function SettingsPage() {
             <motion.div key="appearance" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
               <h2 className="text-2xl font-bold text-foreground mb-2">Appearance</h2>
               <p className="text-muted-foreground mb-6">Customize the look and feel</p>
-              <div className="space-y-4 max-w-lg">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-secondary rounded-xl">
                   <div className="flex items-center gap-3">
                     {theme === 'dark' ? <Moon size={18} className="text-blue-400" /> : <Sun size={18} className="text-blue-400" />}
@@ -330,7 +374,7 @@ export default function SettingsPage() {
             <motion.div key="language" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
               <h2 className="text-2xl font-bold text-foreground mb-2">Language</h2>
               <p className="text-muted-foreground mb-6">Select your preferred language</p>
-              <div className="space-y-1 max-w-lg">
+              <div className="space-y-1">
                 {[
                   { id: 'english', label: 'English', native: 'English' },
                   { id: 'french', label: 'French', native: 'Français' },
@@ -361,7 +405,7 @@ export default function SettingsPage() {
             <motion.div key="storage" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
               <h2 className="text-2xl font-bold text-foreground mb-2">Data & Storage</h2>
               <p className="text-muted-foreground mb-6">Manage your data and storage usage</p>
-              <div className="space-y-4 max-w-lg">
+              <div className="space-y-4">
                 <div className="bg-secondary rounded-xl p-5">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-muted-foreground">Cache Size</span>
@@ -394,7 +438,7 @@ export default function SettingsPage() {
             <motion.div key="danger" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
               <h2 className="text-2xl font-bold text-red-400 mb-2">Danger Zone</h2>
               <p className="text-muted-foreground mb-6">Irreversible actions — proceed with caution</p>
-              <div className="space-y-4 max-w-lg">
+              <div className="space-y-4">
                 <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5">
                   <p className="font-semibold text-foreground mb-1">Log Out</p>
                   <p className="text-sm text-muted-foreground mb-3">Sign out of your account on this device</p>

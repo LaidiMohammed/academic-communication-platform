@@ -374,7 +374,7 @@ export function Sidebar() {
       {/* Mobile toggle button */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-xl
+        className="fixed top-4 right-4 z-50 md:hidden p-2 rounded-xl
           bg-blue-500 text-white shadow-lg"
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.92 }}
@@ -405,10 +405,10 @@ export function Sidebar() {
 
       {/* Mobile drawer */}
       <motion.div
-        className="fixed left-0 top-0 h-screen w-64 bg-sidebar
-          border-r border-sidebar-border flex flex-col z-40 md:hidden overflow-hidden"
+        className="fixed right-0 top-0 h-screen w-64 bg-sidebar
+          border-l border-sidebar-border flex flex-col z-40 md:hidden overflow-hidden"
         initial={false}
-        animate={{ x: isOpen ? 0 : -256 }}
+        animate={{ x: isOpen ? 0 : 256 }}
         transition={{ type: 'spring', stiffness: 340, damping: 36 }}
       >
         {/* instanceId="mobile" keeps this LayoutGroup isolated */}

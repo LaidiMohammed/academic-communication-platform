@@ -376,9 +376,9 @@ html.landing-page body {
 
 
 /* ===== Font size classes ===== */
-html.font-size-small { font-size: 14px; }
-html.font-size-medium { font-size: 16px; }
-html.font-size-large { font-size: 18px; }
+html.font-size-small { font-size: 14px !important; }
+html.font-size-medium { font-size: 16px !important; }
+html.font-size-large { font-size: 18px !important; }
 
 /* ===== Dezoom effect on page titles ===== */
 main.is-scrolled h1:first-of-type {

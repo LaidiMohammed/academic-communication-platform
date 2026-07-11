@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     const priceGroups: Record<string, number> = {};
     subjectsList.forEach((sid) => {
-      const sp = getSubjectPrice(level || '', sid);
+      const sp = getSubjectPrice(planId, sid);
       const key = String(sp);
       priceGroups[key] = (priceGroups[key] || 0) + 1;
     });
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       quantity: qty,
     }));
 
-    const totalAmount = subjectsList.reduce((s, id) => s + getSubjectPrice(level || '', id), 0);
+    const totalAmount = subjectsList.reduce((s, id) => s + getSubjectPrice(planId, id), 0);
 
     const client = new ChargilyClient({
       api_key: CHARGILY_SECRET_KEY,

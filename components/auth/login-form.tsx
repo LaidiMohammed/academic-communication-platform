@@ -126,8 +126,8 @@ export function LoginForm() {
             </div>
           </div>
 
-          <div className="hidden lg:flex order-1 lg:order-2 items-center justify-center">
-            <div className="relative w-full max-w-sm min-h-[400px] flex items-center justify-center">
+          <div className="flex order-1 lg:order-2 items-center justify-center">
+            <div className="relative w-full max-w-sm min-h-[200px] lg:min-h-[400px] flex items-center justify-center">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={current}
@@ -138,25 +138,25 @@ export function LoginForm() {
                   className="relative w-full h-full flex items-center justify-center"
                 >
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-                    <span className="text-[clamp(3rem,10vw,5rem)] font-black text-blue-500/5 leading-none whitespace-nowrap tracking-wide">
+                    <span className="text-[clamp(2rem,6vw,5rem)] font-black text-blue-500/5 leading-none whitespace-nowrap tracking-wide">
                       {mascots[current].bgText}
                     </span>
                   </div>
                   <div className="relative z-10 flex flex-col items-center">
-                    <div className="relative mb-4">
+                    <div className="relative mb-2 lg:mb-4">
                       <div className="absolute inset-0 bg-blue-500/15 rounded-full blur-3xl scale-150" />
-                      <div className="w-[27rem] h-[27rem] relative flex items-center justify-center">
+                      <div className="w-[10rem] h-[10rem] lg:w-[27rem] lg:h-[27rem] relative flex items-center justify-center">
                         <img src={mascots[current].img} alt="Mascot" className="w-full h-full object-contain drop-shadow-2xl" />
                       </div>
                     </div>
-                    <p className="text-gray-300 text-lg leading-relaxed max-w-xs mx-auto text-center font-light">
+                    <p className="text-gray-300 text-sm lg:text-lg leading-relaxed max-w-xs mx-auto text-center font-light">
                       {mascots[current].phrase}
                     </p>
-                    <div className="flex gap-2 mt-5">
+                    <div className="flex gap-2 mt-3 lg:mt-5">
                       {mascots.map((_, i) => (
                         <button key={i} onClick={() => setCurrent(i)}
-                          className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                            i === current ? 'bg-blue-400 w-6' : 'bg-gray-600 hover:bg-gray-500'
+                          className={`w-2 h-2 lg:w-2.5 lg:h-2.5 rounded-full transition-all duration-300 ${
+                            i === current ? 'bg-blue-400 w-4 lg:w-6' : 'bg-gray-600 hover:bg-gray-500'
                           }`} />
                       ))}
                     </div>

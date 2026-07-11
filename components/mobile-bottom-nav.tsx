@@ -20,7 +20,7 @@ export function MobileBottomNav() {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border safe-area-bottom">
-      <div className="flex items-center justify-around h-16 px-2 pb-1">
+      <div className="flex items-center justify-around h-[4.25rem] px-2 pb-1">
         {items.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
