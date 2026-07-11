@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import { Calendar, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
-import { QRCodeCanvas } from 'qrcode.react';
 
 interface MembershipSectionProps {
   userId: string;
@@ -25,19 +23,6 @@ export function MembershipSection({
   monthlyAmount,
   billingCycle,
 }: MembershipSectionProps) {
-  const [showQR, setShowQR] = useState(false);
-
-  // Generate QR code data containing user and membership info
-  const qrData = JSON.stringify({
-    userId,
-    name: userName,
-    email: userEmail,
-    membershipStatus,
-    monthlyAmount,
-    billingCycle,
-    generatedAt: new Date().toISOString(),
-  });
-
   return (
     <div className="space-y-6">
       {/* Membership Status Card */}
@@ -94,47 +79,6 @@ export function MembershipSection({
             <span className="text-sm font-medium text-foreground">{billingCycle.startDate}</span>
             <span className="text-xs text-muted-foreground">to</span>
             <span className="text-sm font-medium text-foreground">{billingCycle.endDate}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* QR Code Section */}
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-bold text-foreground">Your Member Code</h3>
-            <p className="text-sm text-muted-foreground">Admins can scan this to verify your membership</p>
-          </div>
-          <button
-            onClick={() => setShowQR(!showQR)}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:shadow-lg transition-all font-medium text-sm"
-          >
-            {showQR ? 'Hide' : 'Show'} Code
-          </button>
-        </div>
-
-        {showQR && (
-          <div className="flex justify-center p-6 bg-background rounded-lg border border-border">
-            <div className="p-4 bg-white rounded-lg shadow-lg">
-              <QRCodeCanvas
-                value={qrData}
-                size={200}
-                level="H"
-                includeMargin={true}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Quick Info */}
-        <div className="mt-4 p-4 bg-secondary rounded-lg space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Member ID</span>
-            <span className="font-mono font-medium text-foreground">{userId}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Email</span>
-            <span className="font-medium text-foreground text-right">{userEmail}</span>
           </div>
         </div>
       </div>

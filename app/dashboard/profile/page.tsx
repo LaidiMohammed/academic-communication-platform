@@ -1,9 +1,10 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
-import { Camera, Mail, School, Award } from 'lucide-react';
+import { Camera, Mail, School, Award, QrCode } from 'lucide-react';
 import { useState } from 'react';
 import { MembershipSection } from '@/components/membership-section';
+import { QRStudentPassport } from '@/components/qr-student-passport';
 
 export default function ProfilePage() {
   const { user, updateProfile } = useAuth();
@@ -179,6 +180,20 @@ export default function ProfilePage() {
                 <p className="text-lg font-semibold text-foreground capitalize">{user?.role}</p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Student QR Code */}
+      {user?.role === 'student' && (
+        <div className="bg-card border border-border rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-2 h-6 rounded-full bg-gradient-to-b from-blue-400 to-violet-400" />
+            <h3 className="text-lg font-bold text-foreground">Attendance QR Code</h3>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">Show this code to the admin at the start of each session to mark your attendance.</p>
+          <div className="flex flex-col items-center">
+            <QRStudentPassport studentId={user?.id || ''} name={user?.name || ''} />
           </div>
         </div>
       )}

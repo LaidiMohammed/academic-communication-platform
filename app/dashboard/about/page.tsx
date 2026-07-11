@@ -189,6 +189,10 @@ export default function AboutPage() {
               <MapPin size={14} className="text-blue-400" />
               <span className="text-white text-sm font-medium">Rue Belair, Oran, Algeria</span>
             </div>
+            <a href="https://maps.google.com/maps?q=Rue+Belair+31000+Oran+Algeria" target="_blank" rel="noopener noreferrer"
+              className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg border border-white/10 hover:bg-black/90 transition flex items-center gap-1.5">
+              <MapPin size={12} /> Open in Google Maps
+            </a>
           </div>
 
           {/* Contact Info */}

@@ -1,62 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { QRCodeCanvas } from 'qrcode.react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, Check, QrCode, Shield, BookOpen, Star,
   ChevronRight, Calendar, Users, RefreshCw, Crown, Sparkles,
   Clock, AlertCircle, CheckCircle2, Download, Plus, X,
-  GraduationCap, Filter,
+  GraduationCap, Filter, User,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { createClient } from '@/lib/supabase';
-
-/* ── QR Code display ── */
-function MemberQRCode({ userId, name, email, level, subjects, sessionsLeft }: {
-  userId: string; name: string; email: string; level: string; subjects: string[]; sessionsLeft: number;
-}) {
-  const qrData = JSON.stringify({ userId, name, email, level, subjects, sessionsLeft, ts: Date.now() });
-  const qrRef = useRef<HTMLDivElement>(null);
-
-  const downloadQR = () => {
-    const canvas = qrRef.current?.querySelector('canvas');
-    if (canvas) {
-      const link = document.createElement('a');
-      link.download = `${name}-member-qr.png`;
-      link.href = (canvas as HTMLCanvasElement).toDataURL();
-      link.click();
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative">
-        <div className="p-4 rounded-2xl border-2 border-green-500/40 bg-green-500/5">
-          <div ref={qrRef} className="w-48 h-48 bg-white rounded-xl overflow-hidden flex items-center justify-center shadow-xl">
-            <QRCodeCanvas value={qrData} size={176} level="M" />
-          </div>
-        </div>
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg bg-green-500 text-white">
-          <CheckCircle2 size={11} /> ACTIVE
-        </div>
-      </div>
-
-      <div className="text-center">
-        <p className="text-sm font-bold text-foreground">{name}</p>
-        <p className="text-xs text-muted-foreground">{email}</p>
-        <p className="text-xs text-blue-400 font-semibold mt-1">Niveau: {level}</p>
-        <p className="text-xs text-emerald-400 font-semibold">Séances restantes: {sessionsLeft}/4</p>
-      </div>
-
-      <button onClick={downloadQR}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/20 transition text-xs font-semibold"
-      >
-        <Download size={13} /> Save QR Code
-      </button>
-    </div>
-  );
-}
 
 /* ── Subject tag ── */
 function SubjectTag({ label, onRemove }: { label: string; onRemove?: () => void }) {
@@ -289,19 +242,20 @@ export default function MembershipPage() {
           <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 flex flex-col items-center gap-4">
             <div className="flex items-center gap-2 w-full">
               <div className="w-2 h-6 rounded-full bg-gradient-to-b from-blue-400 to-violet-400" />
-              <h3 className="font-bold text-foreground">Membership QR Code</h3>
+              <h3 className="font-bold text-foreground">Attendance QR Code</h3>
             </div>
-            <p className="text-xs text-muted-foreground text-center w-full">
-              Show this code to the admin to verify your membership.
-            </p>
-            <MemberQRCode
-              userId={user?.id || 'unknown'}
-              name={user?.name || 'Student'}
-              email={user?.email || ''}
-              level={hasMembership ? (membership.level || '') : ((user as any)?.level || '')}
-              subjects={membershipSubjects}
-              sessionsLeft={sessionsLeft}
-            />
+            <div className="flex flex-col items-center gap-3 py-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <User size={28} className="text-blue-400" />
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Show your QR code from your <strong>Profile page</strong> to the admin to mark attendance.
+              </p>
+              <a href="/dashboard/profile"
+                className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-semibold hover:bg-blue-400 transition shadow-lg flex items-center gap-2">
+                <User size={14} /> Go to Profile
+              </a>
+            </div>
           </div>
         </div>
       </motion.div>

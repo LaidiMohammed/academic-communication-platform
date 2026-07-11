@@ -464,10 +464,10 @@ export function HomePage() {
                 {/* Map embed */}
                 <div className="relative w-full h-44 overflow-hidden">
                   <iframe
-                    src="https://maps.google.com/maps?q=Rue+Belair+31000+Oran+Algeria&output=embed&z=15&hl=en"
+                    src="https://www.openstreetmap.org/export/embed.html?bbox=-0.642%2C35.686%2C-0.622%2C35.706&amp;layer=mapnik&amp;marker=35.696%2C-0.632"
                     width="100%"
                     height="100%"
-                    style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) brightness(0.85) contrast(1.1)' }}
+                    style={{ border: 0 }}
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
