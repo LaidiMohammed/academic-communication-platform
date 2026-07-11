@@ -1,83 +1,64 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Mail, Star, User, MessageSquare, GraduationCap, Award } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export function TeachersPage() {
-  const teachers = [
-    {
-      id: '1',
-      name: 'Dr. Sarah Smith',
-      email: 'sarah.smith@school.edu',
-      subjects: ['Mathematics', 'Advanced Calculus'],
-      level: 'Lycée 1-3',
-      rating: 4.8,
-      reviews: 124,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah-smith',
-      bio: 'Expert in mathematics with 15 years of teaching experience',
-      available: true,
-    },
-    {
-      id: '2',
-      name: 'Mr. James Johnson',
-      email: 'james.johnson@school.edu',
-      subjects: ['Physics', 'Laboratory Science'],
-      level: 'CEM 2-3, Lycée 1-2',
-      rating: 4.6,
-      reviews: 98,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=james-johnson',
-      bio: 'Passionate physicist dedicated to hands-on learning',
-      available: true,
-    },
-    {
-      id: '3',
-      name: 'Mrs. Emily Davis',
-      email: 'emily.davis@school.edu',
-      subjects: ['English Literature', 'Creative Writing'],
-      level: 'Lycée 1-3',
-      rating: 4.9,
-      reviews: 156,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=emily-davis',
-      bio: 'Inspiring teacher who makes literature come alive',
-      available: false,
-    },
-    {
-      id: '4',
-      name: 'Dr. Michael Chen',
-      email: 'michael.chen@school.edu',
-      subjects: ['Chemistry', 'Organic Chemistry'],
-      level: 'CEM 3, Lycée 1-3',
-      rating: 4.7,
-      reviews: 112,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael-chen',
-      bio: 'Chemistry expert with innovative teaching methods',
-      available: true,
-    },
-    {
-      id: '5',
-      name: 'Mr. Robert Wilson',
-      email: 'robert.wilson@school.edu',
-      subjects: ['History', 'Global Studies'],
-      level: 'CEM 1-3, Lycée 1-3',
+interface DisplayTeacher {
+  id: string;
+  name: string;
+  email: string;
+  subjects: string[];
+  level: string;
+  rating: number;
+  reviews: number;
+  avatar: string;
+  bio: string;
+  available: boolean;
+}
+
+const fallbackTeachers: DisplayTeacher[] = [
+  { id: '1', name: 'Dr. Sarah Smith', email: 'sarah.smith@school.edu', subjects: ['Mathematics', 'Advanced Calculus'], level: 'Lycée 1-3', rating: 4.8, reviews: 124, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah-smith', bio: 'Expert in mathematics with 15 years of teaching experience', available: true },
+  { id: '2', name: 'Mr. James Johnson', email: 'james.johnson@school.edu', subjects: ['Physics', 'Laboratory Science'], level: 'CEM 2-3, Lycée 1-2', rating: 4.6, reviews: 98, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=james-johnson', bio: 'Passionate physicist dedicated to hands-on learning', available: true },
+  { id: '3', name: 'Mrs. Emily Davis', email: 'emily.davis@school.edu', subjects: ['English Literature', 'Creative Writing'], level: 'Lycée 1-3', rating: 4.9, reviews: 156, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=emily-davis', bio: 'Inspiring teacher who makes literature come alive', available: false },
+  { id: '4', name: 'Dr. Michael Chen', email: 'michael.chen@school.edu', subjects: ['Chemistry', 'Organic Chemistry'], level: 'CEM 3, Lycée 1-3', rating: 4.7, reviews: 112, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael-chen', bio: 'Chemistry expert with innovative teaching methods', available: true },
+  { id: '5', name: 'Mr. Robert Wilson', email: 'robert.wilson@school.edu', subjects: ['History', 'Global Studies'], level: 'CEM 1-3, Lycée 1-3', rating: 4.5, reviews: 87, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=robert-wilson', bio: 'History teacher bringing past and present together', available: true },
+  { id: '6', name: 'Dr. Lisa Anderson', email: 'lisa.anderson@school.edu', subjects: ['Biology', 'Environmental Science'], level: 'Lycée 1-3', rating: 4.8, reviews: 134, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=lisa-anderson', bio: 'Dedicated biologist passionate about environmental education', available: true },
+];
+
+function loadTeachers(): DisplayTeacher[] {
+  if (typeof window === 'undefined') return fallbackTeachers;
+  try {
+    const raw = localStorage.getItem('admin_teachers');
+    if (!raw) return fallbackTeachers;
+    const adminTeachers = JSON.parse(raw);
+    if (!Array.isArray(adminTeachers) || adminTeachers.length === 0) return fallbackTeachers;
+    return adminTeachers.map((t: any) => ({
+      id: t.id,
+      name: t.name || 'Unknown',
+      email: t.email || '',
+      subjects: t.subject ? [t.subject] : [],
+      level: t.level || '',
       rating: 4.5,
-      reviews: 87,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=robert-wilson',
-      bio: 'History teacher bringing past and present together',
+      reviews: 0,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(t.name || 'teacher')}`,
+      bio: `${t.subject || 'Teacher'} at the school`,
       available: true,
-    },
-    {
-      id: '6',
-      name: 'Dr. Lisa Anderson',
-      email: 'lisa.anderson@school.edu',
-      subjects: ['Biology', 'Environmental Science'],
-      level: 'Lycée 1-3',
-      rating: 4.8,
-      reviews: 134,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=lisa-anderson',
-      bio: 'Dedicated biologist passionate about environmental education',
-      available: true,
-    },
-  ];
+    }));
+  } catch {
+    return fallbackTeachers;
+  }
+}
+
+export function TeachersPage() {
+  const [teachers, setTeachers] = useState<DisplayTeacher[]>([]);
+
+  useEffect(() => {
+    setTeachers(loadTeachers());
+    const handler = () => setTeachers(loadTeachers());
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
 
   return (
     <div className="space-y-6 pb-8">

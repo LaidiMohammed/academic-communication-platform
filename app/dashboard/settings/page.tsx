@@ -184,7 +184,12 @@ export default function SettingsPage() {
       </div>
 
       {/* Content Panel (scrollable) */}
-      <div className="flex-1 bg-card border border-border rounded-2xl overflow-y-auto p-6 md:p-8 pb-16">
+      <div className="flex-1 bg-card border border-border rounded-2xl overflow-y-auto p-6 md:p-8 pb-16 relative">
+        <button onClick={logout}
+          className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 transition text-xs font-medium z-10"
+          title="Log Out">
+          <LogOut size={13} /> Log Out
+        </button>
         <AnimatePresence mode="wait">
           {/* Profile */}
           {activeTab === 'profile' && (

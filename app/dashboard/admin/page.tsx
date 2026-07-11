@@ -255,6 +255,31 @@ function SelectField({ label, value, onChange, options }: {
   );
 }
 
+function AdminForm({ initial, onSave, onCancel }: {
+  initial: { id: string; name: string; email: string; role: string } | null;
+  onSave: (data: any) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(initial?.name || '');
+  const [email, setEmail] = useState(initial?.email || '');
+  const [role, setRole] = useState(initial?.role || 'admin');
+
+  return (
+    <div className="space-y-3">
+      <InputField label="Full Name" value={name} onChange={setName} />
+      <InputField label="Email" value={email} onChange={setEmail} type="email" />
+      <SelectField label="Role" value={role} onChange={setRole}
+        options={['admin', 'superadmin']} />
+      <div className="flex gap-2 justify-end pt-2">
+        <button onClick={onCancel} className="px-4 py-2 text-xs border border-border/60 text-foreground/80 rounded-lg hover:bg-blue-500/10 transition">Cancel</button>
+        <button onClick={() => onSave({ name, email, role })}
+          className="px-4 py-2 text-xs bg-blue-500 text-primary-foreground rounded-lg hover:bg-blue-400 transition shadow-lg disabled:opacity-50"
+          disabled={!name || !email}>Save</button>
+      </div>
+    </div>
+  );
+}
+
 /* ===== Simulated current user list for admin management ===== */
 const initialAdminsList = [
   { id: 'ADM-001', name: 'Hamda Laidi', email: 'hamda.laidi.14@gmail.com', role: 'superadmin' as const, lastActive: '2026-06-19' },
@@ -403,6 +428,29 @@ export default function AdminPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<string | null>(null);
+  const [selectedModule, setSelectedModule] = useState('Math');
+  const [scannedStudentId, setScannedStudentId] = useState<string | null>(null);
+
+  const markSession = async (studentId: string) => {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { alert('Session expired. Please login again.'); return; }
+    const res = await fetch('/api/admin/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ studentId, moduleId: selectedModule }),
+    });
+    const json = await res.json();
+    if (!res.ok) { alert(json.error || 'Failed to mark session'); return; }
+    setStudents(p => p.map(x => x.id === studentId ? {
+      ...x,
+      monthSessions: Math.max(0, x.monthSessions - 1),
+      status: x.monthSessions - 1 <= 0 ? 'suspended' : x.status,
+      lastScan: new Date().toISOString().slice(0, 10)
+    } : x));
+    setScanResult(studentId);
+    setScannedStudentId(null);
+  };
 
   // Auto-start camera when entering scanner tab, stop when leaving
   useEffect(() => {
@@ -454,15 +502,11 @@ export default function AdminPage() {
               if (parsed.id) {
                 const sid = parsed.id;
                 scanningRef.current = false;
-                setScanResult(sid);
                 setCameraActive(false);
                 streamRef.current?.getTracks().forEach(t => t.stop());
                 streamRef.current = null;
-                setStudents(p => p.map(x => x.id === sid ? {
-                  ...x, monthSessions: Math.max(0, x.monthSessions - 1),
-                  status: x.monthSessions - 1 <= 0 ? 'suspended' : x.status,
-                  lastScan: new Date().toISOString().slice(0, 10)
-                } : x));
+                setScannedStudentId(sid);
+                setScanError(null);
                 return;
               }
             } catch { /* ignore parse errors */ }
@@ -973,69 +1017,20 @@ export default function AdminPage() {
             <div><p className="text-xs text-muted-foreground/70">Suspended</p><p className="text-lg font-bold text-red-400">{stats.suspendedStudents}</p></div>
           </div>
 
-          {/* Camera QR Scanner */}
+          {/* Module Selector (shared) */}
           <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-foreground/80 mb-4 flex items-center gap-2">
-              <Camera size={16} className="text-blue-400" /> Live Camera Scan
+            <h3 className="text-sm font-semibold text-foreground/80 mb-3 flex items-center gap-2">
+              <BookOpen size={16} className="text-blue-400" /> Module
             </h3>
-            <p className="text-xs text-muted-foreground/70 mb-4">Camera auto-starts. Point it at a student's QR code. Each scan deducts 1 session (max 4/month).</p>
-
-            {/* Scan result */}
-            {scanResult && !cameraActive && (
-              <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-4 flex items-center gap-3">
-                <CheckCircle size={18} className="text-green-400" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-green-400">Attendance Marked!</p>
-                  <p className="text-xs text-muted-foreground">Student ID: {scanResult}</p>
-                </div>
-                <button onClick={() => { setScanResult(null); setCameraActive(true); }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition">
-                  Scan Again
-                </button>
-              </div>
-            )}
-
-            {/* Error */}
-            {scanError && !cameraActive && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4 flex items-center gap-3">
-                <AlertTriangle size={18} className="text-red-400" />
-                <p className="text-sm text-red-400 flex-1">{scanError}</p>
-                <button onClick={() => { setScanError(null); setCameraActive(true); }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition">
-                  Retry
-                </button>
-              </div>
-            )}
-
-            {/* Camera view (always on when scanner tab is active) */}
-            <div className="space-y-3">
-              <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
-                <video ref={videoRef} className="w-full h-full object-cover" />
-                <canvas ref={canvasRef} className="hidden" />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-48 h-48 border-2 border-blue-400/60 rounded-xl animate-pulse" />
-                </div>
-                <div className="absolute top-3 left-3 bg-black/60 text-foreground text-xs px-2 py-1 rounded-lg flex items-center gap-1">
-                  <Loader size={12} className="animate-spin" /> Scanning...
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <p className="text-xs text-muted-foreground/70 flex-1 text-center">Position the QR code within the blue frame</p>
-                <button onClick={() => {
-                  const active = students.filter(s => s.status === 'active');
-                  if (active.length) {
-                    const r = active[Math.floor(Math.random() * active.length)];
-                    setStudents(p => p.map(s => s.id === r.id ? { ...s, monthSessions: Math.max(0, s.monthSessions - 1), status: s.monthSessions - 1 <= 0 ? 'suspended' : s.status, lastScan: new Date().toISOString().slice(0,10) } : s));
-                    setScanResult(r.id);
-                  }
-                }} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary hover:bg-[#243447] text-foreground/80 transition flex items-center gap-1 flex-shrink-0">
-                  <QrCode size={12} /> Simulate
-                </button>
-              </div>
-            </div>
+            <select value={selectedModule} onChange={e => setSelectedModule(e.target.value)}
+              className="w-full bg-secondary border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-blue-400/40 transition">
+              {['Math','Physics','English','Chemistry','Arabic','History','Biology','Computer Science'].map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           </div>
 
-          {/* Search & mark attendance */}
+          {/* Search & mark attendance (primary flow) */}
           <div className="bg-card border border-border rounded-xl p-5">
             <h3 className="text-sm font-semibold text-foreground/80 mb-4 flex items-center gap-2">
               <Search size={16} className="text-blue-400" /> Find Student by Name or Email
@@ -1068,25 +1063,103 @@ export default function AdminPage() {
                       className="p-1.5 text-muted-foreground/70 hover:text-blue-400 transition opacity-0 group-hover:opacity-100" title="View full QR">
                       <QrCode size={14} />
                     </button>
-                    <button onClick={() => {
-                      setStudents(p => p.map(x => x.id === s.id ? {
-                        ...x,
-                        monthSessions: Math.max(0, x.monthSessions - 1),
-                        status: x.monthSessions - 1 <= 0 ? 'suspended' : x.status,
-                        lastScan: new Date().toISOString().slice(0, 10)
-                      } : x));
-                    }}
+                    <button onClick={() => markSession(s.id)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
                         s.monthSessions > 0
                           ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
                           : 'bg-gray-500/20 text-muted-foreground/70 cursor-not-allowed'
                       }`}
                       disabled={s.monthSessions <= 0}>
-                      <Camera size={12} /> Mark
+                      <Camera size={12} /> -1 Séance
                     </button>
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Camera QR Scanner (secondary) */}
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-foreground/80 mb-2 flex items-center gap-2">
+              <Camera size={16} className="text-blue-400" /> Scan QR Code
+            </h3>
+            <p className="text-xs text-muted-foreground/70 mb-4">Point camera at student's QR code to identify them, then mark attendance.</p>
+
+            {/* Scan result success */}
+            {scanResult && !cameraActive && !scannedStudentId && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 mb-4 flex items-center gap-3">
+                <CheckCircle size={18} className="text-green-400" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-green-400">Session Recorded!</p>
+                  <p className="text-xs text-muted-foreground">Student ID: {scanResult}</p>
+                </div>
+                <button onClick={() => { setScanResult(null); setCameraActive(true); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition">
+                  Scan Again
+                </button>
+              </div>
+            )}
+
+            {/* Identified student (scanned by camera, not yet marked) */}
+            {scannedStudentId && !scanResult && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
+                {(() => {
+                  const s = students.find(x => x.id === scannedStudentId);
+                  if (!s) return <p className="text-sm text-muted-foreground">Student not found in local data</p>;
+                  return (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-foreground">{s.name}</p>
+                        <p className="text-xs text-muted-foreground">{s.id} · {s.level}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Sessions: <span className={`font-semibold ${s.monthSessions > 0 ? 'text-green-400' : 'text-red-400'}`}>{s.monthSessions}/4</span></p>
+                      </div>
+                      <button onClick={() => markSession(scannedStudentId)}
+                        className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-500 text-foreground hover:bg-blue-400 transition shadow-lg flex items-center gap-1"
+                        disabled={s.monthSessions <= 0}>
+                        <Camera size={13} /> Mark -1 Séance
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Error */}
+            {scanError && !cameraActive && !scannedStudentId && !scanResult && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4 flex items-center gap-3">
+                <AlertTriangle size={18} className="text-red-400" />
+                <p className="text-sm text-red-400 flex-1">{scanError}</p>
+                <button onClick={() => { setScanError(null); setCameraActive(true); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition">
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Camera view */}
+            <div className="space-y-3">
+              <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
+                <video ref={videoRef} className="w-full h-full object-cover" />
+                <canvas ref={canvasRef} className="hidden" />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-48 h-48 border-2 border-blue-400/60 rounded-xl animate-pulse" />
+                </div>
+                <div className="absolute top-3 left-3 bg-black/60 text-foreground text-xs px-2 py-1 rounded-lg flex items-center gap-1">
+                  <Loader size={12} className="animate-spin" /> Scanning...
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <p className="text-xs text-muted-foreground/70 flex-1 text-center">Position the QR code within the blue frame</p>
+                <button onClick={() => {
+                  const active = students.filter(s => s.status === 'active');
+                  if (active.length) {
+                    const r = active[Math.floor(Math.random() * active.length)];
+                    setScannedStudentId(r.id);
+                  }
+                }} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary hover:bg-[#243447] text-foreground/80 transition flex items-center gap-1 flex-shrink-0">
+                  <QrCode size={12} /> Simulate
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -1117,6 +1190,13 @@ export default function AdminPage() {
       {/* ===== ADMINS ===== */}
       {tab === 'admins' && (
         <motion.div key="adm" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex-1" />
+            <button onClick={() => setShowModal({ type: 'add-admin' })}
+              className="flex items-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-400 text-foreground rounded-xl text-xs font-semibold shadow-lg hover:shadow-blue-500/30 transition-all">
+              <Plus size={14} /> Add Admin
+            </button>
+          </div>
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead><tr className="border-b border-border text-muted-foreground/70 text-xs">
@@ -1209,6 +1289,22 @@ export default function AdminPage() {
                 <GroupForm
                   onSave={(data) => {
                     setGroups(p => [...p, { ...data, id: `GRP-${String(p.length + 1).padStart(3, '0')}`, members: 0, createdBy: user?.name || 'Admin', createdAt: new Date().toISOString().slice(0, 10), status: 'active' }]);
+                    setShowModal(null);
+                  }}
+                  onCancel={() => setShowModal(null)}
+                />
+              )}
+
+              {/* ===== ADMIN FORM ===== */}
+              {(showModal.type === 'add-admin' || showModal.type === 'edit-admin') && (
+                <AdminForm
+                  initial={showModal.type === 'edit-admin' ? showModal.data : null}
+                  onSave={(data) => {
+                    if (showModal.type === 'edit-admin') {
+                      setAdminsList(p => p.map(a => a.id === data.id ? data : a));
+                    } else {
+                      setAdminsList(p => [...p, { ...data, id: `ADM-${String(p.length + 1).padStart(3, '0')}`, lastActive: new Date().toISOString().slice(0, 10) }]);
+                    }
                     setShowModal(null);
                   }}
                   onCancel={() => setShowModal(null)}

@@ -355,6 +355,11 @@ function SidebarInner({
               )}
             </AnimatePresence>
           </motion.button>
+
+          {/* Version */}
+          <div className={`px-3 mt-1 ${isMinimized ? 'text-center' : ''}`}>
+            <p className="text-[10px] text-sidebar-foreground/30 font-mono">v0.1.0</p>
+          </div>
         </div>
 
       </div>
