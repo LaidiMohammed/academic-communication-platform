@@ -193,9 +193,10 @@ export function ChatPage() {
   const [showPollModal, setShowPollModal] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
-  const [callState, setCallState] = useState<'none' | 'calling' | 'ringing' | 'connected'>('none');
+  const [callState, setCallState] = useState<'none' | 'calling' | 'connected'>('none');
   const [callMode, setCallMode] = useState<'audio' | 'video'>('audio');
   const [callMuted, setCallMuted] = useState(false);
+  const localStreamRef = useRef<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -269,6 +270,7 @@ export function ChatPage() {
       if (recorder.state !== 'inactive') recorder.stop();
     }
     mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+    localStreamRef.current?.getTracks().forEach(track => track.stop());
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
   }, []);
 
@@ -478,8 +480,48 @@ export function ChatPage() {
 
   const handleContextMenu = (e: React.MouseEvent, chatId: string) => {
     e.preventDefault();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setContextMenu({ chatId, x: rect.left + 20, y: rect.top + 6 });
+    setContextMenu({ chatId, x: e.clientX, y: e.clientY });
+  };
+
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  const startCall = async (mode: 'audio' | 'video') => {
+    if (localStreamRef.current) endCall();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(
+        mode === 'video' ? { video: true, audio: true } : { audio: true }
+      );
+      localStreamRef.current = stream;
+      setCallMode(mode);
+      setCallMuted(false);
+      setCallState('connected');
+      if (mode === 'video' && localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+    } catch {
+      setSendError(mode === 'video'
+        ? 'Camera/microphone access denied. Allow access and try again.'
+        : 'Microphone access denied. Allow access and try again.'
+      );
+    }
+  };
+
+  const endCall = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+    }
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    setCallState('none');
+    setCallMuted(false);
+  };
+
+  const toggleMute = () => {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    const muted = !callMuted;
+    stream.getAudioTracks().forEach(t => { t.enabled = !muted; });
+    setCallMuted(muted);
   };
 
   const localIdCounter = useRef(0);
@@ -1206,10 +1248,10 @@ export function ChatPage() {
             </div>
             <div className="flex items-center gap-0.5">
               <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
-                onClick={() => { setCallMode('audio'); setCallState('calling'); setCallMuted(false); }}
+                onClick={() => void startCall('audio')}
                 className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-green-400"><Phone size={17} /></motion.button>
               <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
-                onClick={() => { setCallMode('video'); setCallState('calling'); setCallMuted(false); }}
+                onClick={() => void startCall('video')}
                 className="p-1.5 rounded-lg hover:bg-secondary transition text-foreground hover:text-blue-400"><Video size={17} /></motion.button>
               <motion.button
                 whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.94 }}
@@ -1465,42 +1507,50 @@ export function ChatPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 z-40 bg-card/95 backdrop-blur-xl flex flex-col items-center justify-center gap-4"
           >
-            <div className="relative">
-              <img src={currentChat!.avatar} alt={currentChat!.name}
-                className={`w-20 h-20 rounded-full shadow-lg ${callState === 'calling' ? 'animate-pulse' : ''}`} />
-              {callState === 'connected' && callMode === 'audio' && (
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-card flex items-center justify-center">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="8,5 19,12 8,19"/></svg>
+            {callMode === 'video' && (
+              <div className="absolute inset-0 overflow-hidden rounded-lg">
+                <video ref={localVideoRef} autoPlay playsInline muted
+                  className="w-full h-full object-cover scale-x-[-1]" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+              </div>
+            )}
+            <div className="relative z-10 flex flex-col items-center gap-4">
+              {callMode === 'audio' && (
+                <div className="relative">
+                  <img src={currentChat!.avatar} alt={currentChat!.name}
+                    className="w-20 h-20 rounded-full shadow-lg" />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-card flex items-center justify-center">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="8,5 19,12 8,19"/></svg>
+                  </div>
                 </div>
               )}
-            </div>
-            <p className="text-lg font-bold text-foreground">{currentChat!.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {callState === 'calling' ? 'Appel en cours...' : callState === 'ringing' ? 'Sonnerie...' : 'En appel'}
-            </p>
-            <div className="flex items-center gap-3 mt-2">
-              <motion.button whileTap={{ scale: 0.9 }}
-                onClick={() => setCallMuted(!callMuted)}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition ${
-                  callMuted ? 'bg-destructive text-white' : 'bg-secondary text-foreground hover:bg-secondary/80'
-                }`}>
-                {callMuted ? (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M12 2a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M8 21h8"/></svg>
-                )}
-              </motion.button>
-              <motion.button whileTap={{ scale: 0.9 }}
-                onClick={() => { setCallState('none'); setCallMuted(false); }}
-                className="w-14 h-14 rounded-full bg-destructive text-white flex items-center justify-center shadow-lg hover:bg-destructive/90 transition">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2"/></svg>
-              </motion.button>
-              {callMode === 'video' && (
+              <p className="text-lg font-bold text-foreground drop-shadow-lg">{currentChat!.name}</p>
+              <p className="text-sm text-muted-foreground drop-shadow-lg">En appel</p>
+              <div className="flex items-center gap-3 mt-2">
                 <motion.button whileTap={{ scale: 0.9 }}
-                  className="w-12 h-12 rounded-full bg-secondary text-foreground flex items-center justify-center hover:bg-secondary/80 transition">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                  onClick={toggleMute}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition ${
+                    callMuted ? 'bg-destructive text-white' : 'bg-secondary text-foreground hover:bg-secondary/80'
+                  }`}>
+                  {callMuted ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M12 2a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M8 21h8"/></svg>
+                  )}
                 </motion.button>
-              )}
+                <motion.button whileTap={{ scale: 0.9 }}
+                  onClick={endCall}
+                  className="w-14 h-14 rounded-full bg-destructive text-white flex items-center justify-center shadow-lg hover:bg-destructive/90 transition">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2"/></svg>
+                </motion.button>
+                {callMode === 'audio' && (
+                  <motion.button whileTap={{ scale: 0.9 }}
+                    onClick={() => { endCall(); void startCall('video'); }}
+                    className="w-12 h-12 rounded-full bg-secondary text-foreground flex items-center justify-center hover:bg-secondary/80 transition">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                  </motion.button>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
