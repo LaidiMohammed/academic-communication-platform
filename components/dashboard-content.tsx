@@ -17,9 +17,12 @@ export function DashboardContent({ children }: { children: React.ReactNode }) {
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
   const Icon = currentHour < 18 ? Sun : Moon;
 
+  const isChatOrAiPage = pathname.includes('/chat') || pathname.includes('/ai');
+
   return (
     <>
-      {/* Sticky scrolled mini-header */}
+      {/* Sticky scrolled mini-header — hidden on chat/ai pages */}
+      {!isChatOrAiPage && (
       <motion.header
         initial={{ y: -48 }}
         animate={scrolled ? { y: 0 } : { y: -48 }}
@@ -40,6 +43,7 @@ export function DashboardContent({ children }: { children: React.ReactNode }) {
           </span>
         </div>
       </motion.header>
+      )}
 
       {/* Main area */}
       <main

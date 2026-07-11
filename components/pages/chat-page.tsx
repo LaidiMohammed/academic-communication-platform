@@ -196,6 +196,7 @@ export function ChatPage() {
   const [callState, setCallState] = useState<'none' | 'calling' | 'connected'>('none');
   const [callMode, setCallMode] = useState<'audio' | 'video'>('audio');
   const [callMuted, setCallMuted] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ from: string; fromName: string; chatId: string; mode: 'audio' | 'video' } | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -229,6 +230,8 @@ export function ChatPage() {
   }, [showAddUser, currentUser]);
   const addUserRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const callChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const callStateRef = useRef<'none' | 'calling' | 'connected'>('none');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -303,7 +306,22 @@ export function ChatPage() {
     const res = await fetch('/api/chat/list', { headers: await authHeaders() });
     if (!res.ok) return;
     const { chats: list } = await res.json();
-    setChats(list.map((c: any) => ({ ...c, time: formatRelativeTime(c.time) })));
+    const chatList = list.map((c: any) => ({ ...c, time: formatRelativeTime(c.time) }));
+    // Fallback: ensure group chats the user is a member of appear
+    try {
+      const grpRes = await fetch('/api/groups/list', { headers: await authHeaders() });
+      if (grpRes.ok) {
+        const { groups: groupsList } = await grpRes.json();
+        const existingChatIds = new Set(chatList.map((c: any) => c.id));
+        for (const g of (groupsList || []) as any[]) {
+          if (g.chatId && g.isMember && !existingChatIds.has(g.chatId)) {
+            await fetch(`/api/chat/resolve?id=${g.id}`, { headers: await authHeaders() });
+            existingChatIds.add(g.chatId);
+          }
+        }
+      }
+    } catch {}
+    setChats(chatList);
   };
   useEffect(() => {
     if (!currentUser) return;
@@ -413,6 +431,40 @@ export function ChatPage() {
     };
   }, [selectedChat, currentUser]);
 
+  // Sync callState to ref on every render
+  useEffect(() => { callStateRef.current = callState; });
+
+  // Call signaling via Realtime broadcast
+  useEffect(() => {
+    if (!currentUser) return;
+    const localEndCall = endCall;
+    const channel = supabase.channel('calls:global');
+    channel.on('broadcast', { event: 'call_offer' }, (payload: any) => {
+      const { from, fromName, chatId, mode } = payload.payload || {};
+      if (!from || from === currentUser.id) return;
+      setIncomingCall({ from, fromName, chatId, mode });
+    });
+    channel.on('broadcast', { event: 'call_answer' }, (payload: any) => {
+      const { from } = payload.payload || {};
+      if (from !== currentUser.id && callStateRef.current === 'calling') {
+        setCallState('connected');
+      }
+    });
+    channel.on('broadcast', { event: 'call_end' }, (payload: any) => {
+      const { from } = payload.payload || {};
+      if (from !== currentUser.id) {
+        if (callStateRef.current !== 'none') localEndCall();
+        setIncomingCall(null);
+      }
+    });
+    channel.subscribe((status: string) => {
+      if (status === 'SUBSCRIBED') {
+        callChannelRef.current = channel;
+      }
+    });
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser]);
+
   // Handle URL group param — ensure a valid chat exists
   const searchParams = useSearchParams();
   const prevGroupRef = useRef<string | null>(null);
@@ -494,9 +546,17 @@ export function ChatPage() {
       localStreamRef.current = stream;
       setCallMode(mode);
       setCallMuted(false);
-      setCallState('connected');
+      setCallState('calling');
       if (mode === 'video' && localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
+      }
+      // Send call offer via Realtime broadcast
+      if (callChannelRef.current) {
+        callChannelRef.current.send({
+          type: 'broadcast',
+          event: 'call_offer',
+          payload: { from: currentUser?.id, fromName: currentUser?.name || 'Someone', chatId: selectedChat, mode }
+        });
       }
     } catch {
       setSendError(mode === 'video'
@@ -514,6 +574,51 @@ export function ChatPage() {
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     setCallState('none');
     setCallMuted(false);
+    setIncomingCall(null);
+    if (callChannelRef.current) {
+      callChannelRef.current.send({
+        type: 'broadcast',
+        event: 'call_end',
+        payload: { from: currentUser?.id }
+      });
+    }
+  };
+
+  const acceptCall = async () => {
+    if (!incomingCall) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(
+        incomingCall.mode === 'video' ? { video: true, audio: true } : { audio: true }
+      );
+      localStreamRef.current = stream;
+      setCallMode(incomingCall.mode);
+      setCallMuted(false);
+      setCallState('connected');
+      if (incomingCall.mode === 'video' && localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+      if (callChannelRef.current) {
+        callChannelRef.current.send({
+          type: 'broadcast',
+          event: 'call_answer',
+          payload: { from: currentUser?.id }
+        });
+      }
+      setIncomingCall(null);
+    } catch {
+      setSendError('Microphone/camera access denied. Allow access to answer the call.');
+    }
+  };
+
+  const declineCall = () => {
+    if (callChannelRef.current) {
+      callChannelRef.current.send({
+        type: 'broadcast',
+        event: 'call_end',
+        payload: { from: currentUser?.id }
+      });
+    }
+    setIncomingCall(null);
   };
 
   const toggleMute = () => {
@@ -1525,7 +1630,7 @@ export function ChatPage() {
                 </div>
               )}
               <p className="text-lg font-bold text-foreground drop-shadow-lg">{currentChat!.name}</p>
-              <p className="text-sm text-muted-foreground drop-shadow-lg">En appel</p>
+              <p className="text-sm text-muted-foreground drop-shadow-lg">{callState === 'calling' ? 'Calling...' : 'Connected'}</p>
               <div className="flex items-center gap-3 mt-2">
                 <motion.button whileTap={{ scale: 0.9 }}
                   onClick={toggleMute}
@@ -1554,6 +1659,40 @@ export function ChatPage() {
             </div>
           </motion.div>
         )}
+
+        {/* Incoming Call Overlay */}
+        <AnimatePresence>
+          {incomingCall && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-card/95 backdrop-blur-xl flex flex-col items-center justify-center gap-4 pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center animate-pulse">
+                {incomingCall.mode === 'video' ? (
+                  <Video size={36} className="text-green-400" />
+                ) : (
+                  <Phone size={36} className="text-green-400" />
+                )}
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-foreground">{incomingCall.fromName}</p>
+                <p className="text-sm text-muted-foreground">{incomingCall.mode === 'video' ? 'Video call' : 'Audio call'} incoming...</p>
+              </div>
+              <div className="flex items-center gap-4 mt-2">
+                <motion.button whileTap={{ scale: 0.9 }}
+                  onClick={declineCall}
+                  className="w-14 h-14 rounded-full bg-destructive text-white flex items-center justify-center shadow-lg hover:bg-destructive/90 transition">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2"/></svg>
+                </motion.button>
+                <motion.button whileTap={{ scale: 0.9 }}
+                  onClick={() => void acceptCall()}
+                  className="w-14 h-14 rounded-full bg-green-500 text-white flex items-center justify-center shadow-lg hover:bg-green-600 transition">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Details Panel (inline, compresses chat) */}
         {showDetailsPanel && (
