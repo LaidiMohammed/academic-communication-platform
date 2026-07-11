@@ -2,9 +2,7 @@
 const isProd = process.env.NODE_ENV === 'production';
 const csp = [
   "default-src 'self'",
-  isProd
-    ? "script-src 'self' https://vercel.live https://*.vercel.live"
-    : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel.live",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel.live",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data: https://api.dicebear.com https://cdn.jsdelivr.net https://*.supabase.co",
   "font-src 'self' data: https://fonts.gstatic.com",
