@@ -41,12 +41,12 @@ export function DashboardContent({ children }: { children: React.ReactNode }) {
         </div>
       </motion.header>
 
-      {/* Main scrollable area */}
+      {/* Main area */}
       <main
-        className={`transition-all duration-300 ease-out flex-1 flex flex-col overflow-y-auto overflow-x-hidden h-screen ${
+        className={`transition-all duration-300 ease-out flex-1 flex flex-col h-screen ${
           isMinimized ? 'md:ml-20' : 'md:ml-64'
-        }`}
-        onScroll={(e) => setScrolled((e.target as HTMLElement).scrollTop > 80)}
+        } ${pathname.includes('/chat') || pathname.includes('/ai') ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`}
+        onScroll={pathname.includes('/chat') || pathname.includes('/ai') ? undefined : (e) => setScrolled((e.target as HTMLElement).scrollTop > 80)}
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

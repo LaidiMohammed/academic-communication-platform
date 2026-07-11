@@ -97,49 +97,22 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
   const [progress, setProgress] = useState(0);
   const [resolvedDuration, setResolvedDuration] = useState(duration);
   const [playbackError, setPlaybackError] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [audioUrl, setAudioUrl] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const blobUrlRef = useRef('');
+
+  const proxyUrl = src ? `/api/audio-proxy?url=${encodeURIComponent(src)}` : '';
 
   useEffect(() => {
     setResolvedDuration(duration);
     setProgress(0);
-    setPlaybackError(false);
-    setLoading(true);
-
-    const fetchAudio = async () => {
-      if (!src) { setPlaybackError(true); setLoading(false); return; }
-      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-      try {
-        const res = await fetch(src);
-        if (!res.ok) throw new Error('Failed to fetch audio');
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        blobUrlRef.current = url;
-        setAudioUrl(url);
-      } catch {
-        setPlaybackError(true);
-      }
-      setLoading(false);
-    };
-    fetchAudio();
-
-    return () => { if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current); };
+    setPlaybackError(!src);
   }, [src, duration]);
 
   const toggle = async () => {
     const audio = audioRef.current;
-    if (!audio || playbackError || loading) return;
+    if (!audio || playbackError || !proxyUrl) return;
     if (audio.paused) {
-      try {
-        await audio.play();
-      } catch {
-        setPlaybackError(true);
-      }
-    } else {
-      audio.pause();
-    }
+      try { await audio.play(); } catch { setPlaybackError(true); }
+    } else { audio.pause(); }
   };
 
   const mins = Math.floor(resolvedDuration / 60);
@@ -148,7 +121,7 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
     <div className="flex items-center gap-2 mb-1 min-w-40">
       <audio
         ref={audioRef}
-        src={audioUrl}
+        src={proxyUrl}
         preload="auto"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
@@ -166,12 +139,10 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
       <button
         onMouseDown={(e) => e.preventDefault()}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggle(); }}
-        disabled={playbackError || loading}
+        disabled={playbackError || !proxyUrl}
         className="w-8 h-8 rounded-full bg-background/20 flex items-center justify-center hover:bg-background/30 transition shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {loading ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="animate-spin"><path d="M12 2a10 10 0 0 1 10 10h-2a8 8 0 0 0-8-8V2z"/></svg>
-        ) : playing ? (
+        {playing ? (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
         ) : (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="8,5 19,12 8,19"/></svg>
@@ -182,7 +153,7 @@ function VoiceBubble({ src, duration }: { src: string; duration: number }) {
       </div>
       <div className="flex flex-col items-end leading-tight">
         <span className="text-[10px] opacity-80 font-mono">{mins}:{secs.toString().padStart(2, '0')}</span>
-        <span className="text-[8px] opacity-50">{loading ? 'Loading...' : playbackError ? 'Unavailable' : playing ? 'Playing' : ''}</span>
+        <span className="text-[8px] opacity-50">{playbackError ? 'Unavailable' : playing ? 'Playing' : ''}</span>
       </div>
     </div>
   );
@@ -883,9 +854,9 @@ export function ChatPage() {
         <div className="p-3 border-b border-border relative bg-card">
           <h2 className="text-lg font-bold text-foreground mb-2">Messages</h2>
           <div className="flex gap-1 mb-2 bg-secondary rounded-lg p-0.5">
-            <button onClick={() => { setChatMode('individual'); setSelectedChat(null); setExpandedMessage(null); }}
+            <button onClick={() => { setChatMode('individual'); setSelectedChat(null); setExpandedMessage(null); setChatFetchKey(prev => prev + 1); }}
               className={`flex-1 py-1 text-xs font-semibold rounded-md transition ${chatMode === 'individual' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Individual</button>
-            <button onClick={() => { setChatMode('group'); setSelectedChat(null); setExpandedMessage(null); }}
+            <button onClick={() => { setChatMode('group'); setSelectedChat(null); setExpandedMessage(null); setChatFetchKey(prev => prev + 1); }}
               className={`flex-1 py-1 text-xs font-semibold rounded-md transition ${chatMode === 'group' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Groups</button>
           </div>
           <div className="flex items-center gap-1.5 relative">
