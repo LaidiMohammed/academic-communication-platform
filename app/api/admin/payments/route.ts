@@ -42,3 +42,102 @@ export async function GET(req: NextRequest) {
   });
   return NextResponse.json({ payments: mapped });
 }
+
+export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+  const { allowed } = rateLimit(ip, 60, 60000);
+  if (!allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer '))
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const supabase = createServiceClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.slice(7));
+  if (authErr || !user)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Verify user is admin
+  const { data: admin } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (admin?.role !== 'admin') {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
+
+  const { studentId, moduleId, amount = 0 } = await req.json();
+
+  if (!studentId || !moduleId) {
+    return NextResponse.json({ error: 'Missing studentId or moduleId' }, { status: 400 });
+  }
+
+  try {
+    // Fetch student
+    const { data: student, error: studentErr } = await supabase
+      .from('students')
+      .select('id, name, remaining_sessions, status')
+      .eq('id', studentId)
+      .single();
+
+    if (studentErr || !student) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+    }
+
+    // Get current remaining sessions
+    const remainingPerModule = student.remaining_sessions || {};
+    const previousBalance = remainingPerModule[moduleId] || 0;
+    const sessionsToAdd = 4;
+    const newBalance = previousBalance + sessionsToAdd;
+
+    // Update student with new session count and mark as active
+    const updatedRemaining = { ...remainingPerModule, [moduleId]: newBalance };
+
+    const { error: updateErr } = await supabase
+      .from('students')
+      .update({
+        remaining_sessions: updatedRemaining,
+        status: 'active',
+      })
+      .eq('id', studentId);
+
+    if (updateErr) {
+      console.error('Update error:', updateErr);
+      return NextResponse.json({ error: 'Failed to update student' }, { status: 500 });
+    }
+
+    // Create immutable payment audit entry
+    const { error: auditErr } = await supabase
+      .from('payment_audit')
+      .insert({
+        student_id: studentId,
+        module_id: moduleId,
+        amount: amount || 0,
+        sessions_added: sessionsToAdd,
+        payment_date: new Date().toISOString(),
+        admin_operator_id: user.id,
+        previous_balance: previousBalance,
+        new_balance: newBalance,
+        status: 'active',
+      });
+
+    if (auditErr) {
+      console.error('Audit log error:', auditErr);
+      // Don't fail the payment if audit log fails
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Added 4 sessions for ${student.name}. New balance: ${newBalance}`,
+      paymentId: `PAY_${Date.now()}`,
+      previousBalance,
+      newBalance,
+      sessionsAdded: sessionsToAdd,
+    });
+  } catch (error) {
+    console.error('Payment error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
