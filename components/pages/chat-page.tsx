@@ -230,7 +230,6 @@ export function ChatPage() {
   }, [showAddUser, currentUser]);
   const addUserRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
-  const callChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const callStateRef = useRef<'none' | 'calling' | 'connected'>('none');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -360,6 +359,23 @@ export function ChatPage() {
           const isMyChat = chatsRef.current.some((c: any) => c.id === newMsg.chat_id);
           if (!isMyChat) return;
 
+          // Handle call signals via messages table
+          if (newMsg.text?.startsWith('__call__')) {
+            const parts = newMsg.text.split('__');
+            const signalType = parts[2];
+            if (signalType === 'offer') {
+              const mode = parts[3] as 'audio' | 'video';
+              const fromName = parts[4] || 'Someone';
+              setIncomingCall({ from: newMsg.sender_id, fromName, chatId: newMsg.chat_id, mode });
+            } else if (signalType === 'answer') {
+              if (callStateRef.current === 'calling') setCallState('connected');
+            } else if (signalType === 'end') {
+              if (callStateRef.current !== 'none') endCall();
+              setIncomingCall(null);
+            }
+            return;
+          }
+
           const { data: sender } = await supabase
             .from('profiles').select('name, avatar').eq('id', newMsg.sender_id).single();
           const { data: readData } = await supabase.from('message_reads').select('id').eq('message_id', newMsg.id);
@@ -434,37 +450,6 @@ export function ChatPage() {
   // Sync callState to ref on every render
   useEffect(() => { callStateRef.current = callState; });
 
-  // Call signaling via Realtime broadcast
-  useEffect(() => {
-    if (!currentUser) return;
-    const localEndCall = endCall;
-    const channel = supabase.channel('calls:global');
-    channel.on('broadcast', { event: 'call_offer' }, (payload: any) => {
-      const { from, fromName, chatId, mode } = payload.payload || {};
-      if (!from || from === currentUser.id) return;
-      setIncomingCall({ from, fromName, chatId, mode });
-    });
-    channel.on('broadcast', { event: 'call_answer' }, (payload: any) => {
-      const { from } = payload.payload || {};
-      if (from !== currentUser.id && callStateRef.current === 'calling') {
-        setCallState('connected');
-      }
-    });
-    channel.on('broadcast', { event: 'call_end' }, (payload: any) => {
-      const { from } = payload.payload || {};
-      if (from !== currentUser.id) {
-        if (callStateRef.current !== 'none') localEndCall();
-        setIncomingCall(null);
-      }
-    });
-    channel.subscribe((status: string) => {
-      if (status === 'SUBSCRIBED') {
-        callChannelRef.current = channel;
-      }
-    });
-    return () => { supabase.removeChannel(channel); };
-  }, [currentUser]);
-
   // Handle URL group param — ensure a valid chat exists
   const searchParams = useSearchParams();
   const prevGroupRef = useRef<string | null>(null);
@@ -537,6 +522,21 @@ export function ChatPage() {
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
 
+  const sendCallSignal = async (type: string, extra?: string) => {
+    if (!selectedChat || !currentUser) return;
+    try {
+      await supabase.from('messages').insert({
+        chat_id: selectedChat,
+        sender_id: currentUser.id,
+        text: `__call__${type}${extra || ''}`,
+        type: 'text',
+        created_at: new Date().toISOString(),
+      });
+    } catch {}
+  };
+
+  const remoteStreamRef = useRef<MediaStream | null>(null);
+
   const startCall = async (mode: 'audio' | 'video') => {
     if (localStreamRef.current) endCall();
     try {
@@ -550,14 +550,8 @@ export function ChatPage() {
       if (mode === 'video' && localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
-      // Send call offer via Realtime broadcast
-      if (callChannelRef.current) {
-        callChannelRef.current.send({
-          type: 'broadcast',
-          event: 'call_offer',
-          payload: { from: currentUser?.id, fromName: currentUser?.name || 'Someone', chatId: selectedChat, mode }
-        });
-      }
+      // Send call offer signal via messages table (caught by real-time on receiver)
+      await sendCallSignal('offer', `__${mode}__${currentUser?.name || 'Someone'}`);
     } catch {
       setSendError(mode === 'video'
         ? 'Camera/microphone access denied. Allow access and try again.'
@@ -571,17 +565,15 @@ export function ChatPage() {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
     }
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getTracks().forEach(t => t.stop());
+      remoteStreamRef.current = null;
+    }
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     setCallState('none');
     setCallMuted(false);
     setIncomingCall(null);
-    if (callChannelRef.current) {
-      callChannelRef.current.send({
-        type: 'broadcast',
-        event: 'call_end',
-        payload: { from: currentUser?.id }
-      });
-    }
+    void sendCallSignal('end');
   };
 
   const acceptCall = async () => {
@@ -597,13 +589,8 @@ export function ChatPage() {
       if (incomingCall.mode === 'video' && localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
-      if (callChannelRef.current) {
-        callChannelRef.current.send({
-          type: 'broadcast',
-          event: 'call_answer',
-          payload: { from: currentUser?.id }
-        });
-      }
+      // Send answer signal
+      await sendCallSignal('answer');
       setIncomingCall(null);
     } catch {
       setSendError('Microphone/camera access denied. Allow access to answer the call.');
@@ -611,13 +598,7 @@ export function ChatPage() {
   };
 
   const declineCall = () => {
-    if (callChannelRef.current) {
-      callChannelRef.current.send({
-        type: 'broadcast',
-        event: 'call_end',
-        payload: { from: currentUser?.id }
-      });
-    }
+    void sendCallSignal('end');
     setIncomingCall(null);
   };
 

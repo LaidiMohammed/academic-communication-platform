@@ -402,36 +402,43 @@ export function GroupsPage() {
               </div>
               <div className="border-t border-border pt-4">
                 <h4 className="text-sm font-bold text-foreground mb-2 flex items-center gap-1.5">
-                  <UserPlus size={15} /> Add Members
+                  <UserPlus size={15} /> Add Members <span className="text-xs font-normal text-muted-foreground">({selectedMembers.length} selected)</span>
                 </h4>
                 <input type="text" value={memberSearch} onChange={e => setMemberSearch(e.target.value)}
-                  placeholder="Search users..."
+                  placeholder="Type to search users..."
                   className="w-full px-3 py-1.5 text-xs border border-border rounded-lg focus:ring-1 focus:ring-primary transition bg-secondary text-foreground mb-2" />
-                <div className="max-h-28 overflow-y-auto space-y-0.5 mb-3">
+                <div className="max-h-32 overflow-y-auto space-y-0.5 mb-2">
                   {availableUsers
                     .filter(u => {
                       const q = memberSearch.toLowerCase();
                       return q ? u.name.toLowerCase().includes(q) : true;
                     })
-                    .map(u => (
-                      <label key={u.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-secondary/50 cursor-pointer text-xs">
-                        <input type="checkbox" checked={selectedMembers.includes(u.id)}
-                          onChange={() => setSelectedMembers(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}
-                          className="accent-primary" />
-                        <img src={u.avatar} alt={u.name} className="w-5 h-5 rounded-full" />
-                        <span className="text-foreground">{u.name}</span>
-                      </label>
-                    ))}
+                    .map(u => {
+                      const isSelected = selectedMembers.includes(u.id);
+                      return (
+                        <button key={u.id} onClick={() => setSelectedMembers(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition ${
+                            isSelected ? 'bg-primary/15 text-primary font-semibold' : 'hover:bg-secondary/50 text-foreground'
+                          }`}>
+                          <img src={u.avatar} alt={u.name} className="w-6 h-6 rounded-full flex-shrink-0" />
+                          <span className="truncate text-left">{u.name}</span>
+                          {isSelected && <span className="ml-auto text-primary text-[10px] font-bold">✓</span>}
+                        </button>
+                      );
+                    })}
+                  {availableUsers.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">No users available</p>
+                  )}
                 </div>
                 {selectedMembers.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
+                  <div className="flex flex-wrap gap-1">
                     {selectedMembers.map(id => {
                       const u = availableUsers.find(x => x.id === id);
                       if (!u) return null;
                       return (
                         <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full">
                           {u.name}
-                          <button onClick={() => setSelectedMembers(prev => prev.filter(x => x !== id))} className="hover:text-red-400">×</button>
+                          <button onClick={() => setSelectedMembers(prev => prev.filter(x => x !== id))} className="hover:text-red-400 font-bold">×</button>
                         </span>
                       );
                     })}

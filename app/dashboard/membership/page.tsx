@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, Check, QrCode, Shield, BookOpen, Star,
@@ -16,14 +17,24 @@ function MemberQRCode({ userId, name, email, level, subjects, sessionsLeft }: {
   userId: string; name: string; email: string; level: string; subjects: string[]; sessionsLeft: number;
 }) {
   const qrData = JSON.stringify({ userId, name, email, level, subjects, sessionsLeft, ts: Date.now() });
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const qrRef = useRef<HTMLDivElement>(null);
+
+  const downloadQR = () => {
+    const canvas = qrRef.current?.querySelector('canvas');
+    if (canvas) {
+      const link = document.createElement('a');
+      link.download = `${name}-member-qr.png`;
+      link.href = (canvas as HTMLCanvasElement).toDataURL();
+      link.click();
+    }
+  };
 
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative">
         <div className="p-4 rounded-2xl border-2 border-green-500/40 bg-green-500/5">
-          <div className="relative w-48 h-48 bg-white rounded-xl overflow-hidden flex items-center justify-center shadow-xl">
-            <QRCodeCanvas value={qrData} size={176} />
+          <div ref={qrRef} className="w-48 h-48 bg-white rounded-xl overflow-hidden flex items-center justify-center shadow-xl">
+            <QRCodeCanvas value={qrData} size={176} level="M" />
           </div>
         </div>
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg bg-green-500 text-white">
@@ -38,108 +49,13 @@ function MemberQRCode({ userId, name, email, level, subjects, sessionsLeft }: {
         <p className="text-xs text-emerald-400 font-semibold">Séances restantes: {sessionsLeft}/4</p>
       </div>
 
-      <button
-        onClick={() => {
-          const svg = canvasRef.current?.querySelector('canvas');
-          if (svg) {
-            const link = document.createElement('a');
-            link.download = `${name}-member-qr.png`;
-            link.href = (svg as HTMLCanvasElement).toDataURL();
-            link.click();
-          }
-        }}
+      <button onClick={downloadQR}
         className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/20 transition text-xs font-semibold"
       >
         <Download size={13} /> Save QR Code
       </button>
     </div>
   );
-}
-
-/* ── QR Canvas wrapper ── */
-function QRCodeCanvas({ value, size }: { value: string; size: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    import('qrcode.react').then(({ QRCodeCanvas: QRC }) => {
-    }).catch(() => {});
-  }, [value]);
-
-  return (
-    <div ref={ref} className="flex items-center justify-center w-full h-full">
-      <div className="flex items-center justify-center" style={{ width: size, height: size }}>
-        <QRCanvasDirect value={value} size={size} />
-      </div>
-    </div>
-  );
-}
-
-function QRCanvasDirect({ value, size }: { value: string; size: number }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, size, size);
-
-    const cellSize = Math.floor(size / 25);
-    const cells = 25;
-
-    let hash = 0;
-    for (let i = 0; i < value.length; i++) {
-      hash = ((hash << 5) - hash) + value.charCodeAt(i);
-      hash |= 0;
-    }
-
-    ctx.fillStyle = '#000000';
-
-    for (let r = 0; r < cells; r++) {
-      for (let c = 0; c < cells; c++) {
-        const inTL = r < 7 && c < 7;
-        const inTR = r < 7 && c >= cells - 7;
-        const inBL = r >= cells - 7 && c < 7;
-
-        if (inTL || inTR || inBL) {
-          const lr = inTL ? r : inTR ? r : r - (cells - 7);
-          const lc = inTL ? c : inTR ? c - (cells - 7) : c;
-          if (lr === 0 || lr === 6 || lc === 0 || lc === 6) {
-            ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
-          }
-          if (lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4) {
-            ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
-          }
-        } else {
-          const seed = (r * cells + c + Math.abs(hash)) % 31;
-          const bitVal = (Math.abs(hash) >> (seed % 30)) & 1;
-          const extra = ((r + c + Math.abs(hash >> 8)) % 3) === 0 ? 1 : 0;
-          if ((bitVal ^ extra) === 1) {
-            ctx.fillRect(c * cellSize, r * cellSize, cellSize - 1, cellSize - 1);
-          }
-        }
-      }
-    }
-
-    const cp = Math.floor(cells / 2);
-    ctx.fillStyle = '#000000';
-    for (let r = cp - 2; r <= cp + 2; r++) {
-      for (let c = cp - 2; c <= cp + 2; c++) {
-        if (r === cp - 2 || r === cp + 2 || c === cp - 2 || c === cp + 2 || (r === cp && c === cp)) {
-          ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
-        } else {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
-          ctx.fillStyle = '#000000';
-        }
-      }
-    }
-  }, [value, size]);
-
-  return <canvas ref={canvasRef} width={size} height={size} style={{ imageRendering: 'pixelated' }} />;
 }
 
 /* ── Subject tag ── */

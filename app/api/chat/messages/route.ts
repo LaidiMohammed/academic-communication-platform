@@ -30,13 +30,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { data: msgs } = await supabase
+  const { data: rawMsgs } = await supabase
     .from('messages')
     .select('*, sender:profiles!sender_id(name, avatar)')
     .eq('chat_id', chatId)
     .order('created_at', { ascending: true });
 
-  if (!msgs) return NextResponse.json({ messages: [], participants: [] });
+  if (!rawMsgs) return NextResponse.json({ messages: [], participants: [] });
+
+  // Filter out call signal messages
+  const msgs = rawMsgs.filter((m: any) => !m.text?.startsWith('__call__'));
 
   const { data: reactions } = await supabase
     .from('message_reactions')
