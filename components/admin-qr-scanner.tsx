@@ -10,6 +10,9 @@ interface StudentData {
   age: number;
   status: 'active' | 'inactive' | 'pending_payment';
   remainingSessions: Record<string, number>;
+  specialty?: string;
+  level?: string;
+  paidModules?: string[];
 }
 
 interface AdminQRScannerProps {
@@ -202,27 +205,83 @@ export function AdminQRScanner({ modules = [], onScan }: AdminQRScannerProps) {
 
       {/* Scanned Student Info */}
       {scannedData && (
-        <div className="p-3 bg-secondary/50 border border-border rounded-lg">
-          <p className="text-xs font-semibold text-muted-foreground mb-2">Scanned Student</p>
-          <div className="space-y-1">
-            <p className="text-sm font-bold text-foreground">{scannedData.name}</p>
-            <p className="text-xs text-muted-foreground">ID: {scannedData.id}</p>
-            <p className="text-xs">Age: <span className="font-semibold text-foreground">{scannedData.age}</span></p>
-            <p className={`text-xs font-semibold ${
-              scannedData.status === 'active' ? 'text-green-500'
-                : scannedData.status === 'inactive' ? 'text-destructive'
-                  : 'text-orange-500'
-            }`}>
-              {scannedData.status.toUpperCase()}
-            </p>
-            {selectedModule && (
-              <p className="text-xs mt-2">
-                Remaining Sessions: <span className="font-bold text-foreground">
+        <div className="p-4 bg-secondary/50 border border-border rounded-lg space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground">Student Information</p>
+            <div className="space-y-1.5 mt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Name</span>
+                <p className="text-sm font-bold text-foreground">{scannedData.name}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">ID</span>
+                <p className="text-xs font-mono text-foreground">{scannedData.id}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Age</span>
+                <p className="text-xs text-foreground">{scannedData.age} years</p>
+              </div>
+              {scannedData.level && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Level (Niveau)</span>
+                  <p className="text-xs text-foreground font-semibold">{scannedData.level}</p>
+                </div>
+              )}
+              {scannedData.specialty && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Specialty (Spécialité)</span>
+                  <p className="text-xs text-foreground font-semibold">{scannedData.specialty}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-2">
+            <p className="text-xs font-semibold text-muted-foreground mb-1.5">Status & Payment</p>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Account Status</span>
+                <span className={`text-xs font-bold px-2 py-1 rounded ${
+                  scannedData.status === 'active' ? 'bg-green-500/20 text-green-600'
+                    : scannedData.status === 'inactive' ? 'bg-red-500/20 text-red-600'
+                      : 'bg-orange-500/20 text-orange-600'
+                }`}>
+                  {scannedData.status === 'active' ? '✓ Active' : scannedData.status === 'inactive' ? '✕ Inactive' : '⏳ Pending Payment'}
+                </span>
+              </div>
+              {scannedData.paidModules && scannedData.paidModules.length > 0 && (
+                <div className="flex items-start justify-between">
+                  <span className="text-xs text-muted-foreground">Paid Modules</span>
+                  <div className="text-right">
+                    {scannedData.paidModules.map(mod => (
+                      <span key={mod} className="inline-block text-xs bg-primary/20 text-primary px-2 py-0.5 rounded mr-1 mb-0.5">
+                        {mod}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {selectedModule && (
+            <div className="border-t border-border pt-2 bg-primary/5 -mx-4 -my-0 px-4 py-2 rounded-b-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">Sessions Remaining</span>
+                <span className={`text-lg font-bold ${
+                  (scannedData.remainingSessions[selectedModule] || 0) === 0 ? 'text-destructive' : 'text-green-600'
+                }`}>
                   {scannedData.remainingSessions[selectedModule] || 0}
                 </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {(scannedData.remainingSessions[selectedModule] || 0) === 0 
+                  ? '❌ No sessions available - Payment required'
+                  : '✓ Student can attend sessions'
+                }
               </p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>
