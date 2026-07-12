@@ -203,7 +203,7 @@ export default function ReceiptPage() {
                         <td className="p-4 text-gray-400">{i + 1}</td>
                         <td className="p-4 font-medium text-gray-900">{s.ar}</td>
                         <td className="p-4 text-right font-medium text-gray-900">
-                          {new Intl.NumberFormat('ar-DZ').format(Math.round(data.amount / data.subjects.length))} د.ج
+                          {data.subjects.length > 1 ? '—' : new Intl.NumberFormat('ar-DZ').format(data.amount) + ' د.ج'}
                         </td>
                       </tr>
                     ))}

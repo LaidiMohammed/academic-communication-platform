@@ -480,7 +480,7 @@ export default function MembershipPage() {
           <motion.div {...stagger(0)} className="text-center">
             <button
               onClick={() => setStep('plans')}
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition mb-3"
+              className="inline-flex items-center gap-1 text-sm text-foreground/70 hover:text-foreground transition mb-3 px-3 py-1.5 rounded-lg bg-card/40 hover:bg-card/60 border border-border/30"
             >
               <ChevronRight size={14} className="rotate-180" /> العودة إلى المراحل
             </button>
@@ -527,10 +527,10 @@ export default function MembershipPage() {
       <>
       <motion.div {...stagger(0)} className="text-center">
         <button
-          onClick={() => selectedCategory && selectedCategory.levels.length > 1 ? setStep('levels') : setStep('plans')}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition mb-3"
+          onClick={() => setStep('plans')}
+          className="inline-flex items-center gap-1 text-sm text-foreground/70 hover:text-foreground transition mb-3 px-3 py-1.5 rounded-lg bg-card/40 hover:bg-card/60 border border-border/30"
         >
-          <ChevronRight size={14} className="rotate-180" /> العودة إلى {selectedCategory && selectedCategory.levels.length > 1 ? 'المستويات' : 'المراحل'}
+          <ChevronRight size={14} className="rotate-180" /> العودة إلى المراحل
         </button>
         <h1 className="text-3xl font-black text-foreground mb-2">اختر موادك الدراسية</h1>
         <p className="text-muted-foreground text-sm max-w-lg mx-auto">
