@@ -9,6 +9,7 @@ import {
   Key, CircleDot, Clock
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { resizeImage } from '@/lib/resize-image';
 import { useTheme } from '@/lib/theme-context';
 import { createClient } from '@/lib/supabase';
 
@@ -210,14 +211,13 @@ export default function SettingsPage() {
                     id="settingsAvatarUpload" 
                     className="hidden" 
                     accept="image/*" 
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          updateProfile({ avatar: reader.result as string });
-                        };
-                        reader.readAsDataURL(file);
+                        try {
+                          const dataUrl = await resizeImage(file);
+                          updateProfile({ avatar: dataUrl });
+                        } catch {}
                       }
                     }}
                   />

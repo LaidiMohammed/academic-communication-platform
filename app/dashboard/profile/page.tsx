@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
+import { resizeImage } from '@/lib/resize-image';
 import { Camera, Mail, School, Award, QrCode } from 'lucide-react';
 import { useState } from 'react';
 import { MembershipSection } from '@/components/membership-section';
@@ -48,15 +49,16 @@ export default function ProfilePage() {
               id="avatarUpload" 
               className="hidden" 
               accept="image/*" 
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    updateProfile({ avatar: reader.result as string });
+                  try {
+                    const dataUrl = await resizeImage(file);
+                    updateProfile({ avatar: dataUrl });
                     showToast('Avatar updated successfully');
-                  };
-                  reader.readAsDataURL(file);
+                  } catch {
+                    showToast('Failed to process image');
+                  }
                 }
               }}
             />
