@@ -464,7 +464,7 @@ export function HomePage() {
                 {/* Map embed */}
                 <div className="relative w-full h-44 overflow-hidden">
                   <iframe
-                    src="https://www.openstreetmap.org/export/embed.html?bbox=-0.642%2C35.686%2C-0.622%2C35.706&amp;layer=mapnik&amp;marker=35.696%2C-0.632"
+                    src="https://www.openstreetmap.org/export/embed.html?bbox=-0.646%2C35.687%2C-0.626%2C35.707&amp;layer=mapnik&amp;marker=35.697%2C-0.636"
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}
@@ -485,7 +485,7 @@ export function HomePage() {
                   </div>
 
                   <a
-                    href="https://maps.app.goo.gl/HkXD5AHY8AKgd2jZ7"
+                    href="https://maps.app.goo.gl/Xza8L66f34tj1Jnn8"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-start gap-2.5 group p-2.5 rounded-xl hover:bg-blue-500/8 transition-colors"

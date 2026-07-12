@@ -175,7 +175,7 @@ export default function AboutPage() {
           {/* Map */}
           <div className="h-[300px] lg:h-full min-h-[300px] bg-[#1E293B] relative">
             <iframe
-              src="https://www.openstreetmap.org/export/embed.html?bbox=-0.652%2C35.676%2C-0.612%2C35.716&amp;layer=mapnik&amp;marker=35.696%2C-0.632"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=-0.646%2C35.687%2C-0.626%2C35.707&amp;layer=mapnik&amp;marker=35.697%2C-0.636"
               width="100%"
               height="100%"
               style={{ border: 0 }}
@@ -189,7 +189,7 @@ export default function AboutPage() {
               <MapPin size={14} className="text-blue-400" />
               <span className="text-white text-sm font-medium">Rue Belair, Oran, Algeria</span>
             </div>
-            <a href="https://maps.google.com/maps?q=Rue+Belair+31000+Oran+Algeria" target="_blank" rel="noopener noreferrer"
+            <a href="https://maps.app.goo.gl/Xza8L66f34tj1Jnn8" target="_blank" rel="noopener noreferrer"
               className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-sm text-white text-xs px-3 py-2 rounded-lg border border-white/10 hover:bg-black/90 transition flex items-center gap-1.5">
               <MapPin size={12} /> Open in Google Maps
             </a>
@@ -207,7 +207,7 @@ export default function AboutPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Email</p>
-                  <a href="mailto:support@educonnect.edu" className="text-white hover:text-blue-400 transition">support@educonnect.edu</a>
+                  <a href="mailto:contact@bendella-school.dz" className="text-white hover:text-blue-400 transition">contact@bendella-school.dz</a>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -216,7 +216,7 @@ export default function AboutPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Phone</p>
-                  <a href="tel:+213771234567" className="text-white hover:text-blue-400 transition">+213 (0) 771 23 45 67</a>
+                  <a href="tel:0661457797" className="text-white hover:text-blue-400 transition ltr">0661 45 77 97</a>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -232,7 +232,7 @@ export default function AboutPage() {
 
             <div className="flex flex-col sm:flex-row gap-3">
               <a
-                href="mailto:support@educonnect.edu"
+                href="mailto:contact@bendella-school.dz"
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-500 hover:bg-blue-400 text-white rounded-lg font-semibold shadow-lg hover:shadow-blue-500/30 transition-all"
               >
                 <Mail size={16} /> Email Us
