@@ -108,7 +108,7 @@ function videoLink(label: string, url: string): LinkItem {
 }
 
 function driveLink(label: string): LinkItem {
-  return { label, url: `https://drive.google.com/drive/folders/1${btoa(label).slice(0, 30)}`, type: 'drive' };
+  return { label, url: `https://drive.google.com/drive/folders/1${btoa(unescape(encodeURIComponent(label))).slice(0, 30)}`, type: 'drive' };
 }
 
 /* ===== BUILD COMPLETE RESOURCE DATA ===== */
