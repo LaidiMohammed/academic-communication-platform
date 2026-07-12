@@ -27,7 +27,7 @@ const ALL_SUBJECTS: Record<string, string> = {
 function getSubjectPrice(levelId: string, subjectId: string): number {
   if (levelId === 'particulier') return 9000;
   if (['1am', '2am', '3am'].includes(levelId)) return 2500;
-  if (levelId === '3as' && ['mathematics', 'physics', 'biology'].includes(subjectId)) return 4000;
+  if (['3as', 'bac'].includes(levelId) && ['mathematics', 'physics', 'chemistry', 'biology'].includes(subjectId)) return 4000;
   if (levelId === 'test') return 100;
   return 3000;
 }

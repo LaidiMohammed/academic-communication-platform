@@ -32,7 +32,7 @@ function SubjectTag({ label, onRemove }: { label: string; onRemove?: () => void 
 function getSubjectPrice(levelId: string, subjectId: string): number {
   if (levelId === 'particulier') return 9000;
   if (['1am', '2am', '3am'].includes(levelId)) return 2500;
-  if (levelId === '3as' && ['mathematics', 'physics', 'biology'].includes(subjectId)) return 4000;
+  if (['3as', 'bac'].includes(levelId) && ['mathematics', 'physics', 'chemistry', 'biology'].includes(subjectId)) return 4000;
   if (levelId === 'test') return 100;
   return 3000;
 }
@@ -43,18 +43,51 @@ function getLevelBasePrice(levelId: string): number {
   return 3000;
 }
 
-const LEVELS = [
-  { id: '1am', label: '1AM', ar: 'السنة الأولى متوسط', color: 'from-green-500 to-teal-500', icon: '📚' },
-  { id: '2am', label: '2AM', ar: 'السنة الثانية متوسط', color: 'from-emerald-500 to-cyan-500', icon: '📖' },
-  { id: '3am', label: '3AM', ar: 'السنة الثالثة متوسط', color: 'from-teal-500 to-blue-500', icon: '📝' },
-  { id: 'bem', label: 'BEM', ar: 'الرابعة متوسط', color: 'from-emerald-500 to-teal-500', icon: '🎓' },
-  { id: '1as', label: '1AS', ar: 'السنة الأولى ثانوي', color: 'from-blue-500 to-cyan-500', icon: '📚' },
-  { id: '2as', label: '2AS', ar: 'السنة الثانية ثانوي', color: 'from-violet-500 to-purple-500', icon: '📖' },
-  { id: '3as', label: '3AS', ar: 'السنة الثالثة ثانوي', color: 'from-amber-500 to-orange-500', icon: '📝' },
-  { id: 'bac', label: 'BAC', ar: 'شهادة البكالوريا', color: 'from-rose-500 to-red-500', icon: '🏆' },
-  { id: 'particulier', label: 'خاص', ar: 'دروس خصوصية فردية', color: 'from-purple-500 to-pink-500', icon: '👤' },
-  { id: 'test', label: 'Test', ar: 'دفع تجريبي', color: 'from-gray-500 to-slate-500', icon: '🧪' },
+const CATEGORIES = [
+  {
+    id: 'cem', label: 'CEM', ar: 'الطور المتوسط',
+    icon: '📚', color: 'from-green-500 to-teal-500',
+    levels: ['1am', '2am', '3am', 'bem'],
+    priceHint: '2500 د.ج / مادة',
+  },
+  {
+    id: 'lycee', label: 'LYCÉE', ar: 'الطور الثانوي',
+    icon: '📖', color: 'from-blue-500 to-cyan-500',
+    levels: ['1as', '2as'],
+    priceHint: '3000 د.ج / مادة',
+  },
+  {
+    id: 'asbac', label: '3AS + BAC', ar: 'السنة الثالثة ثانوي والبكالوريا',
+    icon: '🏆', color: 'from-amber-500 to-red-500',
+    levels: ['3as', 'bac'],
+    priceHint: 'من 3000 د.ج / مادة',
+  },
+  {
+    id: 'particulier', label: 'خاص', ar: 'دروس خصوصية فردية',
+    icon: '👤', color: 'from-purple-500 to-pink-500',
+    levels: ['particulier'],
+    priceHint: '9000 د.ج / مادة',
+  },
+  {
+    id: 'test', label: 'Test', ar: 'دفع تجريبي',
+    icon: '🧪', color: 'from-gray-500 to-slate-500',
+    levels: ['test'],
+    priceHint: '100 د.ج',
+  },
 ];
+
+const LEVELS_BY_ID: Record<string, { id: string; label: string; ar: string; color: string; icon: string }> = {
+  '1am': { id: '1am', label: '1AM', ar: 'السنة الأولى متوسط', color: 'from-green-500 to-teal-500', icon: '📚' },
+  '2am': { id: '2am', label: '2AM', ar: 'السنة الثانية متوسط', color: 'from-emerald-500 to-cyan-500', icon: '📖' },
+  '3am': { id: '3am', label: '3AM', ar: 'السنة الثالثة متوسط', color: 'from-teal-500 to-blue-500', icon: '📝' },
+  'bem': { id: 'bem', label: 'BEM', ar: 'الرابعة متوسط', color: 'from-emerald-500 to-teal-500', icon: '🎓' },
+  '1as': { id: '1as', label: '1AS', ar: 'السنة الأولى ثانوي', color: 'from-blue-500 to-cyan-500', icon: '📚' },
+  '2as': { id: '2as', label: '2AS', ar: 'السنة الثانية ثانوي', color: 'from-violet-500 to-purple-500', icon: '📖' },
+  '3as': { id: '3as', label: '3AS', ar: 'السنة الثالثة ثانوي', color: 'from-amber-500 to-orange-500', icon: '📝' },
+  'bac': { id: 'bac', label: 'BAC', ar: 'شهادة البكالوريا', color: 'from-rose-500 to-red-500', icon: '🏆' },
+  'particulier': { id: 'particulier', label: 'خاص', ar: 'دروس خصوصية فردية', color: 'from-purple-500 to-pink-500', icon: '👤' },
+  'test': { id: 'test', label: 'Test', ar: 'دفع تجريبي', color: 'from-gray-500 to-slate-500', icon: '🧪' },
+};
 
 const ALL_SUBJECTS = [
   { id: 'mathematics', label: 'Mathematics', ar: 'الرياضيات', icon: '📐' },
@@ -69,11 +102,14 @@ const ALL_SUBJECTS = [
   { id: 'civic', label: 'Civic Education', ar: 'التربية المدنية', icon: '🤝' },
 ];
 
+const NECESSARY_SUBJECTS = ['mathematics', 'physics', 'chemistry', 'biology'];
+
 /* ── Main Page ── */
 export default function MembershipPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const [step, setStep] = useState<'plans' | 'subjects' | 'exists'>('plans');
+  const [step, setStep] = useState<'plans' | 'levels' | 'subjects' | 'exists'>('plans');
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [selectedLevel, setSelectedLevel] = useState<any>(null);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -127,6 +163,21 @@ export default function MembershipPage() {
         .then(({ data }) => { if (data) setLatestPayment(data); });
     }
   }, [searchParams]);
+
+  const handleSelectCategory = (cat: any) => {
+    if (cat.levels.length === 1) {
+      const levelId = cat.levels[0];
+      setSelectedCategory(cat);
+      setSelectedLevel(LEVELS_BY_ID[levelId]);
+      setSelectedSubjects([]);
+      setStep('subjects');
+    } else {
+      setSelectedCategory(cat);
+      setSelectedLevel(null);
+      setSelectedSubjects([]);
+      setStep('levels');
+    }
+  };
 
   const handleSelectLevel = (level: any) => {
     setSelectedLevel(level);
@@ -192,21 +243,70 @@ export default function MembershipPage() {
     );
   }
 
-  /* ── Already has membership — dead code replaced by unified single return below ── */
-
-  /* ── Level Selection — dead code replaced by unified single return below ── */
-
   const hasMembership = !!membership;
   const membershipSubjects: string[] = membership?.subjects || [];
   const sessionsLeft = hasMembership ? (membership.sessions_total || 4) - (membership.sessions_used || 0) : 0;
   const expiresAt = hasMembership && membership.expires_at ? new Date(membership.expires_at) : null;
   const daysLeft = expiresAt ? Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
 
-  /* ── Subject Selection + Payment ── */
+  const renderSubjectButton = (subject: typeof ALL_SUBJECTS[0], i: number, isNecessary?: boolean) => {
+    const isSelected = selectedSubjects.includes(subject.id);
+    return (
+      <motion.button
+        key={subject.id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: i * 0.04, duration: 0.3 }}
+        whileHover={{ scale: 1.05, y: -2 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => toggleSubject(subject.id)}
+        className={`relative flex flex-col items-center justify-center gap-2 px-3 py-5 rounded-2xl text-sm font-bold border-2 transition-all duration-200 ${
+          isSelected
+            ? isNecessary
+              ? 'bg-amber-500/15 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/15'
+              : 'bg-blue-500/15 border-blue-500 text-blue-400 shadow-lg shadow-blue-500/15'
+            : 'bg-card/60 border-border/40 text-muted-foreground hover:border-blue-500/30 hover:text-foreground hover:bg-blue-500/5 hover:shadow-md'
+        }`}
+      >
+        {isSelected && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30"
+          >
+            <Check size={12} className="text-white" />
+          </motion.div>
+        )}
+        <span className="text-2xl">{subject.icon}</span>
+        <span className="text-center leading-tight text-xs sm:text-sm">{subject.ar}</span>
+        {isSelected && (
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: '100%' }}
+            className="absolute bottom-0 left-0 h-1 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
+          />
+        )}
+        {levelIsBAC() && (
+          <span className="text-[10px] opacity-60">
+            {NECESSARY_SUBJECTS.includes(subject.id) ? '4000 د.ج' : '3000 د.ج'}
+          </span>
+        )}
+      </motion.button>
+    );
+  };
+
+  const levelIsBAC = () => selectedLevel && ['3as', 'bac'].includes(selectedLevel.id);
+
+  const sortedSubjectsForBAC = () => {
+    const necessary = ALL_SUBJECTS.filter(s => NECESSARY_SUBJECTS.includes(s.id));
+    const simple = ALL_SUBJECTS.filter(s => !NECESSARY_SUBJECTS.includes(s.id));
+    return { necessary, simple };
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-16">
 
-      {/* ── TOP: User state + QR code (always visible) ── */}
+      {/* ── TOP: User state + QR code ── */}
       <motion.div {...stagger(0)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 space-y-4">
@@ -320,40 +420,41 @@ export default function MembershipPage() {
         </>
       )}
 
-      {/* ── Level selection (if not member) ── */}
+      {/* ── Category selection (if not member) ── */}
       {!hasMembership && step === 'plans' && (
         <>
           <motion.div {...stagger(0)} className="text-center">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-xs font-bold mb-4">
               <CreditCard size={13} /> Subscription & Payment
             </div>
-            <h1 className="text-3xl font-black text-foreground mb-2">Choose your level</h1>
+            <h1 className="text-3xl font-black text-foreground mb-2">اختر مرحلتك التعليمية</h1>
             <p className="text-muted-foreground text-sm max-w-lg mx-auto">
-              Select your level then choose subjects. Each month includes <strong>4 sessions</strong>.
+              اختر مرحلتك ثم المستوى الدراسي والمواد التي ترغب في دراستها. كل شهر يتضمن <strong>4 حصص</strong>.
             </p>
           </motion.div>
-          <motion.div {...stagger(1)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {LEVELS.map((level, i) => (
-              <motion.div key={level.id} whileHover={{ y: -4, scale: 1.01 }}
+          <motion.div {...stagger(1)} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {CATEGORIES.map((cat, i) => (
+              <motion.div key={cat.id} whileHover={{ y: -6, scale: 1.02 }}
                 className="relative rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 flex flex-col gap-4 cursor-pointer hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300"
-                onClick={() => handleSelectLevel(level)}>
+                onClick={() => handleSelectCategory(cat)}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${level.color} flex items-center justify-center text-2xl shadow-lg`}>{level.icon}</div>
+                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-3xl shadow-lg`}>{cat.icon}</div>
                   <div>
-                    <h3 className="font-bold text-foreground text-lg">{level.label}</h3>
-                    <p className="text-xs text-muted-foreground">{level.ar}</p>
+                    <h3 className="font-bold text-foreground text-lg">{cat.label}</h3>
+                    <p className="text-xs text-muted-foreground">{cat.ar}</p>
                   </div>
                 </div>
                 <div className="flex items-baseline gap-1 mt-2">
-                  <span className="text-3xl font-black text-foreground">{getLevelBasePrice(level.id).toLocaleString()} <span className="text-sm font-normal text-muted-foreground">د.ج</span></span>
-                  <span className="text-sm text-muted-foreground">/subject</span>
+                  <span className="text-3xl font-black text-foreground">{cat.priceHint}</span>
                 </div>
                 <ul className="space-y-1.5 flex-1">
-                  <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">4 sessions per month</span></li>
-                  <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">Choose any subject</span></li>
-                  <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">Free support &amp; resources</span></li>
+                  <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">{cat.levels.map(id => LEVELS_BY_ID[id]?.label || id).join(' · ')}</span></li>
+                  <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">10 مواد متاحة للاختيار</span></li>
+                  <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">4 حصص شهرياً لكل مادة</span></li>
                 </ul>
-                <button className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all">Choose {level.label}</button>
+                <button className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all">
+                  {cat.levels.length === 1 ? `اختر ${cat.label}` : 'تصفح المستويات'}
+                </button>
               </motion.div>
             ))}
           </motion.div>
@@ -373,19 +474,71 @@ export default function MembershipPage() {
         </>
       )}
 
-      {/* ── Subject selection + payment (if not member + not plans step) ── */}
-      {!hasMembership && step !== 'plans' && (
+      {/* ── Level picker inside a category ── */}
+      {!hasMembership && step === 'levels' && selectedCategory && (
+        <>
+          <motion.div {...stagger(0)} className="text-center">
+            <button
+              onClick={() => setStep('plans')}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition mb-3"
+            >
+              <ChevronRight size={14} className="rotate-180" /> العودة إلى المراحل
+            </button>
+            <h1 className="text-3xl font-black text-foreground mb-2">{selectedCategory.label}</h1>
+            <p className="text-muted-foreground text-sm max-w-lg mx-auto">
+              {selectedCategory.ar} — اختر مستواك الدراسي
+            </p>
+          </motion.div>
+          <motion.div {...stagger(1)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {selectedCategory.levels.map((levelId: string, i: number) => {
+              const level = LEVELS_BY_ID[levelId];
+              if (!level) return null;
+              const basePrice = getLevelBasePrice(levelId);
+              return (
+                <motion.div key={level.id} whileHover={{ y: -4, scale: 1.01 }}
+                  className="relative rounded-2xl border border-border/50 bg-card/40 backdrop-blur-xl p-6 flex flex-col gap-4 cursor-pointer hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300"
+                  onClick={() => handleSelectLevel(level)}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${level.color} flex items-center justify-center text-2xl shadow-lg`}>{level.icon}</div>
+                    <div>
+                      <h3 className="font-bold text-foreground text-lg">{level.label}</h3>
+                      <p className="text-xs text-muted-foreground">{level.ar}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-3xl font-black text-foreground">{basePrice.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">د.ج</span></span>
+                    <span className="text-sm text-muted-foreground">/مادة</span>
+                  </div>
+                  <ul className="space-y-1.5 flex-1">
+                    <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">10 مواد للاختيار</span></li>
+                    <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">4 حصص شهرياً لكل مادة</span></li>
+                    <li className="flex items-start gap-2 text-sm"><Check size={14} className="text-green-400 mt-0.5 flex-shrink-0" /><span className="text-foreground/80">دروس وتمارين وامتحانات</span></li>
+                  </ul>
+                  <button className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all">اختر {level.label}</button>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </>
+      )}
+
+      {/* ── Subject selection + payment ── */}
+      {!hasMembership && step === 'subjects' && selectedLevel && (
       <>
       <motion.div {...stagger(0)} className="text-center">
         <button
-          onClick={() => setStep('plans')}
+          onClick={() => selectedCategory && selectedCategory.levels.length > 1 ? setStep('levels') : setStep('plans')}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition mb-3"
         >
-          <ChevronRight size={14} className="rotate-180" /> العودة إلى المستويات
+          <ChevronRight size={14} className="rotate-180" /> العودة إلى {selectedCategory && selectedCategory.levels.length > 1 ? 'المستويات' : 'المراحل'}
         </button>
         <h1 className="text-3xl font-black text-foreground mb-2">اختر موادك الدراسية</h1>
         <p className="text-muted-foreground text-sm max-w-lg mx-auto">
-          المستوى: <strong>{selectedLevel?.label}</strong> — {getLevelBasePrice(selectedLevel.id).toLocaleString()} د.ج لكل مادة · 4 حصص شهرياً
+          المستوى: <strong>{selectedLevel.label}</strong>
+          {levelIsBAC()
+            ? ' — المواد الأساسية 4000 د.ج · المواد البسيطة 3000 د.ج'
+            : ` — ${getLevelBasePrice(selectedLevel.id).toLocaleString()} د.ج لكل مادة`}
+          {' · '}4 حصص شهرياً
         </p>
       </motion.div>
 
@@ -396,46 +549,32 @@ export default function MembershipPage() {
           <span className="text-xs text-muted-foreground">({selectedSubjects.length} مختارة)</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {ALL_SUBJECTS.map((subject, i) => {
-            const isSelected = selectedSubjects.includes(subject.id);
-            return (
-              <motion.button
-                key={subject.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04, duration: 0.3 }}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => toggleSubject(subject.id)}
-                className={`relative flex flex-col items-center justify-center gap-2 px-3 py-5 rounded-2xl text-sm font-bold border-2 transition-all duration-200 ${
-                  isSelected
-                    ? 'bg-blue-500/15 border-blue-500 text-blue-400 shadow-lg shadow-blue-500/15'
-                    : 'bg-card/60 border-border/40 text-muted-foreground hover:border-blue-500/30 hover:text-foreground hover:bg-blue-500/5 hover:shadow-md'
-                }`}
-              >
-                {isSelected && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30"
-                  >
-                    <Check size={12} className="text-white" />
-                  </motion.div>
-                )}
-                <span className="text-2xl">{subject.icon}</span>
-                <span className="text-center leading-tight text-xs sm:text-sm">{subject.ar}</span>
-                {isSelected && (
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: '100%' }}
-                    className="absolute bottom-0 left-0 h-1 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
-                  />
-                )}
-              </motion.button>
-            );
-          })}
-        </div>
+        {levelIsBAC() ? (
+          <div className="space-y-6">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-amber-500 shadow-lg shadow-amber-500/50" />
+                <span className="text-sm font-bold text-amber-400">المواد الأساسية (4000 د.ج لكل مادة)</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {sortedSubjectsForBAC().necessary.map((subject, i) => renderSubjectButton(subject, i, true))}
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50" />
+                <span className="text-sm font-bold text-blue-400">المواد البسيطة (3000 د.ج لكل مادة)</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {sortedSubjectsForBAC().simple.map((subject, i) => renderSubjectButton(subject, i))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {ALL_SUBJECTS.map((subject, i) => renderSubjectButton(subject, i))}
+          </div>
+        )}
 
         <AnimatePresence>
           {selectedSubjects.length > 0 && (
@@ -475,16 +614,20 @@ export default function MembershipPage() {
         >
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">المستوى</span>
-            <span className="font-bold text-foreground">{selectedLevel?.label}</span>
+            <span className="font-bold text-foreground">{selectedLevel.label}</span>
           </div>
           <div className="space-y-2">
             <span className="text-sm text-muted-foreground">تفاصيل المواد</span>
             {selectedSubjects.map((sid) => {
               const subj = ALL_SUBJECTS.find(s => s.id === sid);
               const sp = getSubjectPrice(selectedLevel.id, sid);
+              const isNecessary = levelIsBAC() && NECESSARY_SUBJECTS.includes(sid);
               return (
                 <div key={sid} className="flex items-center justify-between text-sm">
-                  <span className="text-foreground/80">{subj?.icon} {subj?.ar || sid}</span>
+                  <span className="text-foreground/80">
+                    {subj?.icon} {subj?.ar || sid}
+                    {isNecessary && <span className="text-[10px] text-amber-400 mr-1">(أساسي)</span>}
+                  </span>
                   <span className="font-semibold text-foreground">{sp.toLocaleString()} د.ج</span>
                 </div>
               );
@@ -580,7 +723,7 @@ export default function MembershipPage() {
       </>
       )}
 
-      {/* ── Receipt Widget (shown after successful payment) ── */}
+      {/* ── Receipt Widget ── */}
       <AnimatePresence>
         {justPaid && latestPayment && (
           <motion.div
@@ -597,7 +740,6 @@ export default function MembershipPage() {
               onClick={e => e.stopPropagation()}
               className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden"
             >
-              {/* Success header */}
               <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-8 text-center text-white">
                 <motion.div
                   initial={{ scale: 0 }}
@@ -610,8 +752,6 @@ export default function MembershipPage() {
                 <h2 className="text-xl font-black">Payment Successful!</h2>
                 <p className="text-sm text-white/80 mt-1">Your subscription is now active</p>
               </div>
-
-              {/* Receipt summary */}
               <div className="px-6 py-6 space-y-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Receipt</span>
@@ -631,7 +771,6 @@ export default function MembershipPage() {
                   <span className="text-gray-500">Subjects</span>
                   <span className="font-semibold text-gray-900">{(latestPayment.subjects || []).length}</span>
                 </div>
-
                 <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
                   <span className="text-base font-bold text-gray-900">Total Paid</span>
                   <span className="text-2xl font-black text-green-600">
@@ -639,8 +778,6 @@ export default function MembershipPage() {
                   </span>
                 </div>
               </div>
-
-              {/* Actions */}
               <div className="px-6 pb-6 flex flex-col gap-3">
                 <Link
                   href={`/dashboard/receipt/${latestPayment.id}`}
