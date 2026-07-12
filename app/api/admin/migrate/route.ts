@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/api-utils';
-import { createServiceClient } from '@/lib/supabase';
 import fs from 'fs';
 import path from 'path';
 import { Pool } from 'pg';
@@ -8,11 +7,16 @@ import { Pool } from 'pg';
 const REGIONS = ['eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-central-1', 'eu-central-2', 'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'ap-southeast-1', 'ap-southeast-2', 'ap-northeast-1', 'ap-northeast-2', 'sa-east-1', 'ca-central-1'];
 
 export async function POST(req: NextRequest) {
-  const auth = await getAuthUser(req);
-  if (auth.error) return auth.error;
-
-  const { data: admin } = await auth.supabase.from('profiles').select('role').eq('id', auth.user.id).single();
-  if (admin?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Allow auth via service role key header for direct API calls
+  const serviceKeyHeader = req.headers.get('x-service-key');
+  if (serviceKeyHeader === process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    // Authenticated via service key — skip user-level auth
+  } else {
+    const auth = await getAuthUser(req);
+    if (auth.error) return auth.error;
+    const { data: admin } = await auth.supabase.from('profiles').select('role').eq('id', auth.user.id).single();
+    if (admin?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', '').replace('.supabase.co', '');
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
