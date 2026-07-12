@@ -160,9 +160,9 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="flex gap-6 pb-8 min-h-full">
-      {/* Tab Sidebar (sticky) */}
-      <div className="w-56 flex-shrink-0 space-y-1 sticky top-0 self-start">
+    <div className="flex flex-col md:flex-row gap-6 pb-8 min-h-full">
+      {/* Tab Navigation: horizontal scroll on mobile, sticky sidebar on desktop */}
+      <div className="flex md:flex-col gap-1 md:w-56 md:flex-shrink-0 md:sticky md:top-0 md:self-start overflow-x-auto pb-1 md:pb-0 -mx-1 px-1 md:mx-0 md:px-0 scrollbar-hide">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -170,13 +170,13 @@ export default function SettingsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 rounded-xl text-xs md:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
                 isActive
                   ? 'bg-blue-500 text-primary-foreground shadow-lg shadow-blue-500/30'
                   : 'text-muted-foreground hover:text-foreground hover:bg-blue-500/10'
               }`}
             >
-              <Icon size={18} />
+              <Icon size={16} />
               <span>{tab.label}</span>
             </button>
           );

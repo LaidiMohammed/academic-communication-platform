@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Plus, Zap, MessageCircle, History, PanelRightClose, Star, ImagePlus, X, Trash2, Edit3, Check, Loader2 } from 'lucide-react';
+import { Send, Plus, Zap, MessageCircle, History, PanelRightClose, Star, ImagePlus, Camera, X, Trash2, Edit3, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { createClient } from '@/lib/supabase';
 
@@ -58,6 +58,7 @@ export function AIPage() {
   const [loadingConvs, setLoadingConvs] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -496,6 +497,12 @@ export function AIPage() {
               whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               className="p-2.5 rounded-xl bg-[#1E293B] border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 transition disabled:opacity-50">
               <ImagePlus size={18} />
+            </motion.button>
+            <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleImageUpload} className="hidden" />
+            <motion.button onClick={() => cameraInputRef.current?.click()} disabled={isLoading}
+              whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              className="p-2.5 rounded-xl bg-[#1E293B] border border-green-500/30 text-green-400 hover:bg-green-500/20 transition disabled:opacity-50">
+              <Camera size={18} />
             </motion.button>
             <input type="text" value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}

@@ -247,6 +247,16 @@ export function ChatPage() {
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const callStateRef = useRef<'none' | 'calling' | 'connected'>('none');
   useEffect(() => { callStateRef.current = callState; }, [callState]);
+  useEffect(() => {
+    if (callState !== 'calling') return;
+    const timer = setTimeout(() => {
+      if (callStateRef.current === 'calling') {
+        endCall();
+        setSendError('Call timed out. The other user may be offline.');
+      }
+    }, 30000);
+    return () => clearTimeout(timer);
+  }, [callState]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -415,11 +425,13 @@ export function ChatPage() {
               voice: newMsg.type === 'voice' ? newMsg.file_url : undefined,
               duration: newMsg.type === 'voice' ? parseVoiceDuration(newMsg.text) : undefined,
             };
-            setMessagesMap(prev => {
-              const existing = prev[selectedChatRef.current!] || [];
-              if (existing.some(m => m.id === newMsg.id)) return prev;
-              return { ...prev, [selectedChatRef.current!]: [...existing, msg] };
-            });
+            if (callStateRef.current === 'none') {
+              setMessagesMap(prev => {
+                const existing = prev[selectedChatRef.current!] || [];
+                if (existing.some(m => m.id === newMsg.id)) return prev;
+                return { ...prev, [selectedChatRef.current!]: [...existing, msg] };
+              });
+            }
           }
 
           if (!chatsRef.current.some(c => c.id === newMsg.chat_id)) {
@@ -562,7 +574,7 @@ export function ChatPage() {
     const chatId = selectedChat || incomingCall?.chatId;
     if (!chatId || !currentUser) return;
     try {
-      await supabase.from('messages').insert({
+      const { error } = await supabase.from('messages').insert({
         chat_id: chatId,
         sender_id: currentUser.id,
         text: `__call__${type}${extra || ''}`,
@@ -572,8 +584,13 @@ export function ChatPage() {
         file_size: '',
         created_at: new Date().toISOString(),
       });
+      if (error) {
+        console.error('sendCallSignal error:', error);
+        if (type === 'offer') setSendError('Call failed. Please try again.');
+      }
     } catch (e) {
       console.error('sendCallSignal catch:', e);
+      if (type === 'offer') setSendError('Call failed. Please try again.');
     }
   };
 
@@ -1271,6 +1288,13 @@ export function ChatPage() {
               </div>
             </motion.div>
           ))}
+          {filteredChats.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
+              <MessageCircle size={36} className="text-muted-foreground/30 mb-3" />
+              <p className="text-sm font-medium text-muted-foreground/60 mb-1">No conversations yet</p>
+              <p className="text-xs text-muted-foreground/40">Tap + to start a new chat</p>
+            </div>
+          )}
 
         </div>
       </div>
@@ -1316,7 +1340,7 @@ export function ChatPage() {
       {/* Chat Window + Details Panel (side by side) */}
       {selectedChat && currentChat ? (
         <div className="flex flex-1 relative">
-        <div className="flex flex-1 flex-col bg-card relative min-w-0 overflow-y-auto">
+        <div className={`flex flex-1 flex-col bg-card relative min-w-0 ${callState !== 'none' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
           {/* Header */}
           <div className="sticky top-0 z-10 border-b border-border px-3 py-2.5 flex items-center justify-between bg-card/80 backdrop-blur-sm">
             <div className="flex items-center gap-3">
@@ -1672,6 +1696,9 @@ export function ChatPage() {
               )}
               <p className="text-lg font-bold text-foreground drop-shadow-lg">{currentChat!.name}</p>
               <p className="text-sm text-muted-foreground drop-shadow-lg">{callState === 'calling' ? 'Calling...' : 'Connected'}</p>
+              {sendError && (
+                <p className="text-xs text-destructive font-medium bg-destructive/10 px-3 py-1.5 rounded-lg">{sendError}</p>
+              )}
               <div className="flex items-center gap-3 mt-2">
                 <motion.button whileTap={{ scale: 0.9 }}
                   onClick={toggleMute}
