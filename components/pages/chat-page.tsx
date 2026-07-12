@@ -351,22 +351,30 @@ export function ChatPage() {
     fetchChats();
   }, [currentUser, chatMode, chatFetchKey]);
 
-  // Fetch messages + mark read via API
+  // Fetch messages + mark read via API with polling fallback
   useEffect(() => {
     if (!selectedChat || !currentUser) return;
+    let active = true;
     const fetchMessages = async () => {
       const res = await fetch(`/api/chat/messages?chatId=${selectedChat}`, { headers: await authHeaders() });
-      if (!res.ok) return;
+      if (!res.ok || !active) return;
       const data = await res.json();
-      setMessagesMap(prev => ({ ...prev, [selectedChat]: data.messages }));
+      setMessagesMap(prev => {
+        const existing = prev[selectedChat] || [];
+        const existingIds = new Set(existing.map(m => m.id));
+        const newMsgs = data.messages.filter((m: any) => !existingIds.has(m.id));
+        if (newMsgs.length === 0) return prev;
+        return { ...prev, [selectedChat]: [...existing, ...newMsgs] };
+      });
       setChatMembers(data.participants || []);
-
       fetch('/api/chat/read', {
         method: 'POST', headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatId: selectedChat, messageIds: data.messages.filter((m: any) => !m.isOwn).map((m: any) => m.id) }),
       }).then(() => {});
     };
     fetchMessages();
+    const interval = setInterval(fetchMessages, 3000);
+    return () => { active = false; clearInterval(interval); };
   }, [selectedChat, currentUser]);
 
   // Always-active real-time subscription for messages + chat_participants
@@ -574,20 +582,11 @@ export function ChatPage() {
     const chatId = selectedChat || incomingCall?.chatId;
     if (!chatId || !currentUser) return;
     try {
-      const { error } = await supabase.from('messages').insert({
-        chat_id: chatId,
-        sender_id: currentUser.id,
-        text: `__call__${type}${extra || ''}`,
-        type: 'text',
-        file_url: data || '',
-        file_name: '',
-        file_size: '',
-        created_at: new Date().toISOString(),
+      const res = await fetch('/api/chat/signal', {
+        method: 'POST', headers: { ...await authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, type, extra, data }),
       });
-      if (error) {
-        console.error('sendCallSignal error:', error);
-        if (type === 'offer') setSendError('Call failed. Please try again.');
-      }
+      if (!res.ok && type === 'offer') setSendError('Call failed. Please try again.');
     } catch (e) {
       console.error('sendCallSignal catch:', e);
       if (type === 'offer') setSendError('Call failed. Please try again.');
@@ -695,6 +694,7 @@ export function ChatPage() {
         fileUrl,
         fileName: msg.file?.name || '',
         fileSize: msg.file?.size || '',
+        replyTo: msg.replyTo?.id || null,
       }),
     });
     if (!res.ok) {
@@ -717,6 +717,7 @@ export function ChatPage() {
       duration: msg.duration,
       lat: msg.lat,
       lng: msg.lng,
+      replyTo: msg.replyTo,
     };
     setMessagesMap(prev => ({ ...prev, [chatId]: [...(prev[chatId] || []), newMsg] }));
     setChats(prev => prev.map(c => c.id === chatId ? {
@@ -1432,12 +1433,17 @@ export function ChatPage() {
                 {!msg.isOwn && <Avatar src={msg.avatar} name={msg.sender} className="w-7 h-7 rounded-full flex-shrink-0 self-end" />}
                 <div className={`flex flex-col ${msg.isOwn ? 'items-end' : 'items-start'} max-w-[70%]`}>
                   {/* Reply indicator */}
-                  {msg.replyTo && (
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-t-lg text-xs ${msg.isOwn ? 'bg-primary/20 text-primary-foreground' : 'bg-secondary/80 text-foreground'} mb-0.5 max-w-full`}>
-                      <Reply size={10} className="shrink-0" />
-                      <span className="truncate opacity-70">{msg.replyTo.sender}: {msg.replyTo.text}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const repliedMsg = msg.replyTo ? messagesMap[selectedChat!]?.find(m => m.id === msg.replyTo!.id) : null;
+                    const replySender = repliedMsg?.sender || msg.replyTo?.sender || '';
+                    const replyText = repliedMsg?.text || msg.replyTo?.text || '';
+                    return msg.replyTo ? (
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-t-lg text-xs ${msg.isOwn ? 'bg-primary/20 text-primary-foreground' : 'bg-secondary/80 text-foreground'} mb-0.5 max-w-full`}>
+                        <Reply size={10} className="shrink-0" />
+                        <span className="truncate opacity-70">{replySender}: {replyText}</span>
+                      </div>
+                    ) : null;
+                  })()}
                   {/* Message bubble */}
                   <div onClick={() => setExpandedMessage(expandedMessage === msg.id ? null : msg.id)}
                     className={`px-3 py-1.5 rounded-2xl break-words cursor-pointer text-sm transition-all hover:shadow-sm ${

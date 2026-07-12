@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
       : undefined,
     voice: m.type === 'voice' ? m.file_url || undefined : undefined,
     duration: m.type === 'voice' ? parseVoiceDuration(m.text || '') : undefined,
+    replyTo: m.reply_to ? { id: m.reply_to, text: '', sender: '' } : undefined,
   }));
 
   const { data: participants } = await auth.supabase
@@ -150,6 +151,7 @@ export async function POST(req: NextRequest) {
   const fileUrl = typeof values.fileUrl === 'string' ? values.fileUrl : '';
   const fileName = typeof values.fileName === 'string' ? values.fileName : '';
   const fileSize = typeof values.fileSize === 'string' ? values.fileSize : '';
+  const replyTo = values.replyTo ? Number(values.replyTo) : null;
   if (!MESSAGE_TYPES.has(messageType)) {
     return NextResponse.json({ error: 'Invalid message type' }, { status: 400 });
   }
@@ -170,7 +172,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { data: msg, error } = await auth.supabase.from('messages').insert({
+  const insertData: Record<string, unknown> = {
     chat_id: chatId,
     sender_id: auth.user.id,
     text,
@@ -178,7 +180,10 @@ export async function POST(req: NextRequest) {
     file_url: fileUrl,
     file_name: fileName,
     file_size: fileSize,
-  }).select('id').single();
+  };
+  if (replyTo) insertData.reply_to = replyTo;
+
+  const { data: msg, error } = await auth.supabase.from('messages').insert(insertData).select('id').single();
 
   if (error || !msg) return NextResponse.json({ error: error?.message || 'Insert failed' }, { status: 500 });
 
