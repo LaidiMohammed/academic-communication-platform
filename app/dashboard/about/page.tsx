@@ -175,7 +175,7 @@ export default function AboutPage() {
           {/* Map */}
           <div className="h-[300px] lg:h-full min-h-[300px] bg-[#1E293B] relative">
             <iframe
-              src="https://www.openstreetmap.org/export/embed.html?bbox=-0.646%2C35.687%2C-0.626%2C35.707&amp;layer=mapnik&amp;marker=35.697%2C-0.636"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=-0.634%2C35.695%2C-0.622%2C35.707&amp;layer=mapnik&amp;marker=35.701%2C-0.628"
               width="100%"
               height="100%"
               style={{ border: 0 }}
