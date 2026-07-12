@@ -107,10 +107,6 @@ function videoLink(label: string, url: string): LinkItem {
   return { label, url, type: 'video' };
 }
 
-function driveLink(label: string): LinkItem {
-  return { label, url: `https://drive.google.com/drive/folders/1${btoa(unescape(encodeURIComponent(label))).slice(0, 30)}`, type: 'drive' };
-}
-
 /* ===== BUILD COMPLETE RESOURCE DATA ===== */
 const allResourceData: Record<string, LevelRes[]> = {
   mathematics: [
@@ -119,8 +115,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AM الرسمية — دروس الرياضيات', levelYoutube['1AM']),
         ...(subjectYoutube.mathematics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الرياضيات — 1AM'),
-        driveLink('مجلد دروس + حلول — 1AM'),
         { label: 'درس: الأعداد الطبيعية', url: subjUrl('mathematics', '1am'), type: 'course' },
         { label: 'تمارين: العمليات الأربع', url: subjUrl('mathematics', '1am'), type: 'td' },
         { label: 'فروض واختبارات 1AM', url: 'https://www.dzexams.com/fr/1am/mathematiques', type: 'exam' },
@@ -131,8 +125,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AM الرسمية — دروس الرياضيات', levelYoutube['2AM']),
         ...(subjectYoutube.mathematics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الرياضيات — 2AM'),
-        driveLink('مجلد دروس + حلول — 2AM'),
         { label: 'درس: الحساب الحرفي', url: subjUrl('mathematics', '2am'), type: 'course' },
         { label: 'تمارين: المعادلات', url: subjUrl('mathematics', '2am'), type: 'td' },
         { label: 'فروض واختبارات 2AM', url: 'https://www.dzexams.com/fr/2am/mathematiques', type: 'exam' },
@@ -143,8 +135,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AM الرسمية — دروس الرياضيات', levelYoutube['3AM']),
         ...(subjectYoutube.mathematics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الرياضيات — 3AM'),
-        driveLink('مجلد دروس + حلول — 3AM'),
         { label: 'درس: الدوال', url: subjUrl('mathematics', '3am'), type: 'course' },
         { label: 'تمارين: الدوال الخطية', url: subjUrl('mathematics', '3am'), type: 'td' },
         { label: 'فروض واختبارات 3AM', url: 'https://www.dzexams.com/fr/3am/mathematiques', type: 'exam' },
@@ -155,8 +145,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 4AM الرسمية — مراجعة BEM', levelYoutube['4AM']),
         ...(subjectYoutube.mathematics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الرياضيات — 4AM'),
-        driveLink('مجلد BEM رياضيات — مواضيع محلولة'),
         { label: 'دروس 4AM رياضيات', url: subjUrl('mathematics', '4am'), type: 'course' },
         { label: 'تمارين شاملة لتحضير BEM', url: subjUrl('mathematics', '4am'), type: 'td' },
         { label: 'فروض واختبارات 4AM', url: 'https://www.dzexams.com/fr/4am/mathematiques', type: 'exam' },
@@ -185,8 +173,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AS الرسمية — دروس الرياضيات', levelYoutube['1AS']),
         ...(subjectYoutube.mathematics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الرياضيات — 1AS'),
-        driveLink('مجلّد دروس + حلول — 1AS'),
         { label: 'درس: النهايات', url: subjUrl('mathematics', '1as'), type: 'course' },
         { label: 'تمارين: الدوال', url: subjUrl('mathematics', '1as'), type: 'td' },
         { label: 'فروض واختبارات 1AS', url: 'https://www.dzexams.com/fr/1as/mathematiques', type: 'exam' },
@@ -197,8 +183,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AS الرسمية — دروس الرياضيات', levelYoutube['2AS']),
         ...(subjectYoutube.mathematics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الرياضيات — 2AS'),
-        driveLink('مجلّد دروس + حلول — 2AS'),
         { label: 'درس: الاشتقاقية', url: subjUrl('mathematics', '2as'), type: 'course' },
         { label: 'تمارين: الدوال الأسية', url: subjUrl('mathematics', '2as'), type: 'td' },
         { label: 'فروض واختبارات 2AS', url: 'https://www.dzexams.com/fr/2as/mathematiques', type: 'exam' },
@@ -209,8 +193,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AS — مراجعة BAC رياضيات', levelYoutube['3AS']),
         ...(subjectYoutube.mathematics?.map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BAC رياضيات — مواضيع محلولة'),
-        driveLink('مجلد دروس + تمارين متقدمة — 3AS'),
         { label: 'درس: التكامل', url: subjUrl('mathematics', '3as'), type: 'course' },
         { label: 'تمارين: الدوال اللوغاريتمية', url: subjUrl('mathematics', '3as'), type: 'td' },
         { label: 'فروض واختبارات 3AS', url: 'https://www.dzexams.com/fr/3as/mathematiques', type: 'exam' },
@@ -244,8 +226,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AM الرسمية — فيزياء', levelYoutube['1AM']),
         ...(subjectYoutube.physics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الفيزياء — 1AM'),
-        driveLink('مجلّد دروس + حلول — 1AM'),
         { label: 'درس: حالات المادة', url: subjUrl('physics', '1am'), type: 'course' },
         { label: 'تمارين: الكتلة والحجم', url: subjUrl('physics', '1am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/1am/physique', type: 'exam' },
@@ -256,8 +236,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AM الرسمية — فيزياء', levelYoutube['2AM']),
         ...(subjectYoutube.physics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الفيزياء — 2AM'),
-        driveLink('مجلّد دروس + حلول — 2AM'),
         { label: 'درس: التيار الكهربائي', url: subjUrl('physics', '2am'), type: 'course' },
         { label: 'تمارين: قانون أوم', url: subjUrl('physics', '2am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/2am/physique', type: 'exam' },
@@ -268,8 +246,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AM الرسمية — فيزياء', levelYoutube['3AM']),
         ...(subjectYoutube.physics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الفيزياء — 3AM'),
-        driveLink('مجلّد دروس + حلول — 3AM'),
         { label: 'درس: الضوء والعدسات', url: subjUrl('physics', '3am'), type: 'course' },
         { label: 'تمارين: الأمواج', url: subjUrl('physics', '3am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/3am/physique', type: 'exam' },
@@ -280,8 +256,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 4AM — مراجعة BEM فيزياء', levelYoutube['4AM']),
         ...(subjectYoutube.physics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الفيزياء — 4AM'),
-        driveLink('مجلد BEM فيزياء — مواضيع محلولة'),
         { label: 'درس: القوى والحركة', url: subjUrl('physics', '4am'), type: 'course' },
         { label: 'تمارين: الطاقة', url: subjUrl('physics', '4am'), type: 'td' },
         { label: 'فروض واختبارات 4AM', url: 'https://www.dzexams.com/fr/4am/physique', type: 'exam' },
@@ -298,8 +272,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AS الرسمية — فيزياء', levelYoutube['1AS']),
         ...(subjectYoutube.physics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الفيزياء — 1AS'),
-        driveLink('مجلّد دروس + حلول — 1AS'),
         { label: 'درس: التفاعلات', url: subjUrl('physics', '1as'), type: 'course' },
         { label: 'تمارين: القوى', url: subjUrl('physics', '1as'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/1as/physique', type: 'exam' },
@@ -310,8 +282,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AS الرسمية — فيزياء', levelYoutube['2AS']),
         ...(subjectYoutube.physics?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الفيزياء — 2AS'),
-        driveLink('مجلّد دروس + حلول — 2AS'),
         { label: 'درس: الحقل المغناطيسي', url: subjUrl('physics', '2as'), type: 'course' },
         { label: 'تمارين: التحريض', url: subjUrl('physics', '2as'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/2as/physique', type: 'exam' },
@@ -322,8 +292,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AS — BAC فيزياء', levelYoutube['3AS']),
         ...(subjectYoutube.physics?.map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BAC فيزياء — مواضيع محلولة'),
-        driveLink('مجلد تمارين متقدمة — 3AS'),
         { label: 'درس: النشاط الإشعاعي', url: subjUrl('physics', '3as'), type: 'course' },
         { label: 'تمارين: التفاعلات النووية', url: subjUrl('physics', '3as'), type: 'td' },
         { label: 'فروض واختبارات 3AS', url: 'https://www.dzexams.com/fr/3as/physique', type: 'exam' },
@@ -341,7 +309,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AM الرسمية — كيمياء', levelYoutube['1AM']),
         ...(subjectYoutube.chemistry?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الكيمياء — 1AM'),
         { label: 'درس: أنواع المخاليط', url: subjUrl('chemistry', '1am'), type: 'course' },
         { label: 'تمارين: فصل المخاليط', url: subjUrl('chemistry', '1am'), type: 'td' },
       ],
@@ -351,7 +318,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AM الرسمية — كيمياء', levelYoutube['2AM']),
         ...(subjectYoutube.chemistry?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الكيمياء — 2AM'),
         { label: 'درس: بنية الذرة', url: subjUrl('chemistry', '2am'), type: 'course' },
         { label: 'تمارين: الجدول الدوري', url: subjUrl('chemistry', '2am'), type: 'td' },
       ],
@@ -361,7 +327,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AM الرسمية — كيمياء', levelYoutube['3AM']),
         ...(subjectYoutube.chemistry?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الكيمياء — 3AM'),
         { label: 'درس: المعادلات الكيميائية', url: subjUrl('chemistry', '3am'), type: 'course' },
         { label: 'تمارين: وزن المعادلات', url: subjUrl('chemistry', '3am'), type: 'td' },
       ],
@@ -371,8 +336,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 4AM — مراجعة كيمياء BEM', levelYoutube['4AM']),
         ...(subjectYoutube.chemistry?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الكيمياء — 4AM'),
-        driveLink('مجلد BEM كيمياء'),
         { label: 'درس: الأحماض والقواعد', url: subjUrl('chemistry', '4am'), type: 'course' },
         { label: 'تمارين: تفاعلات حمض-قاعدة', url: subjUrl('chemistry', '4am'), type: 'td' },
         { label: 'جميع مواضيع BEM', url: 'https://www.dzexams.com/fr/bem', type: 'exam' },
@@ -383,7 +346,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AS الرسمية — كيمياء', levelYoutube['1AS']),
         ...(subjectYoutube.chemistry?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الكيمياء — 1AS'),
         { label: 'درس: المردودية', url: subjUrl('chemistry', '1as'), type: 'course' },
         { label: 'تمارين: الحساب ستوكيومتري', url: subjUrl('chemistry', '1as'), type: 'td' },
       ],
@@ -393,7 +355,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AS الرسمية — كيمياء', levelYoutube['2AS']),
         ...(subjectYoutube.chemistry?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين الكيمياء — 2AS'),
         { label: 'درس: المركبات العضوية', url: subjUrl('chemistry', '2as'), type: 'course' },
         { label: 'تمارين: التسمية', url: subjUrl('chemistry', '2as'), type: 'td' },
       ],
@@ -403,8 +364,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AS — BAC كيمياء', levelYoutube['3AS']),
         ...(subjectYoutube.chemistry?.map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BAC كيمياء — مواضيع محلولة'),
-        driveLink('مجلد تمارين — 3AS'),
         { label: 'درس: الأكسدة والاختزال', url: subjUrl('chemistry', '3as'), type: 'course' },
         { label: 'تمارين: التفاعلات الكهربائية', url: subjUrl('chemistry', '3as'), type: 'td' },
         { label: 'جميع مواضيع BAC', url: 'https://www.dzexams.com/fr/bac', type: 'exam' },
@@ -417,8 +376,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('Nasri English — دروس الإنجليزية', 'https://www.youtube.com/@NasriEnglish'),
         videoLink('Sara English — أساسيات', 'https://www.youtube.com/@SaraEnglish'),
-        driveLink('مجلد تمارين الإنجليزية — 1AM'),
-        driveLink('مجلّد دروس + حلول — 1AM'),
         { label: 'درس: Greetings & Alphabet', url: subjUrl('english', '1am'), type: 'course' },
         { label: 'تمارين: Basic Vocabulary', url: subjUrl('english', '1am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/1am/anglais', type: 'exam' },
@@ -429,8 +386,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('Nasri English — قواعد', 'https://www.youtube.com/@NasriEnglish'),
         videoLink('Sara English — قراءة', 'https://www.youtube.com/@SaraEnglish'),
-        driveLink('مجلد تمارين الإنجليزية — 2AM'),
-        driveLink('مجلّد دروس + حلول — 2AM'),
         { label: 'درس: Present Simple', url: subjUrl('english', '2am'), type: 'course' },
         { label: 'تمارين: Reading Comprehension', url: subjUrl('english', '2am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/2am/anglais', type: 'exam' },
@@ -441,8 +396,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('Nasri English — كتابة', 'https://www.youtube.com/@NasriEnglish'),
         videoLink('Amine English Bac', 'https://www.youtube.com/@AmineEnglishBac'),
-        driveLink('مجلد تمارين الإنجليزية — 3AM'),
-        driveLink('مجلّد دروس + حلول — 3AM'),
         { label: 'درس: Past Tenses', url: subjUrl('english', '3am'), type: 'course' },
         { label: 'تمارين: Essay Writing', url: subjUrl('english', '3am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/3am/anglais', type: 'exam' },
@@ -453,8 +406,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('Nasri English — مراجعة BEM', 'https://www.youtube.com/@NasriEnglish'),
         videoLink('Sara English — تمارين BEM', 'https://www.youtube.com/@SaraEnglish'),
-        driveLink('مجلد BEM إنجليزية — مواضيع'),
-        driveLink('مجلد تمارين — 4AM'),
         { label: 'درس: All Tenses Review', url: subjUrl('english', '4am'), type: 'course' },
         { label: 'BEM English 2025', url: 'https://www.dzexams.com/fr/bem/anglais', type: 'exam' },
         { label: 'BEM English 2024', url: 'https://www.dzexams.com/fr/bem/anglais', type: 'exam' },
@@ -468,8 +419,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('Nasri English — متقدم', 'https://www.youtube.com/@NasriEnglish'),
         videoLink('Amine English Bac', 'https://www.youtube.com/@AmineEnglishBac'),
-        driveLink('مجلد تمارين الإنجليزية — 1AS'),
-        driveLink('مجلّد دروس — 1AS'),
         { label: 'درس: Conditionals', url: subjUrl('english', '1as'), type: 'course' },
         { label: 'تمارين: Passive Voice', url: subjUrl('english', '1as'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/1as/anglais', type: 'exam' },
@@ -480,8 +429,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('Nasri English — أدب', 'https://www.youtube.com/@NasriEnglish'),
         videoLink('Sara English — ترجمة', 'https://www.youtube.com/@SaraEnglish'),
-        driveLink('مجلد تمارين الإنجليزية — 2AS'),
-        driveLink('مجلّد دروس — 2AS'),
         { label: 'درس: Literary Texts', url: subjUrl('english', '2as'), type: 'course' },
         { label: 'تمارين: Translation', url: subjUrl('english', '2as'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/2as/anglais', type: 'exam' },
@@ -493,8 +440,6 @@ const allResourceData: Record<string, LevelRes[]> = {
         videoLink('Nasri English — BAC', 'https://www.youtube.com/@NasriEnglish'),
         videoLink('Amine English Bac — BAC', 'https://www.youtube.com/@AmineEnglishBac'),
         videoLink('Asma Bac English Space', 'https://www.youtube.com/@AsmaBacEnglish'),
-        driveLink('مجلد BAC إنجليزية — مواضيع محلولة'),
-        driveLink('مجلد تمارين متقدمة — 3AS'),
         { label: 'درس: Written Expression', url: subjUrl('english', '3as'), type: 'course' },
         { label: 'BAC English 2025', url: 'https://www.dzexams.com/fr/bac/anglais', type: 'exam' },
         { label: 'BAC English 2024', url: 'https://www.dzexams.com/fr/bac/anglais', type: 'exam' },
@@ -509,8 +454,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AM الرسمية — تاريخ', levelYoutube['1AM']),
         ...(subjectYoutube.history?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التاريخ — 1AM'),
-        driveLink('مجلّد خرائط + دروس — 1AM'),
         { label: 'درس: مصر القديمة', url: subjUrl('history', '1am'), type: 'course' },
         { label: 'تمارين: الخرائط التاريخية', url: subjUrl('history', '1am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/1am/histoire-geographie', type: 'exam' },
@@ -521,8 +464,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AM الرسمية — تاريخ', levelYoutube['2AM']),
         ...(subjectYoutube.history?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التاريخ — 2AM'),
-        driveLink('مجلّد خرائط + دروس — 2AM'),
         { label: 'درس: الفتح الإسلامي', url: subjUrl('history', '2am'), type: 'course' },
         { label: 'تمارين: الحضارة الإسلامية', url: subjUrl('history', '2am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/1am/histoire-geographie', type: 'exam' },
@@ -533,8 +474,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AM الرسمية — تاريخ', levelYoutube['3AM']),
         ...(subjectYoutube.history?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التاريخ — 3AM'),
-        driveLink('مجلّد خرائط — 3AM'),
         { label: 'درس: النهضة الأوروبية', url: subjUrl('history', '3am'), type: 'course' },
         { label: 'تمارين: الثورة الفرنسية', url: subjUrl('history', '3am'), type: 'td' },
       ],
@@ -544,8 +483,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 4AM — مراجعة تاريخ BEM', levelYoutube['4AM']),
         ...(subjectYoutube.history?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BEM تاريخ — مواضيع محلولة'),
-        driveLink('مجلد خرائط BEM'),
         { label: 'درس: المقاومة الجزائرية', url: subjUrl('history', '4am'), type: 'course' },
         { label: 'BEM Histoire-Géo 2025', url: 'https://www.dzexams.com/fr/bem/histoire-geographie', type: 'exam' },
         { label: 'BEM Histoire-Géo 2024', url: 'https://www.dzexams.com/fr/bem/histoire-geographie', type: 'exam' },
@@ -558,8 +495,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AS الرسمية — تاريخ', levelYoutube['1AS']),
         ...(subjectYoutube.history?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التاريخ — 1AS'),
-        driveLink('مجلّد خرائط — 1AS'),
         { label: 'درس: الحرب العالمية الأولى', url: subjUrl('history', '1as'), type: 'course' },
         { label: 'تمارين: خرائط تاريخية', url: subjUrl('history', '1as'), type: 'td' },
       ],
@@ -569,8 +504,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AS الرسمية — تاريخ', levelYoutube['2AS']),
         ...(subjectYoutube.history?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التاريخ — 2AS'),
-        driveLink('مجلّد وثائق + دروس — 2AS'),
         { label: 'درس: ثورة التحرير', url: subjUrl('history', '2as'), type: 'course' },
         { label: 'تمارين: بيان أول نوفمبر', url: subjUrl('history', '2as'), type: 'td' },
       ],
@@ -580,8 +513,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AS — BAC تاريخ', levelYoutube['3AS']),
         ...(subjectYoutube.history?.map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BAC تاريخ — مواضيع'),
-        driveLink('مجلد خرائط BAC'),
         { label: 'درس: النظام العالمي الجديد', url: subjUrl('history', '3as'), type: 'course' },
         { label: 'BAC Histoire-Géo 2025', url: 'https://www.dzexams.com/fr/bac/histoire-geographie', type: 'exam' },
         { label: 'BAC Histoire-Géo 2024', url: 'https://www.dzexams.com/fr/bac/histoire-geographie', type: 'exam' },
@@ -595,8 +526,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('الأستاذة كتفي شريف — علوم 1AM', 'https://www.youtube.com/@ktaficharif'),
         ...(subjectYoutube.biology?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العلوم — 1AM'),
-        driveLink('مجلّد دروس + حلول — 1AM'),
         { label: 'درس: الخلية الحية', url: subjUrl('biology', '1am'), type: 'course' },
         { label: 'تمارين: تصنيف الكائنات', url: subjUrl('biology', '1am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/1am/sciences-naturelles', type: 'exam' },
@@ -607,8 +536,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('الأستاذ شاوش — علوم 2AM', 'https://www.youtube.com/@chaouche_snv'),
         ...(subjectYoutube.biology?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العلوم — 2AM'),
-        driveLink('مجلّد دروس + حلول — 2AM'),
         { label: 'درس: الجهاز الهضمي', url: subjUrl('biology', '2am'), type: 'course' },
         { label: 'تمارين: التغذية', url: subjUrl('biology', '2am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/2am/sciences-naturelles', type: 'exam' },
@@ -619,8 +546,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('الأستاذة كتفي — علوم 3AM', 'https://www.youtube.com/@ktaficharif'),
         ...(subjectYoutube.biology?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العلوم — 3AM'),
-        driveLink('مجلّد دروس + حلول — 3AM'),
         { label: 'درس: الجهاز التنفسي', url: subjUrl('biology', '3am'), type: 'course' },
         { label: 'تمارين: الدورة الدموية', url: subjUrl('biology', '3am'), type: 'td' },
         { label: 'فروض واختبارات', url: 'https://www.dzexams.com/fr/3am/sciences-naturelles', type: 'exam' },
@@ -631,8 +556,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('الأستاذ شاوش — BEM علوم', 'https://www.youtube.com/@chaouche_snv'),
         ...(subjectYoutube.biology?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BEM علوم — مواضيع'),
-        driveLink('مجلد تمارين — 4AM'),
         { label: 'درس: الوراثة عند الإنسان', url: subjUrl('biology', '4am'), type: 'course' },
         { label: 'BEM Sciences 2025', url: 'https://www.dzexams.com/fr/bem/sciences-naturelles', type: 'exam' },
         { label: 'BEM Sciences 2024', url: 'https://www.dzexams.com/fr/bem/sciences-naturelles', type: 'exam' },
@@ -644,8 +567,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('الأستاذة كتفي — علوم 1AS', 'https://www.youtube.com/@ktaficharif'),
         ...(subjectYoutube.biology?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العلوم — 1AS'),
-        driveLink('مجلّد دروس — 1AS'),
         { label: 'درس: الانقسام الخلوي', url: subjUrl('biology', '1as'), type: 'course' },
         { label: 'تمارين: الوراثة', url: subjUrl('biology', '1as'), type: 'td' },
       ],
@@ -655,8 +576,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('الأستاذ شاوش — علوم 2AS', 'https://www.youtube.com/@chaouche_snv'),
         ...(subjectYoutube.biology?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العلوم — 2AS'),
-        driveLink('مجلّد دروس — 2AS'),
         { label: 'درس: التطور', url: subjUrl('biology', '2as'), type: 'course' },
         { label: 'تمارين: النظام البيئي', url: subjUrl('biology', '2as'), type: 'td' },
       ],
@@ -667,8 +586,6 @@ const allResourceData: Record<string, LevelRes[]> = {
         videoLink('الأستاذة كتفي — BAC علوم', 'https://www.youtube.com/@ktaficharif'),
         videoLink('الأستاذ شاوش — BAC علوم', 'https://www.youtube.com/@chaouche_snv'),
         videoLink('دروس SNV — BAC', 'https://www.youtube.com/@cours_snv'),
-        driveLink('مجلد BAC علوم — مواضيع محلولة'),
-        driveLink('مجلد تمارين متقدمة — 3AS'),
         { label: 'درس: ADN والجينات', url: subjUrl('biology', '3as'), type: 'course' },
         { label: 'BAC Sciences 2025', url: 'https://www.dzexams.com/fr/bac/sciences-naturelles', type: 'exam' },
         { label: 'BAC Sciences 2024', url: 'https://www.dzexams.com/fr/bac/sciences-naturelles', type: 'exam' },
@@ -682,8 +599,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AM الرسمية — عربية', levelYoutube['1AM']),
         ...(subjectYoutube.arabic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العربية — 1AM'),
-        driveLink('مجلّد دروس + حلول — 1AM'),
         { label: 'درس: أنواع الكلمة', url: subjUrl('arabic', '1am'), type: 'course' },
         { label: 'تمارين: الإعراب والبناء', url: subjUrl('arabic', '1am'), type: 'td' },
         { label: 'فروض واختبارات 1AM', url: 'https://www.dzexams.com/fr/1am/arabe', type: 'exam' },
@@ -694,8 +609,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AM الرسمية — عربية', levelYoutube['2AM']),
         ...(subjectYoutube.arabic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العربية — 2AM'),
-        driveLink('مجلّد دروس + حلول — 2AM'),
         { label: 'درس: التشبيه والاستعارة', url: subjUrl('arabic', '2am'), type: 'course' },
         { label: 'تمارين: البلاغة', url: subjUrl('arabic', '2am'), type: 'td' },
         { label: 'فروض واختبارات 2AM', url: 'https://www.dzexams.com/fr/2am/arabe', type: 'exam' },
@@ -706,8 +619,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AM الرسمية — عربية', levelYoutube['3AM']),
         ...(subjectYoutube.arabic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العربية — 3AM'),
-        driveLink('مجلّد دروس + حلول — 3AM'),
         { label: 'درس: الفعل المعتل', url: subjUrl('arabic', '3am'), type: 'course' },
         { label: 'تمارين: التصريف', url: subjUrl('arabic', '3am'), type: 'td' },
         { label: 'فروض واختبارات 3AM', url: 'https://www.dzexams.com/fr/3am/arabe', type: 'exam' },
@@ -718,8 +629,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 4AM — مراجعة عربية BEM', levelYoutube['4AM']),
         ...(subjectYoutube.arabic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BEM عربية — مواضيع'),
-        driveLink('مجلد تمارين — 4AM'),
         { label: 'دروس 4AM لغة عربية', url: subjUrl('arabic', '4am'), type: 'course' },
         { label: 'تمارين شاملة', url: subjUrl('arabic', '4am'), type: 'td' },
         { label: 'فروض واختبارات 4AM', url: 'https://www.dzexams.com/fr/4am/arabe', type: 'exam' },
@@ -738,8 +647,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AS الرسمية — عربية', levelYoutube['1AS']),
         ...(subjectYoutube.arabic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العربية — 1AS'),
-        driveLink('مجلّد دروس — 1AS'),
         { label: 'درس: العصر الجاهلي', url: subjUrl('arabic', '1as'), type: 'course' },
         { label: 'تمارين: تحليل النصوص', url: subjUrl('arabic', '1as'), type: 'td' },
         { label: 'فروض واختبارات 1AS', url: 'https://www.dzexams.com/fr/1as/arabe', type: 'exam' },
@@ -750,8 +657,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AS الرسمية — عربية', levelYoutube['2AS']),
         ...(subjectYoutube.arabic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين العربية — 2AS'),
-        driveLink('مجلّد دروس — 2AS'),
         { label: 'درس: الشعر الإسلامي', url: subjUrl('arabic', '2as'), type: 'course' },
         { label: 'تمارين: البلاغة المتقدمة', url: subjUrl('arabic', '2as'), type: 'td' },
         { label: 'فروض واختبارات 2AS', url: 'https://www.dzexams.com/fr/2as/arabe', type: 'exam' },
@@ -762,8 +667,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AS — BAC عربية', levelYoutube['3AS']),
         ...(subjectYoutube.arabic?.map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BAC عربية — مواضيع'),
-        driveLink('مجلد تمارين — 3AS'),
         { label: 'درس: مدارس الشعر الحديث', url: subjUrl('arabic', '3as'), type: 'course' },
         { label: 'تمارين: الموازنة النقدية', url: subjUrl('arabic', '3as'), type: 'td' },
         { label: 'فروض واختبارات 3AS', url: 'https://www.dzexams.com/fr/3as/arabe', type: 'exam' },
@@ -782,8 +685,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AM الرسمية — Français', levelYoutube['1AM']),
         ...(subjectYoutube.french?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('Dossier exercices français — 1AM'),
-        driveLink('Dossier cours + corrigés — 1AM'),
         { label: 'Cours: Les verbes', url: subjUrl('french', '1am'), type: 'course' },
         { label: 'Exercices: Conjugaison', url: subjUrl('french', '1am'), type: 'td' },
         { label: 'Devoirs et examens 1AM', url: 'https://www.dzexams.com/fr/1am/francais', type: 'exam' },
@@ -794,8 +695,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AM الرسمية — Français', levelYoutube['2AM']),
         ...(subjectYoutube.french?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('Dossier exercices français — 2AM'),
-        driveLink('Dossier cours + corrigés — 2AM'),
         { label: 'Cours: Types de textes', url: subjUrl('french', '2am'), type: 'course' },
         { label: 'Exercices: Rédaction', url: subjUrl('french', '2am'), type: 'td' },
         { label: 'Devoirs et examens 2AM', url: 'https://www.dzexams.com/fr/2am/francais', type: 'exam' },
@@ -806,8 +705,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AM الرسمية — Français', levelYoutube['3AM']),
         ...(subjectYoutube.french?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('Dossier exercices français — 3AM'),
-        driveLink('Dossier cours + corrigés — 3AM'),
         { label: 'Cours: Figures de style', url: subjUrl('french', '3am'), type: 'course' },
         { label: 'Exercices: Analyse textuelle', url: subjUrl('french', '3am'), type: 'td' },
         { label: 'Devoirs et examens 3AM', url: 'https://www.dzexams.com/fr/3am/francais', type: 'exam' },
@@ -818,8 +715,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 4AM — BEM Français', levelYoutube['4AM']),
         ...(subjectYoutube.french?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('Dossier BEM français'),
-        driveLink('Dossier exercices — 4AM'),
         { label: 'Cours: Révision grammaticale', url: subjUrl('french', '4am'), type: 'course' },
         { label: 'Exercices: Expression écrite', url: subjUrl('french', '4am'), type: 'td' },
         { label: 'Devoirs et examens 4AM', url: 'https://www.dzexams.com/fr/4am/francais', type: 'exam' },
@@ -835,8 +730,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AS الرسمية — Français', levelYoutube['1AS']),
         ...(subjectYoutube.french?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('Dossier exercices français — 1AS'),
-        driveLink('Dossier cours — 1AS'),
         { label: 'Cours: Le roman', url: subjUrl('french', '1as'), type: 'course' },
         { label: 'Exercices: Commentaire', url: subjUrl('french', '1as'), type: 'td' },
         { label: 'Devoirs et examens 1AS', url: 'https://www.dzexams.com/fr/1as/francais', type: 'exam' },
@@ -847,8 +740,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AS الرسمية — Français', levelYoutube['2AS']),
         ...(subjectYoutube.french?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('Dossier exercices français — 2AS'),
-        driveLink('Dossier cours — 2AS'),
         { label: 'Cours: La poésie', url: subjUrl('french', '2as'), type: 'course' },
         { label: 'Exercices: Dissertation', url: subjUrl('french', '2as'), type: 'td' },
         { label: 'Devoirs et examens 2AS', url: 'https://www.dzexams.com/fr/2as/francais', type: 'exam' },
@@ -859,8 +750,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AS — BAC Français', levelYoutube['3AS']),
         ...(subjectYoutube.french?.map(v => videoLink(v.label, v.url)) || []),
-        driveLink('Dossier BAC français — sujets'),
-        driveLink('Dossier exercices — 3AS'),
         { label: 'Cours: Méthodologie', url: subjUrl('french', '3as'), type: 'course' },
         { label: 'BAC 2025 — Français + Corrigé', url: 'https://www.dzexams.com/fr/bac/francais', type: 'exam' },
         { label: 'BAC 2024 — Français + Corrigé', url: 'https://www.dzexams.com/fr/bac/francais', type: 'exam' },
@@ -876,8 +765,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AM الرسمية — تربية إسلامية', levelYoutube['1AM']),
         ...(subjectYoutube.islamic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية الإسلامية — 1AM'),
-        driveLink('مجلّد دروس + حلول — 1AM'),
         { label: 'درس: أركان الإسلام', url: subjUrl('islamic', '1am'), type: 'course' },
         { label: 'تمارين: الوضوء والصلاة', url: subjUrl('islamic', '1am'), type: 'td' },
         { label: 'فروض واختبارات 1AM', url: 'https://www.dzexams.com/fr/1am/tarbia-islamia', type: 'exam' },
@@ -888,8 +775,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AM الرسمية — تربية إسلامية', levelYoutube['2AM']),
         ...(subjectYoutube.islamic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية الإسلامية — 2AM'),
-        driveLink('مجلّد دروس + حلول — 2AM'),
         { label: 'درس: الحديث الشريف', url: subjUrl('islamic', '2am'), type: 'course' },
         { label: 'تمارين: الأخلاق الإسلامية', url: subjUrl('islamic', '2am'), type: 'td' },
         { label: 'فروض واختبارات 2AM', url: 'https://www.dzexams.com/fr/2am/tarbia-islamia', type: 'exam' },
@@ -900,8 +785,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AM الرسمية — تربية إسلامية', levelYoutube['3AM']),
         ...(subjectYoutube.islamic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية الإسلامية — 3AM'),
-        driveLink('مجلّد دروس + حلول — 3AM'),
         { label: 'درس: أحكام الزكاة', url: subjUrl('islamic', '3am'), type: 'course' },
         { label: 'تمارين: فقه العبادات', url: subjUrl('islamic', '3am'), type: 'td' },
         { label: 'فروض واختبارات 3AM', url: 'https://www.dzexams.com/fr/3am/tarbia-islamia', type: 'exam' },
@@ -912,8 +795,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 4AM — مراجعة تربية إسلامية BEM', levelYoutube['4AM']),
         ...(subjectYoutube.islamic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BEM تربية إسلامية'),
-        driveLink('مجلد تمارين — 4AM'),
         { label: 'دروس 4AM تربية إسلامية', url: subjUrl('islamic', '4am'), type: 'course' },
         { label: 'تمارين شاملة', url: subjUrl('islamic', '4am'), type: 'td' },
         { label: 'فروض واختبارات 4AM', url: 'https://www.dzexams.com/fr/4am/tarbia-islamia', type: 'exam' },
@@ -927,8 +808,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AS الرسمية — تربية إسلامية', levelYoutube['1AS']),
         ...(subjectYoutube.islamic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية الإسلامية — 1AS'),
-        driveLink('مجلّد دروس — 1AS'),
         { label: 'درس: مقاصد الشريعة', url: subjUrl('islamic', '1as'), type: 'course' },
         { label: 'تمارين: قواعد الفقه', url: subjUrl('islamic', '1as'), type: 'td' },
         { label: 'فروض واختبارات 1AS', url: 'https://www.dzexams.com/fr/1as/tarbia-islamia', type: 'exam' },
@@ -939,8 +818,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AS الرسمية — تربية إسلامية', levelYoutube['2AS']),
         ...(subjectYoutube.islamic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية الإسلامية — 2AS'),
-        driveLink('مجلّد دروس — 2AS'),
         { label: 'درس: التوحيد والصفات', url: subjUrl('islamic', '2as'), type: 'course' },
         { label: 'تمارين: الفرق الإسلامية', url: subjUrl('islamic', '2as'), type: 'td' },
         { label: 'فروض واختبارات 2AS', url: 'https://www.dzexams.com/fr/2as/tarbia-islamia', type: 'exam' },
@@ -951,8 +828,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AS — BAC تربية إسلامية', levelYoutube['3AS']),
         ...(subjectYoutube.islamic?.map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BAC تربية إسلامية — مواضيع'),
-        driveLink('مجلد تمارين — 3AS'),
         { label: 'درس: الاجتهاد الفقهي', url: subjUrl('islamic', '3as'), type: 'course' },
         { label: 'تمارين: أدلة الأحكام', url: subjUrl('islamic', '3as'), type: 'td' },
         { label: 'فروض واختبارات 3AS', url: 'https://www.dzexams.com/fr/3as/tarbia-islamia', type: 'exam' },
@@ -970,8 +845,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AM الرسمية — تربية مدنية', levelYoutube['1AM']),
         ...(subjectYoutube.civic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية المدنية — 1AM'),
-        driveLink('مجلّد دروس — 1AM'),
         { label: 'درس: حقوق الإنسان', url: subjUrl('civic', '1am'), type: 'course' },
         { label: 'تمارين: المواطنة', url: subjUrl('civic', '1am'), type: 'td' },
         { label: 'فروض واختبارات 1AM', url: 'https://www.dzexams.com/fr/1am/education-civique', type: 'exam' },
@@ -982,8 +855,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AM الرسمية — تربية مدنية', levelYoutube['2AM']),
         ...(subjectYoutube.civic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية المدنية — 2AM'),
-        driveLink('مجلّد دروس — 2AM'),
         { label: 'درس: الدستور الجزائري', url: subjUrl('civic', '2am'), type: 'course' },
         { label: 'تمارين: مؤسسات الدولة', url: subjUrl('civic', '2am'), type: 'td' },
         { label: 'فروض واختبارات 2AM', url: 'https://www.dzexams.com/fr/2am/education-civique', type: 'exam' },
@@ -994,8 +865,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AM الرسمية — تربية مدنية', levelYoutube['3AM']),
         ...(subjectYoutube.civic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية المدنية — 3AM'),
-        driveLink('مجلّد دروس — 3AM'),
         { label: 'درس: الانتخابات', url: subjUrl('civic', '3am'), type: 'course' },
         { label: 'تمارين: المجتمع المدني', url: subjUrl('civic', '3am'), type: 'td' },
         { label: 'فروض واختبارات 3AM', url: 'https://www.dzexams.com/fr/3am/education-civique', type: 'exam' },
@@ -1006,8 +875,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 4AM — BEM تربية مدنية', levelYoutube['4AM']),
         ...(subjectYoutube.civic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BEM تربية مدنية'),
-        driveLink('مجلد تمارين — 4AM'),
         { label: 'دروس 4AM تربية مدنية', url: subjUrl('civic', '4am'), type: 'course' },
         { label: 'BEM 2025 — Éducation Civique', url: 'https://www.dzexams.com/fr/bem/education-civique', type: 'exam' },
         { label: 'BEM 2024 — Éducation Civique', url: 'https://www.dzexams.com/fr/bem/education-civique', type: 'exam' },
@@ -1019,8 +886,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 1AS الرسمية — تربية مدنية', levelYoutube['1AS']),
         ...(subjectYoutube.civic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية المدنية — 1AS'),
-        driveLink('مجلّد دروس — 1AS'),
         { label: 'درس: السلطات الثلاث', url: subjUrl('civic', '1as'), type: 'course' },
         { label: 'تمارين: الديمقراطية', url: subjUrl('civic', '1as'), type: 'td' },
       ],
@@ -1030,8 +895,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 2AS الرسمية — تربية مدنية', levelYoutube['2AS']),
         ...(subjectYoutube.civic?.slice(0, 2).map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد تمارين التربية المدنية — 2AS'),
-        driveLink('مجلّد دروس — 2AS'),
         { label: 'درس: القضاء الجزائري', url: subjUrl('civic', '2as'), type: 'course' },
         { label: 'تمارين: حقوق المتهم', url: subjUrl('civic', '2as'), type: 'td' },
       ],
@@ -1041,8 +904,6 @@ const allResourceData: Record<string, LevelRes[]> = {
       links: [
         videoLink('قناة 3AS — BAC تربية مدنية', levelYoutube['3AS']),
         ...(subjectYoutube.civic?.map(v => videoLink(v.label, v.url)) || []),
-        driveLink('مجلد BAC تربية مدنية — مواضيع'),
-        driveLink('مجلد تمارين — 3AS'),
         { label: 'درس: المنظمات الدولية', url: subjUrl('civic', '3as'), type: 'course' },
         { label: 'BAC 2025 — Éducation Civique', url: 'https://www.dzexams.com/fr/bac/education-civique', type: 'exam' },
         { label: 'BAC 2024 — Éducation Civique', url: 'https://www.dzexams.com/fr/bac/education-civique', type: 'exam' },

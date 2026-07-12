@@ -22,7 +22,6 @@ const resourceTypeIcons: Record<string, React.ElementType> = {
   td: FileText,
   tp: FileText,
   video: Play,
-  drive: ExternalLink,
   pdf: FileText,
 };
 
@@ -38,7 +37,6 @@ export function LessonsPage() {
     { key: 'exam', label: linkLabels.exam, icon: FileText },
     { key: 'td', label: linkLabels.td, icon: FileText },
     { key: 'video', label: linkLabels.video, icon: Play },
-    { key: 'drive', label: linkLabels.drive, icon: ExternalLink },
   ];
 
   const filteredResources = useMemo(() => {
