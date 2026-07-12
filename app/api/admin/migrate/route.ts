@@ -4,8 +4,6 @@ import fs from 'fs';
 import path from 'path';
 import { Pool } from 'pg';
 
-const REGIONS = ['eu-west-1', 'eu-west-2', 'eu-west-3', 'eu-central-1', 'eu-central-2', 'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2', 'ap-southeast-1', 'ap-southeast-2', 'ap-northeast-1', 'ap-northeast-2', 'sa-east-1', 'ca-central-1'];
-
 export async function POST(req: NextRequest) {
   // Allow auth via service role key header for direct API calls
   const serviceKeyHeader = req.headers.get('x-service-key');
@@ -29,35 +27,41 @@ export async function POST(req: NextRequest) {
 
   const errors: string[] = [];
 
-  for (const region of REGIONS) {
-    const connectionString = `postgresql://postgres.${projectRef}:${encodeURIComponent(serviceKey)}@aws-0-${region}.pooler.supabase.com:6543/postgres`;
+  // Try direct connection to Supabase PostgreSQL (service key as password)
+  const directHost = `db.${projectRef}.supabase.co`;
+  for (const port of [5432, 6543]) {
     try {
+      const connectionString = `postgresql://postgres:${encodeURIComponent(serviceKey)}@${directHost}:${port}/postgres?sslmode=require`;
       const pool = new Pool({ connectionString, max: 1, connectionTimeoutMillis: 5000 });
       const client = await pool.connect();
       await client.query(migrationSql);
       client.release();
       await pool.end();
-      return NextResponse.json({ success: true, message: `Migration applied successfully via ${region}`, region });
+      return NextResponse.json({ success: true, message: `Migration applied via direct connection port ${port}` });
     } catch (e: any) {
-      errors.push(`${region}: ${e.message?.slice(0, 100)}`);
+      errors.push(`direct-${port}: ${e.message?.slice(0, 100)}`);
     }
   }
 
-  // Fallback: try direct connection without region prefix
-  try {
-    const connectionString = `postgresql://postgres.${projectRef}:${encodeURIComponent(serviceKey)}@${projectRef}.pooler.supabase.com:6543/postgres`;
-    const pool = new Pool({ connectionString, max: 1, connectionTimeoutMillis: 5000 });
-    const client = await pool.connect();
-    await client.query(migrationSql);
-    client.release();
-    await pool.end();
-    return NextResponse.json({ success: true, message: 'Migration applied via direct pooler' });
-  } catch (e: any) {
-    errors.push(`direct: ${e.message?.slice(0, 100)}`);
+  // Try pooler with just postgres username (JWT auth)
+  for (const host of [`${projectRef}.pooler.supabase.com`, `aws-0-eu-west-1.pooler.supabase.com`, `aws-0-us-east-1.pooler.supabase.com`]) {
+    for (const port of [5432, 6543]) {
+      try {
+        const connectionString = `postgresql://postgres:${encodeURIComponent(serviceKey)}@${host}:${port}/postgres`;
+        const pool = new Pool({ connectionString, max: 1, connectionTimeoutMillis: 5000 });
+        const client = await pool.connect();
+        await client.query(migrationSql);
+        client.release();
+        await pool.end();
+        return NextResponse.json({ success: true, message: `Migration applied via ${host}:${port}` });
+      } catch (e: any) {
+        errors.push(`${host}:${port}: ${e.message?.slice(0, 100)}`);
+      }
+    }
   }
 
   return NextResponse.json({
-    error: 'Could not connect to database with any region',
+    error: 'Could not connect to database',
     attempts: errors,
     note: 'Please run the SQL from supabase/migrations/00014_students_tables.sql in the Supabase SQL editor',
   }, { status: 500 });
