@@ -203,29 +203,32 @@ export async function getPayments(): Promise<Payment[]> {
 export async function getSalaries(): Promise<Salary[]> {
   const supabase = client();
   const { data, error } = await supabase
-    .from('profiles')
-    .select('id, name, subject, monthly_salary, salary_paid, salary_paid_at')
-    .eq('role', 'teacher');
+    .from('salaries')
+    .select('id, teacher_id, subject, monthly_salary, salary_paid, salary_paid_at, profiles:teacher_id(name)')
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error('[dashboard] getSalaries error:', error);
     return [];
   }
 
-  return (data ?? []).map((t: any) => ({
-    id: t.id,
-    teacher_name: t.name || 'Inconnu',
-    subject: t.subject || '—',
-    monthlySalary: t.monthly_salary ?? 0,
-    paid: t.salary_paid ?? false,
-    paidDate: t.salary_paid_at ?? null,
-  }));
+  return (data ?? []).map((s: any) => {
+    const teacher = Array.isArray(s.profiles) ? s.profiles[0] : s.profiles;
+    return {
+      id: s.id,
+      teacher_name: teacher?.name || 'Enseignant',
+      subject: s.subject || '—',
+      monthlySalary: s.monthly_salary ?? 0,
+      paid: s.salary_paid ?? false,
+      paidDate: s.salary_paid_at ?? null,
+    };
+  });
 }
 
 export async function getExpenses(): Promise<Expense[]> {
   const supabase = client();
   const { data, error } = await supabase
-    .from('revenues')
+    .from('expenses')
     .select('*')
     .order('date', { ascending: false });
 
@@ -244,24 +247,43 @@ export async function getExpenses(): Promise<Expense[]> {
   }));
 }
 
-export async function getFinancialSummary(): Promise<FinancialSummary | null> {
+export async function getFinancialSummary(period?: {
+  year: number;
+  month: number;
+}): Promise<FinancialSummary | null> {
   const [payments, salaries, expenses] = await Promise.allSettled([
     getPayments(),
     getSalaries(),
     getExpenses(),
   ]);
 
-  const totalRevenue = payments.status === 'fulfilled'
-    ? payments.value.filter((p) => p.status === 'completed').reduce((s, p) => s + p.amount, 0)
-    : 0;
+  const inPeriod = (value: string | null, y: number, m: number) => {
+    if (!value) return false;
+    const d = new Date(value);
+    return d.getFullYear() === y && d.getMonth() + 1 === m;
+  };
+
+  let paymentRows = payments.status === 'fulfilled' ? payments.value : [];
+  let expenseRows = expenses.status === 'fulfilled' ? expenses.value : [];
+
+  if (period) {
+    paymentRows = paymentRows.filter(
+      (p) => p.status === 'completed' && inPeriod(p.paid_at, period.year, period.month),
+    );
+    expenseRows = expenseRows.filter((e) => inPeriod(e.date, period.year, period.month));
+  }
+
+  const totalRevenue = paymentRows
+    .filter((p) => p.status === 'completed')
+    .reduce((s, p) => s + p.amount, 0);
 
   const totalSalaries = salaries.status === 'fulfilled'
     ? salaries.value.reduce((s, t) => s + t.monthlySalary, 0)
     : 0;
 
-  const totalExpenses = expenses.status === 'fulfilled'
-    ? expenses.value.filter((e) => e.type === 'expense').reduce((s, e) => s + e.amount, 0)
-    : 0;
+  const totalExpenses = expenseRows
+    .filter((e) => e.type === 'expense')
+    .reduce((s, e) => s + e.amount, 0);
 
   return {
     totalRevenue,
@@ -365,9 +387,10 @@ export async function createPayment(data: {
   const supabase = client();
   const { error } = await supabase.from('payments').insert({
     user_id: data.user_id,
+    plan_id: 'manual',
+    plan_title: data.plan_title ?? 'Paiement manuel',
     amount: data.amount,
     status: data.status ?? 'pending',
-    plan_title: data.plan_title ?? null,
     level: data.level ?? null,
     subjects: data.subjects ?? null,
   });

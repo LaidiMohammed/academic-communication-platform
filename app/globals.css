@@ -490,3 +490,52 @@ html {
     font-size: 16px !important; /* prevent iOS zoom on focus */
   }
 }
+
+/* ============================================================
+   ADMIN DASHBOARD — modern glassmorphism overrides
+   Harmonise les anciens onglets (bg-card / bg-secondary) avec
+   le thème sombre bleu/cyan du site.
+   ============================================================ */
+.admin-modern .bg-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-color: var(--glass-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+}
+
+.admin-modern .bg-secondary {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-modern .border-border {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-modern input,
+.admin-modern select,
+.admin-modern textarea {
+  color-scheme: dark;
+}
+
+.admin-modern select option {
+  background: #0b1021;
+  color: #f1f5f9;
+}
+
+.admin-modern table thead,
+.admin-modern .table-header {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-modern table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.admin-modern .modal-panel,
+.admin-modern [role="dialog"] {
+  background: rgba(11, 16, 33, 0.94);
+  border-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}

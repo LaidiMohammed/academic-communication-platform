@@ -11,6 +11,7 @@ import {
   Activity, Cpu, Layers, BrainCircuit, Atom, Wifi, Lock, LayoutDashboard
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { AdminPulse } from '@/components/dashboard/sections/AdminPulse';
 import Link from 'next/link';
 
 /* ═══════════════════════════════════════════════
@@ -363,6 +364,15 @@ export function HomePage() {
             </div>
           </TiltCard>
         </motion.section>
+
+        {/* ════════════════════════════
+            ADMIN PULSE — données Supabase réelles
+        ════════════════════════════ */}
+        {user?.role === 'admin' && (
+          <motion.section {...stagger(0)}>
+            <AdminPulse compact />
+          </motion.section>
+        )}
 
         {/* ════════════════════════════
             STATS STRIP

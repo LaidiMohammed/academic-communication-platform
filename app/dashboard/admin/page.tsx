@@ -5,14 +5,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { AdminPulse } from '@/components/dashboard/sections/AdminPulse';
 import { QRCodeCanvas } from 'qrcode.react';
 import jsQR from 'jsqr';
 import {
   Shield, Users, BookOpen, DollarSign, QrCode, School, TrendingUp,
   Calendar, CheckCircle, XCircle, AlertTriangle, Search, Camera,
   Download, Plus, Minus, ChevronRight, Clock, CreditCard, UserCheck, Award,
-  Trash2, Edit, Filter, GraduationCap, MessageSquare, Video, PieChart,
-  BarChart3, CircleDollarSign, UserPlus, UserX, Percent, Loader, X,
+  Trash2, Edit, Filter, GraduationCap, MessageSquare, Video,
+  UserPlus, UserX, Percent, Loader, X,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -85,32 +86,6 @@ const initialGroups: Group[] = [
   { id: 'GRP-003', name: 'English Lit', members: 32, type: 'public', createdBy: 'Mrs. Emily Davis', createdAt: '2024-06-01', status: 'active' },
   { id: 'GRP-004', name: 'Chemistry Lab', members: 15, type: 'private', createdBy: 'Dr. Michael Chen', createdAt: '2024-08-10', status: 'archived' },
 ];
-
-/* ===== SVG Donut Chart ===== */
-function DonutChart({ data, size = 180 }: { data: { label: string; value: number; color: string }[]; size?: number }) {
-  const total = data.reduce((s, d) => s + d.value, 0) || 1;
-  const cx = size / 2, cy = size / 2, r = size * 0.35, sw = size * 0.12;
-  const circ = 2 * Math.PI * r;
-  let offset = 0;
-  return (
-    <svg width={size} height={size} className="drop-shadow-lg">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1E293B" strokeWidth={sw} />
-      {data.map((d) => {
-        const len = (d.value / total) * circ;
-        const seg = (
-          <circle key={d.label} cx={cx} cy={cy} r={r} fill="none" stroke={d.color}
-            strokeWidth={sw} strokeDasharray={`${len} ${circ - len}`}
-            strokeDashoffset={-offset} strokeLinecap="round"
-            transform={`rotate(-90 ${cx} ${cy})`} className="transition-all duration-700" />
-        );
-        offset += len;
-        return seg;
-      })}
-      <text x={cx} y={cy - 6} textAnchor="middle" className="fill-white text-lg font-bold" fontSize="18">{total}</text>
-      <text x={cx} y={cy + 12} textAnchor="middle" className="fill-gray-500 text-xs" fontSize="10">Total</text>
-    </svg>
-  );
-}
 
 /* ===== Form Components ===== */
 
@@ -713,12 +688,6 @@ export default function AdminPage() {
     return filtered;
   };
 
-  /* ===== Level distribution for chart ===== */
-  const levelDist = ['CEM-1','CEM-2','CEM-3','Lycée-1','Lycée-2','Lycée-3'].map(l => ({
-    label: l, value: students.filter(s => s.level === l).length,
-    color: `hsl(${210 + ['CEM-1','CEM-2','CEM-3','Lycée-1','Lycée-2','Lycée-3'].indexOf(l) * 12}, 70%, 55%)`,
-  }));
-
   const tabs = [
     { id: 'overview', label: 'Overview', icon: School },
     { id: 'students', label: 'Students', icon: Users },
@@ -732,123 +701,67 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="p-4 md:p-6 space-y-6 pb-24">
+    <div className="admin-modern relative p-4 md:p-6 space-y-5 pb-24">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center ring-2 ring-blue-500/30">
-          <Shield size={20} className="text-blue-400" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Full school management • {stats.totalStudents} students • {stats.totalTeachers} teachers • {netRevenue.toLocaleString()} DA net</p>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-3xl glass-panel glass-border-gold p-5 sm:p-6"
+      >
+        <div
+          className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full opacity-40 blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(56,189,248,0.32), transparent 70%)' }}
+        />
+        <div
+          className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+          style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.28), transparent 70%)' }}
+        />
+        <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-300/20 bg-gradient-to-br from-blue-500/25 to-cyan-400/10">
+              <Shield size={20} className="text-cyan-300" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-black tracking-tight text-foreground">Administration</h1>
+                <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-cyan-200">
+                  Bendella School
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+                Élèves, enseignants, paiements et sessions · données en temps réel
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" /> Supabase connecté
+          </span>
         </div>
       </motion.div>
 
       {/* Tabs (scrollable) */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {tabs.map(t => {
-          const Icon = t.icon;
-          return (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-                tab === t.id ? 'bg-blue-500 text-primary-foreground shadow-lg shadow-blue-500/30' : 'bg-secondary text-muted-foreground hover:text-foreground'
-              }`}>
-              <Icon size={14} /> {t.label}
-            </button>
-          );
-        })}
+      <div className="overflow-x-auto pb-1 scrollbar-none">
+        <div className="flex w-max gap-1.5 rounded-2xl border border-white/10 bg-black/30 p-1.5 backdrop-blur-xl">
+          {tabs.map(t => {
+            const Icon = t.icon;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
+                  tab === t.id
+                    ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25'
+                    : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
+                }`}>
+                <Icon size={14} /> {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ===== OVERVIEW ===== */}
       {tab === 'overview' && (
-        <motion.div key="ov" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: 'Students', value: stats.totalStudents, icon: Users, color: 'text-blue-400', sub: `${stats.activeStudents} active` },
-              { label: 'Teachers', value: stats.totalTeachers, icon: Award, color: 'text-purple-400', sub: `${stats.paidTeachers} paid` },
-              { label: 'Revenue', value: `${netRevenue.toLocaleString()} DA`, icon: DollarSign, color: 'text-green-400', sub: `+${stats.totalRevenue.toLocaleString()} DA in` },
-              { label: 'Lessons', value: stats.totalLessons, icon: BookOpen, color: 'text-amber-400', sub: `${stats.totalGroups} groups` },
-            ].map(s => {
-              const Icon = s.icon;
-              return (
-                <div key={s.label} className="bg-card border border-border rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Icon size={18} className={s.color} />
-                    <span className="text-[10px] text-muted-foreground/50">{s.sub}</span>
-                  </div>
-                  <p className="text-2xl font-bold text-foreground">{s.value}</p>
-                  <p className="text-xs text-muted-foreground/70">{s.label}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Level Distribution */}
-            <div className="bg-card border border-border rounded-xl p-5 flex flex-col items-center">
-              <h3 className="text-sm font-semibold text-foreground/80 mb-3 flex items-center gap-2 w-full">
-                <PieChart size={14} className="text-blue-400" /> Students by Level
-              </h3>
-              <DonutChart data={levelDist} />
-              <div className="flex flex-wrap gap-2 mt-3 justify-center">
-                {levelDist.filter(d => d.value > 0).map(d => (
-                  <span key={d.label} className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <span className="w-2 h-2 rounded-full" style={{ background: d.color }} /> {d.label}: {d.value}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Teacher Status */}
-            <div className="bg-card border border-border rounded-xl p-5 flex flex-col items-center">
-              <h3 className="text-sm font-semibold text-foreground/80 mb-3 flex items-center gap-2 w-full">
-                <BarChart3 size={14} className="text-blue-400" /> Teacher Status
-              </h3>
-              <DonutChart data={[
-                { label: 'Paid', value: stats.paidTeachers, color: '#22C55E' },
-                { label: 'Unpaid', value: stats.totalTeachers - stats.paidTeachers, color: '#F59E0B' },
-              ]} />
-              <div className="flex gap-4 mt-3 text-xs">
-                <span className="flex items-center gap-1 text-muted-foreground"><span className="w-2 h-2 rounded-full bg-green-400" /> Paid: {stats.paidTeachers}</span>
-                <span className="flex items-center gap-1 text-muted-foreground"><span className="w-2 h-2 rounded-full bg-amber-400" /> Unpaid: {stats.totalTeachers - stats.paidTeachers}</span>
-              </div>
-            </div>
-
-            {/* Revenue Pie */}
-            <div className="bg-card border border-border rounded-xl p-5 flex flex-col items-center">
-              <h3 className="text-sm font-semibold text-foreground/80 mb-3 flex items-center gap-2 w-full">
-                <CircleDollarSign size={14} className="text-blue-400" /> Revenue Split
-              </h3>
-              <DonutChart data={[
-                { label: 'Income', value: stats.totalRevenue, color: '#22C55E' },
-                { label: 'Expenses', value: stats.totalExpenses, color: '#EF4444' },
-              ]} />
-              <div className="flex gap-4 mt-3 text-xs">
-                <span className="flex items-center gap-1 text-muted-foreground"><span className="w-2 h-2 rounded-full bg-green-400" /> +{stats.totalRevenue.toLocaleString()} DA</span>
-                <span className="flex items-center gap-1 text-muted-foreground"><span className="w-2 h-2 rounded-full bg-red-400" /> -{stats.totalExpenses.toLocaleString()} DA</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-foreground/80 mb-4">Quick Overview</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-              {[
-                { label: 'Active Students', value: stats.activeStudents, color: 'text-green-400' },
-                { label: 'Suspended', value: stats.suspendedStudents, color: 'text-red-400' },
-                { label: 'Total Lessons', value: stats.totalLessons, color: 'text-blue-400' },
-                { label: 'Active Groups', value: groups.filter(g => g.status === 'active').length, color: 'text-cyan-400' },
-              ].map(d => (
-                <div key={d.label} className="bg-secondary rounded-lg p-3">
-                  <p className={`text-xl font-bold ${d.color}`}>{d.value}</p>
-                  <p className="text-[10px] text-muted-foreground/70">{d.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+        <motion.div key="ov" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <AdminPulse />
         </motion.div>
       )}
 
