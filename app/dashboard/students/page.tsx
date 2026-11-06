@@ -62,19 +62,27 @@ export default function StudentsPage() {
     setFormLoading(true);
     try {
       if (editingId) {
-        await updateStudent(editingId, {
+        const res = await updateStudent(editingId, {
           name: formData.name,
           email: formData.email,
           level: formData.level,
         });
-        toast({ title: 'Modifié', description: 'Élève mis à jour', variant: 'default' });
+        if (res.success) {
+          toast({ title: 'Modifié', description: 'Élève mis à jour', variant: 'default' });
+        } else {
+          throw new Error(res.error || 'Échec de la mise à jour');
+        }
       } else {
-        await createStudent({
+        const res = await createStudent({
           name: formData.name,
           email: formData.email,
           level: formData.level,
         });
-        toast({ title: 'Ajouté', description: 'Nouvel élève enregistré', variant: 'success' });
+        if (res.success) {
+          toast({ title: 'Ajouté', description: 'Nouvel élève enregistré', variant: 'success' });
+        } else {
+          throw new Error(res.error || 'Échec de la création');
+        }
       }
       setOpenModal(false);
       setEditingId(null);

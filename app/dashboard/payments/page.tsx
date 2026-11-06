@@ -69,20 +69,28 @@ export default function PaymentsPage() {
     setFormLoading(true);
     try {
       if (editingId) {
-        await updatePayment(editingId, {
+        const res = await updatePayment(editingId, {
           amount: Number(formData.amount),
           status: formData.status,
           plan_title: formData.plan_title || null,
         });
-        toast({ title: 'Modifié', description: 'Paiement mis à jour', variant: 'default' });
+        if (res.success) {
+          toast({ title: 'Modifié', description: 'Paiement mis à jour', variant: 'default' });
+        } else {
+          throw new Error(res.error || 'Échec de la mise à jour');
+        }
       } else {
-        await createPayment({
+        const res = await createPayment({
           user_id: formData.user_id,
           amount: Number(formData.amount),
           status: formData.status,
           plan_title: formData.plan_title || undefined,
         });
-        toast({ title: 'Ajouté', description: 'Nouveau paiement enregistré', variant: 'success' });
+        if (res.success) {
+          toast({ title: 'Ajouté', description: 'Nouveau paiement enregistré', variant: 'success' });
+        } else {
+          throw new Error(res.error || 'Échec de la création');
+        }
       }
       setOpenModal(false);
       setEditingId(null);

@@ -65,23 +65,31 @@ export default function ExpensesPage() {
     setFormLoading(true);
     try {
       if (editingId) {
-        await updateExpense(editingId, {
+        const res = await updateExpense(editingId, {
           source: formData.source,
           amount: Number(formData.amount),
           type: formData.type,
           category: formData.category,
           date: formData.date,
         });
-        toast({ title: 'Modifié', description: 'Dépense mise à jour', variant: 'default' });
+        if (res.success) {
+          toast({ title: 'Modifié', description: 'Dépense mise à jour', variant: 'default' });
+        } else {
+          throw new Error(res.error || 'Échec de la mise à jour');
+        }
       } else {
-        await createExpense({
+        const res = await createExpense({
           source: formData.source,
           amount: Number(formData.amount),
           type: formData.type,
           category: formData.category,
           date: formData.date,
         });
-        toast({ title: 'Ajouté', description: 'Nouvelle dépense enregistrée', variant: 'success' });
+        if (res.success) {
+          toast({ title: 'Ajouté', description: 'Nouvelle dépense enregistrée', variant: 'success' });
+        } else {
+          throw new Error(res.error || 'Échec de la création');
+        }
       }
       setOpenModal(false);
       setEditingId(null);

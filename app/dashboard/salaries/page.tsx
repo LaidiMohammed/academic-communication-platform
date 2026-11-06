@@ -61,19 +61,27 @@ export default function SalariesPage() {
     setFormLoading(true);
     try {
       if (editingId) {
-        await updateSalary(editingId, {
+        const res = await updateSalary(editingId, {
           subject: formData.subject,
           monthlySalary: Number(formData.monthlySalary),
           paid: formData.paid,
         });
-        toast({ title: 'Modifié', description: 'Salaire mis à jour', variant: 'default' });
+        if (res.success) {
+          toast({ title: 'Modifié', description: 'Salaire mis à jour', variant: 'default' });
+        } else {
+          throw new Error(res.error || 'Échec de la mise à jour');
+        }
       } else {
-        await createSalary({
+        const res = await createSalary({
           teacher_id: formData.teacher_id,
           subject: formData.subject,
           monthlySalary: Number(formData.monthlySalary),
         });
-        toast({ title: 'Ajouté', description: 'Nouveau salaire enregistré', variant: 'success' });
+        if (res.success) {
+          toast({ title: 'Ajouté', description: 'Nouveau salaire enregistré', variant: 'success' });
+        } else {
+          throw new Error(res.error || 'Échec de la création');
+        }
       }
       setOpenModal(false);
       setEditingId(null);
