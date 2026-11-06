@@ -8,7 +8,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/lib/supabase';
 
 export function SignupForm() {
-  const supabase = createClient();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '', age: '', sex: '', email: '', password: '',
@@ -113,6 +112,7 @@ export function SignupForm() {
       });
       const result = await res.json();
       if (result.error) throw new Error(result.error);
+      const supabase = createClient();
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,

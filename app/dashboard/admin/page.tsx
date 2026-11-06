@@ -10,7 +10,7 @@ import jsQR from 'jsqr';
 import {
   Shield, Users, BookOpen, DollarSign, QrCode, School, TrendingUp,
   Calendar, CheckCircle, XCircle, AlertTriangle, Search, Camera,
-  Download, Plus, ChevronRight, Clock, CreditCard, UserCheck, Award,
+  Download, Plus, Minus, ChevronRight, Clock, CreditCard, UserCheck, Award,
   Trash2, Edit, Filter, GraduationCap, MessageSquare, Video, PieChart,
   BarChart3, CircleDollarSign, UserPlus, UserX, Percent, Loader, X,
 } from 'lucide-react';
@@ -568,6 +568,38 @@ export default function AdminPage() {
     setScannedStudentId(null);
   };
 
+  /* ===== Session & Presence Management (per student) ===== */
+
+  // Renew a full month = 4 sessions and mark student active
+  const addSessions = (studentId: string) => {
+    setStudents(p => p.map(x => x.id === studentId ? {
+      ...x,
+      monthSessions: 4,
+      totalSessions: x.totalSessions + 4,
+      status: 'active' as const,
+      lastScan: new Date().toISOString().slice(0, 10)
+    } : x));
+  };
+
+  // Remove one session; suspend student when balance reaches 0
+  const removeSession = (studentId: string) => {
+    setStudents(p => p.map(x => x.id === studentId ? {
+      ...x,
+      monthSessions: Math.max(0, x.monthSessions - 1),
+      status: x.monthSessions - 1 <= 0 ? 'suspended' : x.status,
+      lastScan: new Date().toISOString().slice(0, 10)
+    } : x));
+  };
+
+  // Cycle presence status: active -> inactive -> suspended -> active
+  const toggleStatus = (studentId: string) => {
+    setStudents(p => p.map(x => x.id === studentId ? {
+      ...x,
+      status: x.status === 'active' ? 'inactive' : x.status === 'inactive' ? 'suspended' : 'active',
+      lastScan: new Date().toISOString().slice(0, 10)
+    } : x));
+  };
+
   // Auto-start camera when entering scanner tab, stop when leaving
   useEffect(() => {
     if (tab === 'scanner') {
@@ -870,6 +902,15 @@ export default function AdminPage() {
                         </button>
                       </td>
                       <td className="p-3 text-right">
+                        <button onClick={() => addSessions(s.id)} className="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg transition" title="Renew month (+4 sessions)">
+                          <Plus size={12} />
+                        </button>
+                        <button onClick={() => removeSession(s.id)} disabled={s.monthSessions === 0} className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition disabled:opacity-40" title="Remove 1 session">
+                          <Minus size={12} />
+                        </button>
+                        <button onClick={() => toggleStatus(s.id)} className="p-1.5 text-muted-foreground/70 hover:text-blue-400 rounded-lg transition" title="Toggle presence">
+                          {s.status === 'active' ? <XCircle size={12} /> : <CheckCircle size={12} />}
+                        </button>
                         <button onClick={() => setShowModal({ type: 'edit-student', data: s })} className="p-1.5 text-muted-foreground/70 hover:text-blue-400 transition"><Edit size={14} /></button>
                         <button onClick={() => deleteItem('students', s.id)} className="p-1.5 text-muted-foreground/70 hover:text-red-400 transition"><Trash2 size={14} /></button>
                       </td>
