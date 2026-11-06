@@ -111,9 +111,11 @@ function MiniStat({
 interface AdminPulseProps {
   compact?: boolean;
   className?: string;
+  /** Callback optionnel pour partager les données chargées avec la page parente. */
+  onData?: (data: AdminOverviewData) => void;
 }
 
-export function AdminPulse({ compact = false, className = "" }: AdminPulseProps) {
+export function AdminPulse({ compact = false, className = "", onData }: AdminPulseProps) {
   const [period, setPeriod] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
@@ -141,6 +143,7 @@ export function AdminPulse({ compact = false, className = "" }: AdminPulseProps)
         const result = await fetchAdminOverview(period.year, period.month);
         if (!alive.current) return;
         setData(result);
+        onData?.(result);
         setError(null);
         setLastSync(new Date());
       } catch (err) {
@@ -153,7 +156,7 @@ export function AdminPulse({ compact = false, className = "" }: AdminPulseProps)
         }
       }
     },
-    [period.year, period.month],
+    [period.year, period.month, onData],
   );
 
   useEffect(() => {

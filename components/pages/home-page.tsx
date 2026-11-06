@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AdminPulse } from '@/components/dashboard/sections/AdminPulse';
+import type { AdminOverviewData } from '@/lib/admin-overview';
 import Link from 'next/link';
 
 /* ═══════════════════════════════════════════════
@@ -184,6 +185,21 @@ export function HomePage() {
   const greeting = h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   const firstName = user?.name?.split(' ')[0] || 'Student';
   const [activeTab, setActiveTab] = useState<'activity' | 'announcements'>('activity');
+  const [pulse, setPulse] = useState<AdminOverviewData | null>(null);
+
+  const homeStats = pulse
+    ? [
+        { label: 'Students', value: pulse.overview.totalStudents, suffix: '', decimals: 0, icon: Users, from: '#3b82f6', to: '#06b6d4', glow: 'shadow-blue-500/20', live: true },
+        { label: 'Teachers', value: pulse.overview.totalTeachers, suffix: '', decimals: 0, icon: School, from: '#06b6d4', to: '#818cf8', glow: 'shadow-cyan-500/20', live: true },
+        { label: 'Lessons', value: pulse.overview.totalLessons, suffix: '', decimals: 0, icon: BookOpen, from: '#8b5cf6', to: '#ec4899', glow: 'shadow-violet-500/20', live: true },
+        { label: 'Messages (24h)', value: pulse.overview.messages24h, suffix: '', decimals: 0, icon: MessageSquare, from: '#10b981', to: '#06b6d4', glow: 'shadow-emerald-500/20', live: true },
+      ]
+    : [
+        { label: 'Active Students', value: 2847, suffix: '', decimals: 0, icon: Users, from: '#3b82f6', to: '#06b6d4', glow: 'shadow-blue-500/20', live: false },
+        { label: 'Lessons Online', value: 1203, suffix: '', decimals: 0, icon: BookOpen, from: '#06b6d4', to: '#818cf8', glow: 'shadow-cyan-500/20', live: false },
+        { label: 'Study Hours', value: 48290, suffix: '', decimals: 0, icon: Clock, from: '#8b5cf6', to: '#ec4899', glow: 'shadow-violet-500/20', live: false },
+        { label: 'Class Average', value: 15.8, suffix: '/20', decimals: 1, icon: TrendingUp, from: '#10b981', to: '#06b6d4', glow: 'shadow-emerald-500/20', live: false },
+      ];
 
   const stagger = (i: number) => ({
     initial: { opacity: 0, y: 24 },
@@ -370,7 +386,7 @@ export function HomePage() {
         ════════════════════════════ */}
         {user?.role === 'admin' && (
           <motion.section {...stagger(0)}>
-            <AdminPulse compact />
+            <AdminPulse compact onData={setPulse} />
           </motion.section>
         )}
 
@@ -379,12 +395,7 @@ export function HomePage() {
         ════════════════════════════ */}
         <motion.section {...stagger(0)}>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: 'Active Students', value: 2847, suffix: '', decimals: 0, icon: Users, from: '#3b82f6', to: '#06b6d4', glow: 'shadow-blue-500/20' },
-              { label: 'Lessons Online', value: 1203, suffix: '', decimals: 0, icon: BookOpen, from: '#06b6d4', to: '#818cf8', glow: 'shadow-cyan-500/20' },
-              { label: 'Study Hours', value: 48290, suffix: '', decimals: 0, icon: Clock, from: '#8b5cf6', to: '#ec4899', glow: 'shadow-violet-500/20' },
-              { label: 'Class Average', value: 15.8, suffix: '/20', decimals: 1, icon: TrendingUp, from: '#10b981', to: '#06b6d4', glow: 'shadow-emerald-500/20' },
-            ].map((s, i) => {
+            {homeStats.map((s, i) => {
               const Icon = s.icon;
               return (
                 <motion.div key={s.label} {...stagger(i)}>
@@ -401,7 +412,7 @@ export function HomePage() {
                       </div>
 
                       <p className="text-2xl md:text-3xl font-extrabold text-foreground font-mono tracking-tight">
-                        <Counter to={s.value} decimals={s.decimals} suffix={s.suffix} />
+                        {s.live ? s.value.toLocaleString() : <Counter to={s.value} decimals={s.decimals} suffix={s.suffix} />}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1 font-medium">{s.label}</p>
 
