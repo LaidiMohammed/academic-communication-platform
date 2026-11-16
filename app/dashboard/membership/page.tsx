@@ -195,10 +195,9 @@ export default function MembershipPage() {
 
   const handlePayment = async () => {
     if (selectedSubjects.length === 0) {
-      alert('الرجاء اختيار مادة واحدة على الأقل');
       return;
     }
-    if (!user) { alert('الرجاء تسجيل الدخول أولاً'); return; }
+    if (!user) return;
 
     setIsProcessing(true);
     try {
@@ -223,7 +222,7 @@ export default function MembershipPage() {
         window.location.href = data.checkout_url;
       }
     } catch (err: any) {
-      alert('خطأ في الدفع: ' + err.message);
+    console.error('Payment failed:', err);
     } finally {
       setIsProcessing(false);
     }

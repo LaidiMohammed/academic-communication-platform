@@ -20,7 +20,6 @@ export default function StudentsPage() {
   const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [openModal, setOpenModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -39,10 +38,8 @@ export default function StudentsPage() {
     try {
       const data = await getStudents();
       setStudents(data);
-      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des élèves');
-      toast({ title: 'Erreur', description: 'Impossible de charger les élèves', variant: 'destructive' });
+      console.error('Load failed:', err);
     } finally {
       setLoading(false);
     }
@@ -89,7 +86,7 @@ export default function StudentsPage() {
       setFormData({ name: '', email: '', level: 'CEM-1' });
       await fetchStudents();
     } catch (err) {
-      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Échec de l\'opération', variant: 'destructive' });
+      console.error('Operation failed:', err);
     } finally {
       setFormLoading(false);
     }
@@ -108,7 +105,7 @@ export default function StudentsPage() {
       toast({ title: 'Supprimé', description: 'Élève retiré', variant: 'default' });
       await fetchStudents();
     } else {
-      toast({ title: 'Erreur', description: res.error, variant: 'destructive' });
+      console.error('Operation failed:', res.error);
     }
   };
 
@@ -131,15 +128,6 @@ export default function StudentsPage() {
           </button>
         </div>
 
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-center gap-3"
-          >
-            <AlertCircle size={18} /> {error}
-          </motion.div>
-        )}
 
         {/* Search bar */}
         <div className="rounded-2xl p-4 glass-panel glass-border-gold">

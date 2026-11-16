@@ -22,7 +22,6 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [openModal, setOpenModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -46,10 +45,8 @@ export default function PaymentsPage() {
       ]);
       setPayments(paymentsData);
       setStudents(studentsData);
-      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
-      toast({ title: 'Erreur', description: 'Impossible de charger les paiements', variant: 'destructive' });
+      console.error('Load failed:', err);
     } finally {
       setLoading(false);
     }
@@ -97,7 +94,7 @@ export default function PaymentsPage() {
       setFormData({ user_id: '', amount: '', status: 'pending', plan_title: '' });
       await fetchData();
     } catch (err) {
-      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Échec de l\'opération', variant: 'destructive' });
+      console.error('Operation failed:', err);
     } finally {
       setFormLoading(false);
     }
@@ -116,7 +113,7 @@ export default function PaymentsPage() {
       toast({ title: 'Supprimé', description: 'Paiement retiré', variant: 'default' });
       await fetchData();
     } else {
-      toast({ title: 'Erreur', description: res.error, variant: 'destructive' });
+      console.error('Operation failed:', res.error);
     }
   };
 
@@ -141,15 +138,6 @@ export default function PaymentsPage() {
           </button>
         </div>
 
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-center gap-3"
-          >
-            <AlertCircle size={18} /> {error}
-          </motion.div>
-        )}
 
         {/* Stats row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

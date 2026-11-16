@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AdminPulse } from '@/components/dashboard/sections/AdminPulse';
+import { StudentStatusStrip } from '@/components/dashboard/sections/StudentStatusStrip';
 import type { AdminOverviewData } from '@/lib/admin-overview';
 import Link from 'next/link';
 
@@ -380,6 +381,15 @@ export function HomePage() {
             </div>
           </TiltCard>
         </motion.section>
+
+        {/* ════════════════════════════
+            STATUT ÉLÈVE — synchronisé avec le panel admin
+        ════════════════════════════ */}
+        {user && user.role !== 'admin' && (
+          <motion.section {...stagger(0)}>
+            <StudentStatusStrip />
+          </motion.section>
+        )}
 
         {/* ════════════════════════════
             ADMIN PULSE — données Supabase réelles

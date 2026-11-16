@@ -20,7 +20,6 @@ export default function SalariesPage() {
   const { toast } = useToast();
   const [salaries, setSalaries] = useState<Salary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [openModal, setOpenModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,10 +37,8 @@ export default function SalariesPage() {
     try {
       const data = await getSalaries();
       setSalaries(data);
-      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
-      toast({ title: 'Erreur', description: 'Impossible de charger les salaires', variant: 'destructive' });
+      console.error('Load failed:', err);
     } finally {
       setLoading(false);
     }
@@ -88,7 +85,7 @@ export default function SalariesPage() {
       setFormData({ teacher_id: '', subject: '', monthlySalary: '', paid: false });
       await fetchData();
     } catch (err) {
-      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Échec de l\'opération', variant: 'destructive' });
+      console.error('Operation failed:', err);
     } finally {
       setFormLoading(false);
     }
@@ -107,7 +104,7 @@ export default function SalariesPage() {
       toast({ title: 'Supprimé', description: 'Salaire retiré', variant: 'default' });
       await fetchData();
     } else {
-      toast({ title: 'Erreur', description: res.error, variant: 'destructive' });
+      console.error('Operation failed:', res.error);
     }
   };
 
@@ -121,7 +118,7 @@ export default function SalariesPage() {
       toast({ title: salary.paid ? 'Marqué impayé' : 'Marqué payé', variant: 'default' });
       await fetchData();
     } else {
-      toast({ title: 'Erreur', description: res.error, variant: 'destructive' });
+      console.error('Operation failed:', res.error);
     }
   };
 
@@ -147,15 +144,6 @@ export default function SalariesPage() {
           </button>
         </div>
 
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-center gap-3"
-          >
-            <AlertCircle size={18} /> {error}
-          </motion.div>
-        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

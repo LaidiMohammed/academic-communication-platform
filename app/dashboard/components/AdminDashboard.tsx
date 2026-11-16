@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import {
   Shield, Users, BookOpen, DollarSign, QrCode, School, TrendingUp,
-  Calendar, CheckCircle, XCircle, AlertTriangle, AlertCircle, Search, Camera,
+  Calendar, CheckCircle, XCircle, AlertTriangle, Search, Camera,
   Download, Plus, Minus, ChevronRight, Clock, CreditCard, UserCheck, Award,
   Trash2, Edit, Filter, GraduationCap, MessageSquare, Video,
   UserPlus, UserX, Percent, Loader, X,
@@ -393,7 +393,6 @@ export function AdminDashboard() {
   const [payments, setPayments] = useState<Payment[]>([]);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   /* ----- Auth token helper ----- */
   const getToken = useCallback(async (): Promise<string | null> => {
@@ -410,7 +409,6 @@ export function AdminDashboard() {
   /* ----- Fetch all data from Supabase APIs ----- */
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const headers = await apiHeaders();
       const now = new Date().toISOString().slice(0, 10);
@@ -426,10 +424,10 @@ export function AdminDashboard() {
             email: p.email || '',
             level: p.level || '—',
             phone: p.phone || '',
-            monthSessions: p.active ? 4 : 0,
-            totalSessions: p.active ? 4 : 0,
-            status: (p.active ? 'active' : 'inactive') as any,
-            lastScan: now,
+            monthSessions: p.monthSessions ?? 0,
+            totalSessions: p.totalSessions ?? p.monthSessions ?? 0,
+            status: (p.status || (p.active ? 'active' : 'inactive')) as any,
+            lastScan: p.lastScan || now,
             enrolledDate: p.created_at?.slice(0, 10) || now,
           })));
         }
@@ -514,12 +512,11 @@ export function AdminDashboard() {
       }
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement des données');
-      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Échec du chargement', variant: 'destructive' });
+      console.error('Dashboard load failed:', err);
     } finally {
       setLoading(false);
     }
-  }, [apiHeaders, toast]);
+  }, [apiHeaders]);
 
   useEffect(() => {
     void fetchAll();
@@ -661,24 +658,49 @@ export function AdminDashboard() {
   const markSession = async (studentId: string, moduleId: string) => {
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { alert('Session expirée. Veuillez vous reconnecter.'); return; }
+    if (!session) return;
     const res = await fetch('/api/admin/scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ studentId, moduleId }),
     });
-    if (!res.ok) { const json = await res.json(); alert(json.error || 'Échec du marquage'); return; }
+    if (!res.ok) return;
     await fetchAll();
   };
 
+  /* Écrit dans Supabase : la modification est persistante et visible par l'élève. */
+  const patchStudent = async (studentId: string, payload: Record<string, unknown>) => {
+    const headers = await apiHeaders();
+    const res = await fetch(`/api/admin/student/${studentId}`, {
+      method: 'PATCH',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    setStudents((prev) => prev.map((s) => s.id === studentId ? {
+      ...s,
+      status: (data.status || s.status) as any,
+      monthSessions: data.monthSessions ?? s.monthSessions,
+      totalSessions: data.monthSessions ?? s.totalSessions,
+      lastScan: new Date().toISOString().slice(0, 10),
+    } : s));
+  };
+
   const addSessions = (studentId: string) => {
-    setStudents((p) => p.map((s) => s.id === studentId ? { ...s, monthSessions: 4, totalSessions: s.totalSessions + 4, status: 'active', lastScan: new Date().toISOString().slice(0,10) } : s));
+    void patchStudent(studentId, { sessions: 4, status: 'active' });
   };
   const removeSession = (studentId: string) => {
-    setStudents((p) => p.map((s) => s.id === studentId ? { ...s, monthSessions: Math.max(0, s.monthSessions - 1), status: s.monthSessions - 1 <= 0 ? 'suspended' : s.status, lastScan: new Date().toISOString().slice(0,10) } : s));
+    const s = students.find((item) => item.id === studentId);
+    if (!s) return;
+    const next = Math.max(0, s.monthSessions - 1);
+    void patchStudent(studentId, { sessions: next, status: next === 0 ? 'suspended' : 'active' });
   };
   const toggleStatus = (studentId: string) => {
-    setStudents((p) => p.map((s) => s.id === studentId ? { ...s, status: s.status === 'active' ? 'inactive' : s.status === 'inactive' ? 'suspended' : 'active', lastScan: new Date().toISOString().slice(0,10) } : s));
+    const s = students.find((item) => item.id === studentId);
+    if (!s) return;
+    const next = s.status === 'active' ? 'inactive' : s.status === 'inactive' ? 'suspended' : 'active';
+    void patchStudent(studentId, { status: next });
   };
 
   /* ----- Modal state ----- */
@@ -842,19 +864,12 @@ export function AdminDashboard() {
       </div>
 
       {/* Loading state */}
-      {loading && !error && (
+      {loading && (
         <div className="h-screen bg-background flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
             <p className="text-yellow-400 font-semibold text-sm">Chargement du tableau de bord…</p>
           </div>
-        </div>
-      )}
-
-      {/* Error state */}
-      {error && !loading && (
-        <div className="rounded-2xl p-6 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-center gap-3">
-          <AlertCircle size={18} /> {error}
         </div>
       )}
 
@@ -1395,7 +1410,7 @@ export function AdminDashboard() {
                       }
                       setShowModal(null);
                     } catch (err) {
-                      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Échec de l\'opération', variant: 'destructive' });
+                      console.error('Operation failed:', err);
                     } finally {
                       setFormLoading(false);
                     }
@@ -1420,7 +1435,7 @@ export function AdminDashboard() {
                       }
                       setShowModal(null);
                     } catch (err) {
-                      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Échec de l\'opération', variant: 'destructive' });
+                      console.error('Operation failed:', err);
                     } finally {
                       setFormLoading(false);
                     }
@@ -1445,7 +1460,7 @@ export function AdminDashboard() {
                       }
                       setShowModal(null);
                     } catch (err) {
-                      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Échec de l\'opération', variant: 'destructive' });
+                      console.error('Operation failed:', err);
                     } finally {
                       setFormLoading(false);
                     }
@@ -1464,7 +1479,7 @@ export function AdminDashboard() {
                       toast({ title: 'Ajouté', description: 'Nouveau groupe créé', variant: 'success' });
                       setShowModal(null);
                     } catch (err) {
-                      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Échec de la création', variant: 'destructive' });
+                      console.error('Operation failed:', err);
                     } finally {
                       setFormLoading(false);
                     }
@@ -1493,7 +1508,7 @@ export function AdminDashboard() {
                       setShowModal(null);
                       await fetchAll();
                     } catch (err) {
-                      toast({ title: 'Erreur', description: err instanceof Error ? err.message : 'Échec de l\'opération', variant: 'destructive' });
+                      console.error('Operation failed:', err);
                     } finally {
                       setFormLoading(false);
                     }

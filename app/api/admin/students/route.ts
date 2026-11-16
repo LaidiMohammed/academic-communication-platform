@@ -29,13 +29,31 @@ export async function GET(req: NextRequest) {
 
   const memMap = new Map((memberships || []).map((m: any) => [m.user_id, m]));
 
+  // Source de vérité pour le statut et les séances : la table students.
+  const { data: studentRows } = await auth.supabase
+    .from('students')
+    .select('id, status, remaining_sessions, phone, level, specialty, name, email')
+    .in('id', studentIds);
+  const studentMap = new Map((studentRows || []).map((s: any) => [s.id, s]));
+
   const mapped = (students || []).map((s: any) => {
     const membership = memMap.get(s.id);
     const isActive = membership?.plan && membership.plan !== 'free' && (!membership.expires_at || new Date(membership.expires_at) > new Date());
+    const row: any = studentMap.get(s.id);
+    const remaining: Record<string, number> = row?.remaining_sessions || {};
+    const sessionCount = Object.keys(remaining).length
+      ? Math.max(...Object.values(remaining).map((value) => Number(value || 0)))
+      : (isActive ? 4 : 0);
+    const status = row?.status || (isActive ? 'active' : 'inactive');
     return {
-      id: s.id, email: s.email, name: s.name, level: s.level,
+      id: s.id, email: s.email, name: s.name, level: row?.level || s.level,
       role: s.role, avatar: s.avatar, created_at: s.created_at, school: s.school,
-      active: !!isActive,
+      phone: row?.phone || '',
+      active: status === 'active',
+      status,
+      remaining_sessions: remaining,
+      monthSessions: sessionCount,
+      totalSessions: sessionCount,
       membership_plan: membership?.plan || 'free',
       membership_expires: membership?.expires_at || null,
     };

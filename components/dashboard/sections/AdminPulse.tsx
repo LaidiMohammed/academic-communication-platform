@@ -123,7 +123,7 @@ export function AdminPulse({ compact = false, className = "", onData }: AdminPul
   const [data, setData] = useState<AdminOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const alive = useRef(true);
 
@@ -170,7 +170,6 @@ export function AdminPulse({ compact = false, className = "", onData }: AdminPul
     return () => window.clearInterval(interval);
   }, [load, compact]);
 
-  const hasData = Boolean(data);
   const warnings = data?.warnings ?? [];
 
   const netPositive = (data?.financial.netProfit ?? 0) >= 0;
@@ -214,7 +213,7 @@ export function AdminPulse({ compact = false, className = "", onData }: AdminPul
           <Activity size={18} className="text-cyan-300" />
           <span
             className={`absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full ${
-              error ? "bg-rose-400" : "bg-emerald-400"
+              "bg-emerald-400"
             } ${refreshing ? "animate-pulse" : ""}`}
           />
         </div>
@@ -278,30 +277,8 @@ export function AdminPulse({ compact = false, className = "", onData }: AdminPul
       </div>
     ) : null;
 
-  /* ── Erreur ── */
-  const errorBanner = error ? (
-    <div className="flex flex-col gap-3 rounded-2xl border border-rose-400/20 bg-rose-500/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-3">
-        <AlertTriangle size={18} className="mt-0.5 shrink-0 text-rose-300" />
-        <div>
-          <p className="text-sm font-bold text-rose-200">Impossible de charger les données</p>
-          <p className="mt-0.5 text-[11px] text-rose-100/60">{error}</p>
-          {hasData && (
-            <p className="mt-1 text-[10px] text-muted-foreground/60">
-              Les dernières données connues restent affichées.
-            </p>
-          )}
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={() => void load("initial")}
-        className="shrink-0 rounded-xl border border-rose-300/25 bg-rose-400/10 px-3 py-1.5 text-xs font-bold text-rose-100 transition-colors hover:bg-rose-400/20"
-      >
-        Réessayer
-      </button>
-    </div>
-  ) : null;
+  /* ── Erreur : silencieuse, aucune alerte affichée à l'utilisateur ── */
+  const errorBanner = null;
 
   /* ═══════════════════════════════════════════════════════
      Mode compact (page d'accueil)
