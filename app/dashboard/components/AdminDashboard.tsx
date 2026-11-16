@@ -401,9 +401,11 @@ export function AdminDashboard() {
     return session?.access_token ?? null;
   }, []);
 
-  const apiHeaders = useCallback(async (): Promise<Headers> => {
+  // Objet simple : les objets Headers ne se copient pas avec le spread ...
+  // (cela faisait perdre le token et la mise à jour revenait en arrière).
+  const apiHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const token = await getToken();
-    return new Headers({ Authorization: `Bearer ${token ?? ''}` });
+    return { Authorization: `Bearer ${token ?? ''}` };
   }, [getToken]);
 
   /* ----- Fetch all data from Supabase APIs (requêtes parallèles) ----- */
@@ -682,6 +684,7 @@ export function AdminDashboard() {
         status: (data.status || s.status) as any,
         monthSessions: data.monthSessions ?? s.monthSessions,
         totalSessions: data.monthSessions ?? s.totalSessions,
+        level: data.level || s.level,
         lastScan: new Date().toISOString().slice(0, 10),
       } : s));
     } catch {
@@ -716,6 +719,9 @@ export function AdminDashboard() {
   };
   const setStatus = (studentId: string, status: string) => {
     void patchStudent(studentId, { status }, { status: status as any, lastScan: today() });
+  };
+  const setLevel = (studentId: string, level: string) => {
+    void patchStudent(studentId, { level }, { level, lastScan: today() });
   };
 
   /* ----- Modal state ----- */
@@ -969,6 +975,16 @@ export function AdminDashboard() {
                         </button>
                       </td>
                       <td className="p-3 text-right">
+                        <select value={s.level} onChange={(e) => setLevel(s.id, e.target.value)} title="Choisir la classe"
+                          className="mr-1 text-[10px] rounded-lg border border-white/10 bg-secondary px-1.5 py-1 text-muted-foreground focus:outline-none align-middle">
+                          <option value="—">—</option>
+                          <option value="CEM-1">CEM 1</option>
+                          <option value="CEM-2">CEM 2</option>
+                          <option value="CEM-3">CEM 3</option>
+                          <option value="Lycée-1">Lycée 1</option>
+                          <option value="Lycée-2">Lycée 2</option>
+                          <option value="Lycée-3">Lycée 3</option>
+                        </select>
                         <button onClick={() => addSessions(s.id)} className="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg transition" title="Ajouter 4 séances">
                           <Plus size={12} />
                         </button>

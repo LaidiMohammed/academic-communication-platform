@@ -57,11 +57,12 @@ export async function PATCH(
   }
   const moduleId = typeof body.moduleId === 'string' && body.moduleId ? body.moduleId : '';
   const defaultModules = ['Math', 'Physics', 'English', 'Chemistry', 'Arabic'];
+  const level = typeof body.level === 'string' && body.level.trim() ? body.level.trim() : '';
 
   // La ligne students est créée par le trigger, mais on reste tolérant.
   const { data: existing } = await auth.supabase
     .from('students')
-    .select('id, status, remaining_sessions, name, email')
+    .select('id, status, remaining_sessions, name, email, level')
     .eq('id', studentId)
     .maybeSingle();
 
@@ -76,7 +77,7 @@ export async function PATCH(
     const { data: created, error: createErr } = await auth.supabase
       .from('students')
       .insert({ id: studentId, name: profile.name || '', email: profile.email || '' })
-      .select('id, status, remaining_sessions, name, email')
+      .select('id, status, remaining_sessions, name, email, level')
       .single();
     if (createErr || !created) {
       return NextResponse.json({ error: createErr?.message || 'Student not found' }, { status: 500 });
@@ -107,11 +108,17 @@ export async function PATCH(
       ? (monthSessions > 0 ? 'active' : 'suspended')
       : (base.status || 'active');
 
+  const updatePayload: Record<string, unknown> = {
+    status: nextStatus,
+    remaining_sessions: remaining,
+  };
+  if (level) updatePayload.level = level;
+
   const { data: updated, error } = await auth.supabase
     .from('students')
-    .update({ status: nextStatus, remaining_sessions: remaining })
+    .update(updatePayload)
     .eq('id', studentId)
-    .select('id, status, remaining_sessions, name, email')
+    .select('id, status, remaining_sessions, name, email, level')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -121,6 +128,7 @@ export async function PATCH(
     status: nextStatus,
     remaining_sessions: remaining,
     monthSessions,
+    level: updated?.level || level || base.level || '',
     student: updated,
   });
 }
