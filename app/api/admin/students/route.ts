@@ -41,9 +41,10 @@ export async function GET(req: NextRequest) {
     const isActive = membership?.plan && membership.plan !== 'free' && (!membership.expires_at || new Date(membership.expires_at) > new Date());
     const row: any = studentMap.get(s.id);
     const remaining: Record<string, number> = row?.remaining_sessions || {};
+    // Un statut actif ne crée PAS de séances : on affiche uniquement le solde réel.
     const sessionCount = Object.keys(remaining).length
       ? Math.max(...Object.values(remaining).map((value) => Number(value || 0)))
-      : (isActive ? 4 : 0);
+      : 0;
     const status = row?.status || (isActive ? 'active' : 'inactive');
     return {
       id: s.id, email: s.email, name: s.name, level: row?.level || s.level,

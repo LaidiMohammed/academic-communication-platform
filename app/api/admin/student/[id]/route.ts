@@ -49,6 +49,12 @@ export async function PATCH(
   if (hasSessions && !Number.isFinite(sessions)) {
     return NextResponse.json({ error: 'Invalid sessions' }, { status: 400 });
   }
+  // delta = ajout/retrait relatif (ex. +4 ou -1) appliqué au solde courant.
+  const hasDelta = body.delta !== undefined && body.delta !== null;
+  const delta = Number(body.delta);
+  if (hasDelta && !Number.isFinite(delta)) {
+    return NextResponse.json({ error: 'Invalid delta' }, { status: 400 });
+  }
   const moduleId = typeof body.moduleId === 'string' && body.moduleId ? body.moduleId : '';
   const defaultModules = ['Math', 'Physics', 'English', 'Chemistry', 'Arabic'];
 
@@ -79,18 +85,26 @@ export async function PATCH(
   }
 
   const remaining: Record<string, number> = { ...(base.remaining_sessions || {}) };
-  if (hasSessions) {
-    const target = Math.max(0, Math.floor(sessions));
+  if (hasSessions || hasDelta) {
     const modules = moduleId
       ? [moduleId]
       : (Object.keys(remaining).length ? Object.keys(remaining) : defaultModules);
-    for (const key of modules) remaining[key] = target;
+    for (const key of modules) {
+      const current = Number(remaining[key] || 0);
+      remaining[key] = hasDelta
+        ? Math.max(0, current + Math.trunc(delta))
+        : Math.max(0, Math.floor(sessions));
+    }
   }
+
+  const monthSessions = Object.values(remaining).length
+    ? Math.max(...Object.values(remaining).map((value) => Number(value || 0)))
+    : 0;
 
   const nextStatus = typeof status === 'string' && status
     ? status
-    : hasSessions
-      ? (sessions > 0 ? 'active' : 'inactive')
+    : (hasSessions || hasDelta)
+      ? (monthSessions > 0 ? 'active' : 'suspended')
       : (base.status || 'active');
 
   const { data: updated, error } = await auth.supabase
@@ -102,9 +116,6 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const monthSessions = Object.values(remaining).length
-    ? Math.max(...Object.values(remaining).map((value) => Number(value || 0)))
-    : 0;
   return NextResponse.json({
     success: true,
     status: nextStatus,

@@ -406,41 +406,51 @@ export function AdminDashboard() {
     return new Headers({ Authorization: `Bearer ${token ?? ''}` });
   }, [getToken]);
 
-  /* ----- Fetch all data from Supabase APIs ----- */
+  /* ----- Fetch all data from Supabase APIs (requêtes parallèles) ----- */
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
       const headers = await apiHeaders();
       const now = new Date().toISOString().slice(0, 10);
+      const supabase = createClient();
 
-      // Students
-      const stuRes = await fetch('/api/admin/students', { headers });
-      if (stuRes.ok) {
-        const { students: stuData } = await stuRes.json();
-        if (stuData) {
-          setStudents(stuData.map((p: any) => ({
-            id: p.id,
-            name: p.name || p.email?.split('@')[0] || 'Inconnu',
-            email: p.email || '',
-            level: p.level || '—',
-            phone: p.phone || '',
-            monthSessions: p.monthSessions ?? 0,
-            totalSessions: p.totalSessions ?? p.monthSessions ?? 0,
-            status: (p.status || (p.active ? 'active' : 'inactive')) as any,
-            lastScan: p.lastScan || now,
-            enrolledDate: p.created_at?.slice(0, 10) || now,
-          })));
+      const getJson = async (url: string) => {
+        try {
+          const res = await fetch(url, { headers, cache: 'no-store' });
+          if (!res.ok) return null;
+          return await res.json();
+        } catch {
+          return null;
         }
+      };
+
+      const [stuData, grpRes, meetRes, payRes, finRes, teachersRes, adminsRes] = await Promise.all([
+        getJson('/api/admin/students'),
+        getJson('/api/admin/groups'),
+        getJson('/api/admin/meetings'),
+        getJson('/api/admin/payments'),
+        supabase.rpc('dashboard_get_financial_summary'),
+        supabase.from('profiles').select('*').eq('role', 'teacher').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('*').eq('role', 'admin').order('created_at', { ascending: false }),
+      ]);
+
+      if (stuData?.students) {
+        setStudents(stuData.students.map((p: any) => ({
+          id: p.id,
+          name: p.name || p.email?.split('@')[0] || 'Inconnu',
+          email: p.email || '',
+          level: p.level || '—',
+          phone: p.phone || '',
+          monthSessions: p.monthSessions ?? 0,
+          totalSessions: p.totalSessions ?? p.monthSessions ?? 0,
+          status: (p.status || (p.active ? 'active' : 'inactive')) as any,
+          lastScan: p.lastScan || now,
+          enrolledDate: p.created_at?.slice(0, 10) || now,
+        })));
       }
 
-      // Teachers (from profiles where role = teacher)
-      const tchRes = await fetch('/api/admin/students', { headers }); // reuse students endpoint won't work for teachers
-      // Instead fetch teachers directly from supabase
-      const supabase = createClient();
-      const { data: teacherProfiles } = await supabase
-        .from('profiles').select('*').eq('role', 'teacher').order('created_at', { ascending: false });
-      if (teacherProfiles) {
-        setTeachers(teacherProfiles.map((t: any) => ({
+      if (teachersRes.data) {
+        setTeachers(teachersRes.data.map((t: any) => ({
           id: t.id, name: t.name || t.email?.split('@')[0] || 'Inconnu', email: t.email || '',
           subject: t.subject || '—', phone: t.phone || '', monthlySalary: t.monthly_salary ?? 0,
           paid: !!t.salary_paid, paidDate: t.salary_paid_at ?? '', hireDate: t.created_at?.slice(0,10) || now,
@@ -448,52 +458,33 @@ export function AdminDashboard() {
         })));
       }
 
-      // Groups
-      const grpRes = await fetch('/api/admin/groups', { headers });
-      if (grpRes.ok) {
-        const { groups: grpData } = await grpRes.json();
-        if (grpData) {
-          setGroups(grpData.map((g: any) => ({
-            id: g.id, name: g.name, members: g.members_count || 0,
-            type: (g.tags?.includes('private') ? 'private' : 'public') as any,
-            createdBy: g.created_by || '', createdAt: g.created_at?.slice(0, 10) || '',
-            status: 'active' as any,
-          })));
-        }
+      if (grpRes?.groups) {
+        setGroups(grpRes.groups.map((g: any) => ({
+          id: g.id, name: g.name, members: g.members_count || 0,
+          type: (g.tags?.includes('private') ? 'private' : 'public') as any,
+          createdBy: g.created_by || '', createdAt: g.created_at?.slice(0, 10) || '',
+          status: 'active' as any,
+        })));
       }
 
-      // Meetings → lessons
-      const meetRes = await fetch('/api/admin/meetings', { headers });
-      if (meetRes.ok) {
-        const { meetings: meetData } = await meetRes.json();
-        if (meetData) {
-          setLessons(meetData.map((m: any) => ({
-            id: m.id, title: m.title, subject: m.description || 'Réunion',
-            level: '—', type: 'course', teacher: '', date: m.date || '',
-            status: 'published',
-          })));
-        }
+      if (meetRes?.meetings) {
+        setLessons(meetRes.meetings.map((m: any) => ({
+          id: m.id, title: m.title, subject: m.description || 'Réunion',
+          level: '—', type: 'course', teacher: '', date: m.date || '',
+          status: 'published',
+        })));
       }
 
-      // Payments
-      const payRes = await fetch('/api/admin/payments', { headers });
-      if (payRes.ok) {
-        const { payments: payData } = await payRes.json();
-        if (payData) {
-          setPayments(payData.map((p: any) => ({
-            id: p.id, userId: p.userId || '', userName: p.userName || '',
-            userEmail: p.userEmail || '', plan: p.plan || '—', amount: p.amount || 0,
-            date: p.date || '', status: p.status || 'pending',
-          })));
-        }
+      if (payRes?.payments) {
+        setPayments(payRes.payments.map((p: any) => ({
+          id: p.id, userId: p.userId || '', userName: p.userName || '',
+          userEmail: p.userEmail || '', plan: p.plan || '—', amount: p.amount || 0,
+          date: p.date || '', status: p.status || 'pending',
+        })));
       }
 
-      // Revenues from payments + expenses via financial summary
-      const supabase2 = createClient();
-      const { data: finData } = await supabase2
-        .rpc('dashboard_get_financial_summary');
-      if (finData?.[0]) {
-        const f = finData[0];
+      const f = finRes.data?.[0];
+      if (f) {
         const revs: Revenue[] = [];
         if (Number(f.total_revenue) > 0) revs.push({ id: 'rev-1', source: 'Paiements', amount: Number(f.total_revenue), date: now, type: 'income', category: 'Frais de scolarité' });
         if (Number(f.total_expenses) > 0) revs.push({ id: 'rev-2', source: 'Dépenses', amount: Number(f.total_expenses), date: now, type: 'expense', category: 'Opérations' });
@@ -501,11 +492,8 @@ export function AdminDashboard() {
         setRevenues(revs);
       }
 
-      // Admins
-      const { data: adminProfiles } = await supabase2
-        .from('profiles').select('*').eq('role', 'admin').order('created_at', { ascending: false });
-      if (adminProfiles) {
-        setAdminsList(adminProfiles.map((a: any) => ({
+      if (adminsRes.data) {
+        setAdminsList(adminsRes.data.map((a: any) => ({
           id: a.id, name: a.name || a.email?.split('@')[0] || 'Inconnu', email: a.email || '',
           role: a.role || 'admin', lastActive: a.updated_at?.slice(0,10) || now,
         })));
@@ -668,39 +656,66 @@ export function AdminDashboard() {
     await fetchAll();
   };
 
-  /* Écrit dans Supabase : la modification est persistante et visible par l'élève. */
-  const patchStudent = async (studentId: string, payload: Record<string, unknown>) => {
-    const headers = await apiHeaders();
-    const res = await fetch(`/api/admin/student/${studentId}`, {
-      method: 'PATCH',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) return;
-    const data = await res.json().catch(() => ({}));
-    setStudents((prev) => prev.map((s) => s.id === studentId ? {
-      ...s,
-      status: (data.status || s.status) as any,
-      monthSessions: data.monthSessions ?? s.monthSessions,
-      totalSessions: data.monthSessions ?? s.totalSessions,
-      lastScan: new Date().toISOString().slice(0, 10),
-    } : s));
+  /* Écrit dans Supabase. Mise à jour optimiste : un seul étudiant change,
+     immédiatement, sans recharger toute la page. */
+  const patchStudent = async (
+    studentId: string,
+    payload: Record<string, unknown>,
+    optimistic?: Partial<Student>,
+  ) => {
+    const previous = students.find((s) => s.id === studentId);
+    if (optimistic) {
+      setStudents((prev) => prev.map((s) => s.id === studentId ? { ...s, ...optimistic } : s));
+    }
+    try {
+      const headers = await apiHeaders();
+      const res = await fetch(`/api/admin/student/${studentId}`, {
+        method: 'PATCH',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('patch failed');
+      const data = await res.json().catch(() => ({}));
+      setStudents((prev) => prev.map((s) => s.id === studentId ? {
+        ...s,
+        status: (data.status || s.status) as any,
+        monthSessions: data.monthSessions ?? s.monthSessions,
+        totalSessions: data.monthSessions ?? s.totalSessions,
+        lastScan: new Date().toISOString().slice(0, 10),
+      } : s));
+    } catch {
+      if (previous) setStudents((prev) => prev.map((s) => s.id === studentId ? previous : s));
+    }
   };
 
+  const today = () => new Date().toISOString().slice(0, 10);
+
   const addSessions = (studentId: string) => {
-    void patchStudent(studentId, { sessions: 4, status: 'active' });
+    const s = students.find((item) => item.id === studentId);
+    if (!s) return;
+    const next = s.monthSessions + 4;
+    void patchStudent(studentId, { delta: 4 }, {
+      monthSessions: next, totalSessions: next, status: 'active', lastScan: today(),
+    });
   };
   const removeSession = (studentId: string) => {
     const s = students.find((item) => item.id === studentId);
-    if (!s) return;
-    const next = Math.max(0, s.monthSessions - 1);
-    void patchStudent(studentId, { sessions: next, status: next === 0 ? 'suspended' : 'active' });
+    if (!s || s.monthSessions <= 0) return;
+    const next = s.monthSessions - 1;
+    void patchStudent(studentId, { delta: -1 }, {
+      monthSessions: next, totalSessions: next,
+      status: next === 0 ? 'suspended' : s.status, lastScan: today(),
+    });
   };
   const toggleStatus = (studentId: string) => {
     const s = students.find((item) => item.id === studentId);
     if (!s) return;
-    const next = s.status === 'active' ? 'inactive' : s.status === 'inactive' ? 'suspended' : 'active';
-    void patchStudent(studentId, { status: next });
+    const next = s.status === 'active' ? 'suspended' : 'active';
+    void patchStudent(studentId, { status: next }, { status: next as any, lastScan: today() });
+  };
+  const setStatus = (studentId: string, status: string) => {
+    void patchStudent(studentId, { status }, { status: status as any, lastScan: today() });
   };
 
   /* ----- Modal state ----- */
@@ -932,8 +947,20 @@ export function AdminDashboard() {
                     <tr key={s.id} className="hover:bg-secondary/50 transition">
                       <td className="p-3"><p className="text-foreground font-medium">{s.name}</p><p className="text-[10px] text-muted-foreground/50">{s.id}</p></td>
                       <td className="p-3 text-muted-foreground">{s.level}</td>
-                      <td className="p-3"><span className={`text-xs px-2 py-0.5 rounded-full ${s.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{s.status}</span></td>
-                      <td className="p-3"><span className={s.monthSessions > 0 ? 'text-blue-400' : 'text-red-400'}>{s.monthSessions}/4</span></td>
+                      <td className="p-3">
+                        <select value={s.status} onChange={(e) => setStatus(s.id, e.target.value)} title="Changer le statut"
+                          className={`text-[11px] font-semibold rounded-lg border bg-secondary px-2 py-1 focus:outline-none ${
+                            s.status === 'active' ? 'border-emerald-500/30 text-emerald-400'
+                              : s.status === 'suspended' ? 'border-rose-500/30 text-rose-400'
+                                : 'border-amber-500/30 text-amber-400'
+                          }`}>
+                          <option value="active">Actif</option>
+                          <option value="inactive">Inactif</option>
+                          <option value="suspended">Suspendu</option>
+                          <option value="pending_payment">En attente</option>
+                        </select>
+                      </td>
+                      <td className="p-3"><span className={s.monthSessions > 0 ? 'text-blue-400' : 'text-red-400'}>{s.monthSessions} séances</span></td>
                       <td className="p-3 text-muted-foreground text-xs">{s.phone}</td>
                       <td className="p-3 text-center">
                         <button onClick={() => setShowQRForStudent(s)}
@@ -942,13 +969,13 @@ export function AdminDashboard() {
                         </button>
                       </td>
                       <td className="p-3 text-right">
-                        <button onClick={() => addSessions(s.id)} className="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg transition" title="Renouveler (+4 sessions)">
+                        <button onClick={() => addSessions(s.id)} className="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg transition" title="Ajouter 4 séances">
                           <Plus size={12} />
                         </button>
                         <button onClick={() => removeSession(s.id)} disabled={s.monthSessions === 0} className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition disabled:opacity-40" title="Retirer 1 session">
                           <Minus size={12} />
                         </button>
-                        <button onClick={() => toggleStatus(s.id)} className="p-1.5 text-muted-foreground/70 hover:text-blue-400 rounded-lg transition" title="Basculer présence">
+                        <button onClick={() => toggleStatus(s.id)} className="p-1.5 text-muted-foreground/70 hover:text-blue-400 rounded-lg transition" title={s.status === 'active' ? 'Suspendre' : 'Réactiver'}>
                           {s.status === 'active' ? <XCircle size={12} /> : <CheckCircle size={12} />}
                         </button>
                         <button onClick={() => setShowModal({ type: 'edit-student', data: s })} className="p-1.5 text-muted-foreground/70 hover:text-blue-400 transition"><Edit size={14} /></button>
