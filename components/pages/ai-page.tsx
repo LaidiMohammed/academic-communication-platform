@@ -27,14 +27,12 @@ interface ConversationFull extends Conversation {
   messages: ChatMessage[];
 }
 
-let cachedToken: string | null = null;
-
 async function getToken(): Promise<string | null> {
-  if (cachedToken) return cachedToken;
+  // Toujours lire la session : un token mis en cache devient périmé et
+  // faisait échouer toutes les requêtes IA après quelques minutes.
   const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
-  cachedToken = session?.access_token || null;
-  return cachedToken;
+  return session?.access_token || null;
 }
 
 async function authHeaders(): Promise<Record<string, string>> {
@@ -62,8 +60,7 @@ export function AIPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    cachedToken = null;
-    getToken();
+    void getToken();
   }, [user]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);

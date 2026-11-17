@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, validateContentType, validateBodySize } from '@/lib/api-utils';
 import { rateLimit } from '@/lib/rate-limit';
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+// Modèles essayés dans l'ordre : si le premier est retiré/saturé, on bascule.
+const MODELS = [
+  process.env.GROQ_MODEL,
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'llama-3.3-70b-versatile',
+  'openai/gpt-oss-120b',
+].filter((m): m is string => Boolean(m));
 
 export async function POST(req: NextRequest) {
   try {
-    if (!GROQ_API_KEY) {
+    // Lu à chaque requête (et non au chargement du module) pour refléter
+    // immédiatement une mise à jour de la variable d'environnement.
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
       return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 });
     }
 
@@ -28,47 +38,67 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
     }
 
-    const groqMessages = messages.map((msg: any) => {
-      if (msg.images && msg.images.length > 0) {
+    // Les modèles sans vision reçoivent uniquement le texte.
+    const toGroqMessages = (withVision: boolean) => messages.map((msg: any) => {
+      const images: string[] = Array.isArray(msg.images) ? msg.images : [];
+      if (withVision && images.length > 0) {
         return {
           role: msg.role,
           content: [
             { type: 'text', text: msg.text || 'Analyze this image' },
-            ...msg.images.map((img: string) => ({
-              type: 'image_url',
-              image_url: { url: img },
-            })),
+            ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
           ],
         };
       }
-      return { role: msg.role, content: msg.text };
+      return { role: msg.role, content: msg.text || '' };
     });
 
-    const response = await fetch(GROQ_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        messages: groqMessages,
-        temperature: 0.7,
-        max_tokens: 4096,
-      }),
-    });
+    let reply = '';
+    let lastError = '';
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      return NextResponse.json({ error: `Groq API error: ${response.status}`, details: errorData }, { status: response.status });
+    for (const model of MODELS) {
+      const withVision = model.includes('llama-4') || model.includes('vision');
+      try {
+        const response = await fetch(GROQ_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: toGroqMessages(withVision),
+            temperature: 0.7,
+            max_tokens: 4096,
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          reply = data.choices?.[0]?.message?.content || '';
+          if (reply) break;
+        }
+
+        const detail = (await response.text()).slice(0, 300);
+        lastError = `${model} → ${response.status}: ${detail}`;
+        // Clé invalide : inutile d'essayer les autres modèles.
+        if (response.status === 401 || response.status === 403) break;
+      } catch (err) {
+        lastError = `${model} → ${err instanceof Error ? err.message : String(err)}`;
+      }
     }
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || 'No response generated.';
+    if (!reply) {
+      return NextResponse.json(
+        { error: 'Groq indisponible', details: lastError },
+        { status: 502 },
+      );
+    }
 
     if (conversationId) {
       const lastMsg = messages[messages.length - 1];
-      const userImages = lastMsg?.images || [];
+      const userImages = Array.isArray(lastMsg?.images) ? lastMsg.images : [];
       const imagesJson = userImages.length > 0 ? JSON.stringify(userImages) : '[]';
 
       await auth.supabase.from('ai_messages').insert([
@@ -78,11 +108,16 @@ export async function POST(req: NextRequest) {
 
       const titleText = lastMsg?.text || '';
       const shortTitle = titleText.length > 60 ? titleText.slice(0, 60) + '...' : titleText || 'New Chat';
-      await auth.supabase.from('ai_conversations').update({ title: shortTitle, updated_at: new Date().toISOString() }).eq('id', conversationId);
+      await auth.supabase.from('ai_conversations')
+        .update({ title: shortTitle, updated_at: new Date().toISOString() })
+        .eq('id', conversationId);
     }
 
     return NextResponse.json({ reply });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error', details: String(error) }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error', details: String(error) },
+      { status: 500 },
+    );
   }
 }
